@@ -1,0 +1,19 @@
+#!/usr/bin/env python
+import fileinput
+from fuzzy_davi import *
+import random
+import sys
+
+if '-h' in sys.argv:
+	print 'readm datafile'
+	sys.exit()
+if len(sys.argv) < 1:
+	print 'not enough arguments'
+	sys.exit()
+
+names, Dmatrix = readDm(sys.argv[1])
+
+for name in names:
+	print name + ' - ' + str(Dmatrix[name])
+
+X = coord(names, Dmatrix, sys.argv[1])

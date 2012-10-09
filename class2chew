@@ -1,0 +1,59 @@
+#!/usr/bin/env python
+#import fileinput
+from bitk import *
+import sys
+
+if '-h' in sys.argv:
+	print 'the table as the first file, alignment of chews as a second file. make sure the chews has as name the loci number and a \
+		mark "/" before the sequence numbers\n'
+	sys.exit()
+
+
+#reader of CheW and classes
+
+rawtable = open(sys.argv[1],'r')
+classes = {}
+fields = range(17)
+old_class = ''
+for line in rawtable:
+	end = 0
+	start = 0
+	for field in fields:
+		start = line[end:].find(',') + end + 1
+		end = line[start:].find(',') + start
+		if field == 0:
+			new_class = line[start:end]
+		if field == 8:
+			chew = line[start:end]
+#	print chew + ' ' + new_class
+	if new_class == '':
+		new_class = old_class
+	else:
+		old_class = new_class
+	if chew != '':
+		classes[chew] = new_class
+rawtable.close()
+
+
+seq = open(sys.argv[2],'r')
+list = []
+
+for line in seq:
+	if line[0] != '<':
+		end = line.find('/')
+		if line[:end] not in list:
+			list.append(line[:end])
+
+dataout = ''
+
+for locus in list:
+	try:
+		dataout = dataout + locus + ';' + classes[locus] + '\n'
+	except KeyError:
+		dataout = dataout + locus + ';' + 'NT\n'
+	
+output = open('chews.classes.csv','w')
+output.write(dataout)
+output.close()
+
+print 'Done...'

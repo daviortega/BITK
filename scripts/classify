@@ -1,0 +1,69 @@
+#! /usr/bin/env python 
+###################################
+##    Davi Ortega                ##
+###################################
+import bitk
+import sys
+
+if '-h' in sys.argv:
+	print "Reorganizes the fasta files using their natural classification.\n\n \
+		If MCP files add the flag -mcp_h for heptad classification or -mcp_s for system classification \n\n \
+		Sintaxe: python classify.py name_of_the_file.fa [flags] [options]\n \
+		Sequence name format: organism_id-locus-class.\n \
+		Sequence name format (MCP): organism_id-locus-class-heptad \n\n \
+		Options: -kc\tKeep the class into the tag.\n\n"
+		
+#		"The files with X in it needs to be loaded to vi (vi filename) and the type: ':%s/<control>V<control>M//g' to replace the ^M caracters from the file.\n The <control> indicates to hold the Ctrl key."
+	sys.exit()
+
+seq_dic, seq_list = bitk.fastareader(sys.argv[1])
+
+class_ls = []
+
+for name in seq_list:
+	if '-mcp_h' in sys.argv and '-mcp_s' in sys.argv:
+		print 'Pick just one of the options'
+		sys.exit()
+	elif '-mcp_h' in sys.argv:
+		class_name = name.split('-')[-1].replace('\n','')
+	elif '-mcp_s' in sys.argv:
+		class_name = name.split('-')[-2]
+	else:
+		class_name = name.split('-')[-1]
+	if class_name not in class_ls:
+		class_ls.append(class_name)
+
+print class_ls
+
+
+for class_name in class_ls:
+	output = ''
+#	filename = sys.argv[1].split('-')[0] + '-' + class_name + 'X.fa'
+	filename = sys.argv[1][:-3].split('-')[0] + '-' + class_name + '.fa'
+	for name, seq in seq_dic.iteritems():
+		if '-mcp_h' in sys.argv:
+			if name.split('-')[-1].replace('\n','') == class_name:
+				if '-kc' in sys.argv:
+					output += '>' + name + '\n' + seq + '\n'
+				else:
+					output += '>' + name.replace('-'+class_name,'') + '\n' + seq + '\n'
+		elif '-mcp_s' in sys.argv:
+			if name.split('-')[-2] == class_name:
+				if '-kc' in sys.argv:
+                                        output += '>' + name + '\n' + seq + '\n'
+				else:
+					output += '>' + name.replace('-'+class_name,'') + '\n' + seq + '\n'
+		else:
+			if name.split('-')[-1] == class_name:
+				if '-kc' in sys.argv:
+                                        output += '>' + name + '\n' + seq + '\n'
+				else:
+					output += '>' + name.replace('-'+class_name,'') + '\n' + seq + '\n'
+	datafile = open(filename,'w')
+	datafile.write(output)
+	datafile.close()
+
+	
+	
+	
+		

@@ -1,0 +1,56 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 8/22/2011 
+###################################
+import bitk
+import sys
+from operator import itemgetter
+
+if '-h' in sys.argv:
+	print 'Order MSA by length\n\tSintax: sortbylength msa.fa'
+	sys.exit()
+
+
+msa_dic, name_list = bitk.fastareader(sys.argv[1])
+
+
+len_dic = []
+
+output = ''
+
+for name in name_list:
+	len_dic.append([name, len(msa_dic[name])])
+	output += str(len(msa_dic[name])) + '\n'
+
+datafile = open('summary.dat','w')
+datafile.write(output)
+datafile.close()
+
+
+
+len_dic.sort(key= lambda len_dic: len_dic[1])
+
+sorted_list = []
+
+for item in len_dic:
+	sorted_list.append(item[0])
+
+#sorted_msa = (msa_dic.values(), key=len)
+
+#print sorted_msa
+
+#for pair in sorted_msa:
+#	name_list.append(pair[0])
+
+output = ''
+
+for name in sorted_list:
+	output += '>' + name + '\n' + msa_dic[name] + '\n'
+
+dataout = open(sys.argv[1],'w')
+dataout.write(output)
+dataout.close()
+
+
+
+

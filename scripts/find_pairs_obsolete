@@ -1,0 +1,134 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 3/16/2011 
+###################################
+import sys
+import bitk
+import re
+
+if '-h' in sys.argv:
+	print 'Sintaxe: find_pairs MSA1.fa MSA2.fa window > outputfile_pairs.dat\n The script reads two fasta formated files with the tag XX.YYY-LOCUS (XX Specie and YYY subspecie) bin the sequences by organism and select pairs that are closer to each other in the genome than specified by window.'
+	sys.exit()
+
+
+
+dic_msa1, list_msa1 = bitk.fastareader(sys.argv[1])
+dic_msa2, list_msa2 = bitk.fastareader(sys.argv[2])
+W = sys.argv[3]
+
+genome1 = []
+
+for tag in list_msa1:
+	ID = tag.split('-')[0]
+	if ID not in genome1:
+		genome1.append(ID)
+
+genome2 = []
+
+for tag in list_msa2:
+        ID = tag.split('-')[0]
+        if ID not in genome2:
+                genome2.append(ID)
+
+#print "MSA1 contains " + str(len(genome1)) + " genomes"
+#print "MSA2 contains " + str(len(genome2)) + " genomes"
+
+print genome1
+print genome2
+
+
+gen_com = []
+for ID in genome1:
+	if ID in genome2:
+		if ID not in gen_com:
+			gen_com.append(ID)
+	
+
+
+#for ID in genome1:
+#        if ID not in genome2:
+#                genome1.remove(ID)
+#		print 'Eliminate genome ' + ID
+
+#for ID in genome2:
+#        if ID not in genome1:
+#                genome2.remove(ID)
+#		print 'Eliminate genome ' + ID
+
+#if genome1.sort() != genome2.sort():
+#	print 'Something is wrong'
+#	sys.exit()
+
+print "There are " + str(len(gen_com)) + " common genomes"
+#print "MSA2 contains " + str(len(genome2)) + " genomes"
+
+dic_name1 = {}
+
+for tag in list_msa1:
+	ID = tag.split('-')[0]
+	if ID in gen_com:
+		locus = '-'.join(tag.split('-')[1:])
+		if tag.split('-')[0] not in dic_name1:
+			dic_name1[tag.split('-')[0]] = [locus]
+		else:
+			dic_name1[tag.split('-')[0]].append(locus)
+
+dic_name2 = {}
+
+for tag in list_msa2:
+        ID = tag.split('-')[0]
+	if ID in genome2:
+	        locus = '-'.join(tag.split('-')[1:])
+        	if tag.split('-')[0] not in dic_name2:
+                	dic_name2[tag.split('-')[0]] = [locus]
+	        else:
+        	        dic_name2[tag.split('-')[0]].append(locus)
+
+
+
+pairs = []
+
+
+regex = re.compile('\d+')
+
+msa1 = ''
+msa2 = ''
+
+msa1_list = []
+msa2_list = []
+
+
+for ID in dic_name1.keys():
+	for locus1 in dic_name1[ID]:
+		for locus2 in dic_name2[ID]:
+			try:
+				pos1 = int( re.findall(regex, locus1)[-1][-4:])
+			except ValueError:
+				print ID
+				print locus1
+				sys.exit()
+			try:
+				pos2 = int( re.findall(regex, locus2)[-1][-4:])
+			except ValueError:
+				print ID
+				print locus2
+				sys.exit()
+
+			if abs(pos1 - pos2) <= int(W):
+				pairs.append(ID + '-' + locus1 + ';' + ID + '-' + locus2)
+				print ID + '-' + locus1 + ';' + ID + '-' + locus2
+				if ID + '-' + locus1 not in msa1_list:
+					msa1 += '>' + ID + '-' + locus1 + '\n' + dic_msa1[ID + '-' + locus1] + '\n'
+					msa1_list.append(ID + '-' + locus1)
+				if ID + '-' + locus2 not in msa2_list:
+					msa2 += '>' + ID + '-' + locus2 + '\n' + dic_msa2[ID + '-' + locus2] + '\n'
+					msa2_list.append(ID + '-' + locus2)
+
+outfile = open('msa1.fa','w')
+outfile.write(msa1)
+outfile.close()
+outfile = open('msa2.fa','w')
+outfile.write(msa2)
+outfile.close()
+
+

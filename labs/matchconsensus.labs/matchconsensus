@@ -1,0 +1,67 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 8/17/2012 
+###################################
+import bitk
+import sys
+if '-h' in sys.argv:
+	print 'matchconsensus consensus_string.txt fasta_file2search.fa'
+	sys.exit()
+
+datafile = open(sys.argv[1],'r')
+for line in datafile:
+	C = line.replace('\n','')
+	break
+
+datafile.close()
+
+data_dic,data_lst = bitk.fastareader(sys.argv[2])
+
+groups_dic = {  'A':['A'],
+                'C':['C'],
+                'D':['D'],
+                'E':['E'],
+                'F':['F'],
+                'G':['G'],
+                'H':['H'],
+                'I':['I'],
+                'K':['K'],
+                'L':['L'],
+                'M':['M'],
+                'N':['N'],
+                'P':['P'],
+                'Q':['Q'],
+                'R':['R'],
+                'S':['S'],
+                'T':['T'],
+                'V':['V'],
+                'Y':['Y'],
+                'W':['W'],
+                'a':['F','Y','W','H'],
+                'l':['I','V','L'],
+                'h':['F','Y','W','H','I','V','L','A','G','M','C','K','R','T'],
+                '+':['H','K','R'],
+                '-':['D','E'],
+                'c':['H','K','R','D','E'],
+                'p':['H','K','R','D','E','Q','N','S','T','C'],
+		'o':['S','T'],
+                'u':['G','A','S'],
+                's':['G','A','S','V','T','D','N','P','C'],
+                't':['G','A','S','H','K','R','D','E','Q','N','S','T','C'],
+                '.':['A','C','D','E','F','G','H','I','K','L','M','N','P','Q','R','S','T','V','Y','W'] }
+
+output = ''
+
+for tag in data_lst:
+	if len(data_dic[tag]) == len(C):
+		for i in range(len(C)):
+			if data_dic[tag][i] not in groups_dic[C[i]]:
+				break
+		if i == len(C) - 1:
+			output += '>' + tag + '\n' + data_dic[tag] + '\n'
+else:
+	print 'Consensus must be aligned...\nSequence ' + tag + ' does not have the same length as consensus sequence'
+
+outfile = open(sys.argv[2][:-2] + 'matchConsensus.fa', 'w')
+outfile.write(output)
+outfile.close()

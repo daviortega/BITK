@@ -1,0 +1,27 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 7/2/2012 
+###################################
+import sys
+if '-h' in sys.argv:
+	print '(***To Be Used With get_histograms output***)\nInput the molecule prefix and the finals in order 1 2 3 4'
+	sys.exit()
+
+output = 'molecule\tvalue\n'
+
+prefix = sys.argv[1]
+
+for i in range(2,len(sys.argv)):
+	print sys.argv[i]
+	datafile = open(sys.argv[i],'r')
+	for line in datafile:
+		output += str(i-1) + '-' + prefix + '\t' + line
+	datafile.close()
+
+outfile = open(prefix + '_glued_finals.txt','w')
+outfile.write(output)
+outfile.close()
+
+
+		
+	

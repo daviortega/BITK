@@ -1,0 +1,101 @@
+#!/usr/bin/env python
+import fileinput
+from fuzzy_davi import *
+import random
+import sys
+
+if '-h' in sys.argv:
+	print 'comp_res results table'
+	sys.exit()
+if len(sys.argv) < 2:
+	print 'not enough arguments'
+	sys.exit()
+All = {}
+k = 0
+
+table = readtable(sys.argv[2])
+results = readresults(sys.argv[1],'Y')
+
+print table.keys()
+print results.keys()
+
+for names in table.keys():
+	print names + ' - ' + str(len(table[names]))
+#for names in results.keys():
+#        print str(names) + ' - ' + str(len(results[names]))
+
+
+final = {}
+printable = ''
+
+#print results
+class_split= {}
+
+for groups in results.keys():
+	disa_f = []
+	agree_f = []
+	for classe in table.keys():
+		disagree = []
+		agree = []
+		for name in results[groups]:
+			if name.keys()in table[classe]:
+				agree.append(name)
+			else:
+				disagree.append(name)
+		#print len(agree)		
+		if len(agree) > len(agree_f):
+			#if classe not in final.keys():
+			agree_f = []
+			for i in agree:
+				agree_f.append(i)
+			#if classe not in final.keys():
+			disa_f = []
+			for i in disagree:
+				disa_f.append(i)
+			classe_f = classe
+	try:
+		printable = printable + classe_f + '  ' + str(len(agree_f)) + '  ' + str(len(disa_f)) + ' - '
+		if classe_f in final.keys():
+			final[classe_f][0].extend(agree_f)
+			final[classe_f][1].extend(disa_f)
+			class_split[classe_f] = class_split[classe_f] + 1
+		else:
+			final[classe_f] = [agree_f, disa_f]
+			class_split[classe_f] = 1
+	except NameError:
+		printable = printable + classe + ' - '
+print printable
+
+print '\n-> Class Split <-'
+output = ''
+for name in table.keys():
+	if name in class_split.keys():
+		output = output + name + ' ' + str(class_split[name]) + ' |'
+	else:
+		output = output + name + '  0|'
+
+print output
+
+print '\n -> Done with calculations <-\n'
+total = 0
+tot_ag = 0
+tot_dis = 0
+for classe in final.keys():
+	print classe + '\t' + str(len(table[classe])-len(final[classe][0])) + '\t' + str(len(final[classe][1]))
+	total = total + len(final[classe][0]) + len(final[classe][1])
+	tot_dis = tot_dis + len(final[classe][1])
+	tot_ag = tot_ag + len(final[classe][0])
+print str(total) + '\t' + str(tot_ag) + '\t ' + str(tot_dis)
+
+for classe in final.keys():
+	output = classe + ':\n'
+	for name in final[classe][1]:
+		for class_ref in table.keys():
+			if name.keys()in table[class_ref]:
+				for name_real in name.keys():
+					real_class = class_ref
+					break
+		for score in name.values():
+			output = output + name_real + ' ' + real_class + ':' + str(score) + ', '
+	print output
+

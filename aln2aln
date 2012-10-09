@@ -1,0 +1,21 @@
+#!/usr/bin/env python
+import fileinput
+from bitk import *
+import sys
+
+if '-h' in sys.argv:
+	print "Simple: clustawl format to clustawl\n\n\tSintax:\n\taln2aln clustaw.aln [options]\n\n\n\tOptions:\n\n\t-name SEQ_NAME/XX-XXXX = SEQ_NAME"
+	sys.exit()
+
+sequences = sys.argv[1]
+if '-name' in sys.argv:
+	seq = alnreader(sequences,'no','Yes')
+else:
+	seq = alnreader(sequences)
+
+output = alnwriter(seq)
+
+outfile = open(sequences[:-3]+'aln','w')
+outfile.write(output)
+outfile.close()
+print 'Done'

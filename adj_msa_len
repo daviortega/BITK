@@ -1,0 +1,39 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 4/29/2011 
+###################################
+import bitk
+import sys
+import os
+
+if '-h' in sys.argv:
+	print 'Profile aligment of two msa but output the two profile aligned in separate files.\n Sintax: adj_msa_len fasta1.fa fasta2.fa'
+	sys.exit()
+
+seq_dic1, seq_list1 = bitk.fastareader(sys.argv[1])
+seq_dic2, seq_list2 = bitk.fastareader(sys.argv[2])
+
+os.system('mafft-profile ' + sys.argv[1] + ' ' + sys.argv[2] + ' > prof.tmp.fa')
+
+seq_dic12, seq_list12 = bitk.fastareader('prof.tmp.fa','r')
+
+output = ''
+
+for seq in seq_list1:
+	output += '>' + seq + '\n' + seq_dic12[seq] + '\n'
+
+outfile = open(sys.argv[1],'w')
+outfile.write(output)
+outfile.close()
+
+output = ''
+
+for seq in seq_list2:
+        output += '>' + seq + '\n' + seq_dic12[seq] + '\n'
+
+outfile = open(sys.argv[2],'w')
+outfile.write(output)
+outfile.close()
+
+os.system('rm prof.tmp.fa')
+

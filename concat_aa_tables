@@ -1,0 +1,40 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 5/2/2011 
+###################################
+import bitk
+import sys
+import os
+if '-h' in sys.argv:
+	print 'concatenate the aa_distr tables to be implemented in  make_table5.\nSintax: cancat_aa_tables table1.csv table2.csv'
+	sys.exit()
+
+file1 = open(sys.argv[1],'r')
+file2 = open(sys.argv[2],'r')
+
+output = ''
+
+table1 = []
+table2 = []
+
+
+for line in file1:
+	table1.append(line)
+
+for line in file2:
+	table2.append(line)
+
+if len(table1) != len(table2):
+	print "Are you sure they are tables from aa_distr? I don't think so... aborting... check those files, come on!"
+	sys.exit()
+
+for i in range(len(table1)):
+	output += table1[i][:-1] + '\t\t' + table2[i]
+
+
+fileout = open('total_aa_distr.dat','w')
+fileout.write(output)
+fileout.close()
+file1.close()
+file2.close()
+

@@ -1,0 +1,35 @@
+#! /usr/bin/env python 
+###################################
+##    Davi Ortega                ##
+###################################
+import sys
+
+if '-h' in sys.argv:
+	print "It takes out the sequence number information of the Jalview alignment. Exemple: >blablbalba/a-bbb => >blablbalba (fasta format only) \n \
+		It records in the output in: input_file.new.fa\n \
+		Sintax: fajal2fa file.fa options \n \
+		Options: \n -u \tupdates the file"
+	sys.exit()
+
+infile = open(sys.argv[1],'r')
+
+
+output = ''
+for line in infile:
+	if '>' in line:
+		line = line.split('/')[0]
+		output += line + '\n'
+	else:
+		output += line
+
+if '-u' in sys.argv:
+	outfile = open(sys.argv[1], 'w')
+else:
+	outfile = open(sys.argv[1][:-2] + 'new.fa', 'w')
+outfile.write(output)
+infile.close()
+outfile.close()
+print 'Done'
+	
+
+

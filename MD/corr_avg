@@ -1,0 +1,81 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 4/11/2011 
+###################################
+import sys
+
+
+if '-h' in sys.argv:
+	print 'Creates a avg correlation matrix from the inputed dat files (created by ca_ca_corr_matrix)\n Sintax: corr-avg matrix1.dat matrix2.dat ... (as many correlation matrices as necessary)'
+	sys.exit()
+
+N_mat = len(sys.argv) - 1
+
+print 'Number of matrices: ' + str(N_mat)
+
+col_matrix = [] #collection of matrices
+
+M_data = {}
+
+for matrix in sys.argv[1:]:
+	filein = open(matrix,'r')
+	M = []
+	for line in filein:
+		if line != '':
+			data = line.split(';')
+			row = []
+			for num in data[:-1]:
+				row.append(num)
+			M.append(row)
+	M_data[matrix] = [ len(row)-1, len(M)-1 ]
+	print "Matrix from file " + matrix + " is " + str(len(row)-1) + "x" + str(len(M)-1)
+	if str(len(row)-1) != str(len(M)-1):
+		print 'Not a square matrix... Aborting!!!'
+		sys.exit()
+	for files in M_data.keys():
+		if [ len(row)-1, len(M)-1 ] != M_data[files]:
+			print 'Matrices of different sizes are most likely from different proteins... consider review of input dataset.'
+			sys.exit()
+	col_matrix.append(M)
+	filein.close()
+
+
+print 'Data loaded initializing calculations'
+
+M_avg = [ [ 0 for i in range(len(row))] for j in range(len(M))] #Initialize the matrix with a list comprehension
+
+#for matrix in col_matrix[0]:
+#print len(M_avg[0])
+#print len(M_avg[0])
+
+		
+for matrix in col_matrix:
+	for i in range(len(matrix)):
+		for j in range(len(matrix[0])):
+			try:	
+				M_avg[i][j] += (float(matrix[i][j]) / float(N_mat))
+			except ValueError:
+				M_avg[i][j] = matrix[i][j]
+
+print 'Calculations done, providing output'
+
+fileout = open('CC-corr-avg.dat','w')
+output = ''
+for i in range(len(matrix)):
+	for j in range(len(matrix[0])):
+		output += str(M_avg[i][j]) + ';'
+	output += '\n'
+
+fileout.write(output)
+fileout.close()
+
+print 'Done'
+
+
+
+
+
+
+
+	
+	

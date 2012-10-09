@@ -1,0 +1,29 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 7/8/2012 
+###################################
+import sys
+import bitk
+if '-h' in sys.argv:
+	print 'selectbylength fastafile.fa N1 N2 \n N1 is the minimum, N2 is the maximum'
+	sys.exit()
+
+filename = sys.argv[1]
+
+seq_dic, seq_list = bitk.fastareader(filename)
+
+B = int(sys.argv[2])
+E = int(sys.argv[3])
+
+output = ''
+
+for seq in seq_list:
+	L = len(seq_dic[seq].replace('-',''))
+	if L > B and L < E:
+		output += '>' + seq + '\n' + seq_dic[seq] + '\n'
+
+new_file = filename[:-3] + '.bylength.' + str(B) + '.' + str(E) + '.fa'
+outfile = open(new_file, 'w')
+outfile.write(output)
+outfile.close()
+

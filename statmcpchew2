@@ -1,0 +1,480 @@
+#!/usr/bin/env python
+from os import system
+import os
+import sys
+import time
+from bitk import *
+
+if '-h' in sys.argv:
+	print 'General Reader of Kristin\'s table.\n\n \
+	chew_table chew_aln mcp_table mcp_aln\n\nFlags\n \
+	default correlation with charges on mcps and CheWs from bacterium with a single protein from each\n \
+	-list_taxon	<file name taxon list>	loads MCPs and CheWs from bacterial in the list and in the alignment\n \
+	-list_chews	<file name chews list>  loads Chews and respective MCPs from a list of chews, named by loci numbers\n \
+	-chew		<number of chew>	just taxon with the specific number of CheW, default: 0 = all (*** NOT WORKING ***) default 1\n \
+	-mcp		<number of mcps>	just taxon with specific number of MCP, defaul: 1\n \
+	-mcps 		<number of mcps>	taxons with specific number of MCP or smaller. default 1, 0 = all\n \
+	-chew_class	<chemotaxis class>	Selected Chews from supported classes: F,F1,F2,F3,F4,F5,F6,F7,F8,F9,F10 (Choose one of them)\n \
+	-mcp_class      <receptor class>      	Selected MCPs from supported classes: 24H,28H,32H,36H,40H,44H,cat(Uncategorized) (Choose one of them)\n \
+	-hp     				correlation with polar and hydrophobic sites\n \
+	-concat					Build a concatenated alingment between the two loci related under the name concat.aln\n \
+	-ESCL					ESCL Score Table: ESCLscore.csv'
+
+	sys.exit()
+
+argvs = 'List of arguments: '
+for arg in sys.argv:
+	argvs = argvs + arg + ' '
+
+print argvs
+
+
+
+chew_table = open(sys.argv[1],'r')
+chew_aln = alnreader(sys.argv[2])
+mcp_table = open(sys.argv[3],'r')
+mcp_aln = alnreader(sys.argv[4])
+
+
+main_chew_db = {}
+main_mcp_db = {}
+
+tag = ''
+#if '-chew' in sys.argv:
+#	try:
+#		num_chew = int(sys.argv[sys.argv.index('-chew')+1])
+#	except NameError:
+#		print 'It must be a number Daaaaa!!!!'
+#		sys.exit
+#
+
+if '-mcp' in sys.argv and '-mcps' in sys.argv:
+	print 'Excludend flags... pick one!'
+	sys.exit()
+
+if '-mcp' in sys.argv:
+	try:
+		num_mcp = [ int(sys.argv[sys.argv.index('-mcp')+1]) ]
+        except ValueError:
+                print 'It must be a number Daaaaa!!!!'
+	        sys.exit()
+else:
+	if '-mcps' in sys.argv:
+		try:
+                	if int(sys.argv[sys.argv.index('-mcps')+1]) == 0:
+	                        num_mcp = range(1,1001)
+			num_mcp = range(1,int(sys.argv[sys.argv.index('-mcps')+1])+1)
+	        except ValueError:
+        	        print 'It must be a number Daaaaa!!!!'
+                	sys.exit()
+		except IndexError:
+			num_mcp = range(1,1001)
+	else:
+		num_mcp = [1]
+
+
+for line in mcp_table:
+        NCBI = line[:line.find(',')]
+        line = line[line.find(',')+1:]
+        loci = line[:line.find(',')]
+        line = line[line.find(',')+1:]
+        tax_name = line[:line.find(',')]
+        line = line[line.find(',')+1:]
+        GN = line[:line.find(',')]
+        classes = line[line.find(',')+1:]
+	if tax_name not in main_mcp_db.keys():
+		main_mcp_db[tax_name] = {}
+	main_mcp_db[tax_name][loci] = [NCBI, GN, classes]
+
+for line in chew_table:
+	NCBI = line[:line.find(',')]
+	line = line[line.find(',')+1:]
+	loci = line[:line.find(',')]
+	line = line[line.find(',')+1:]
+	tax_name = line[:line.find(',')]
+	line = line[line.find(',')+1:]
+	GN = line[:line.find(',')]
+	classes = line[line.find(',')+1:]
+	if tax_name not in main_chew_db.keys():
+		main_chew_db[tax_name] = {}
+	main_chew_db[tax_name][loci] = [NCBI, GN, classes] 
+
+
+if '-list_taxon' in sys.argv:
+	tag =  tag + '_list_taxon'
+	print 'Filtering by list... \n\n'
+	list_file = open(sys.argv[sys.argv.index('-list_taxon')+1],'r')
+        list_taxon_mcp = main_mcp_db.keys()
+	list_taxon_chew = main_chew_db.keys()
+	list_taxon_keep = []
+	for taxon in list_file:
+		taxon = taxon[:-3]
+		list_taxon_keep.append(taxon)
+		if taxon not in list_taxon_mcp or taxon not in list_taxon_chew:
+			print 'Not in the database - > ' + taxon
+        for taxon in list_taxon_mcp:
+        	if taxon not in list_taxon_keep:
+			del main_mcp_db[taxon]
+			try:
+				del main_chew_db[taxon]
+			except KeyError:
+				pass
+
+
+if '-chew_class' in sys.argv:
+	tag = tag + '_' + sys.argv[sys.argv.index('-chew_class')+1]
+        print '\nFiltering by CheW class: ' + sys.argv[sys.argv.index('-chew_class')+1]
+	chew_del = []
+	list_chew = []
+	for taxon in main_chew_db.keys():
+		list_chew = main_chew_db[taxon].keys()
+		for chew in main_chew_db[taxon].keys():
+			if sys.argv[sys.argv.index('-chew_class')+1] not in main_chew_db[taxon][chew][2]:
+				chew_del.append(chew)
+		for chew in list_chew:
+			if chew in chew_del:
+				del main_chew_db[taxon][chew]
+
+if '-mcp_class' in sys.argv:
+        tag = tag + '_' + sys.argv[sys.argv.index('-mcp_class')+1]
+	print '\nFiltering by MCP class: ' + sys.argv[sys.argv.index('-mcp_class')+1]
+	mcp_del = []
+	list_mcp = []
+	for taxon in main_mcp_db.keys():
+                list_mcp = main_mcp_db[taxon].keys()
+		for mcp in main_mcp_db[taxon].keys():
+			if sys.argv[sys.argv.index('-mcp_class')+1] not in main_mcp_db[taxon][mcp][2]:
+				mcp_del.append(mcp)
+		for mcp in list_mcp:
+                        if mcp in mcp_del:
+                                del main_mcp_db[taxon][mcp]
+
+
+
+
+
+if '-list_chews' in sys.argv:
+	tag = tag + '_list_chews'
+        print '\nFiltering by list of Chews\n'
+	chew_list_sel = []
+	chew_file = open(sys.argv[sys.argv.index('-list_chews')+1],'r')
+	for chew in chew_file:
+		chew_list_sel.append(chew[:-1])
+	print 'There are ' + str(len(chew_list_sel)) + ' chews on the file'
+else:
+	chew_list_sel = []
+	for taxon in main_chew_db.keys():
+		chew_list_sel.extend(main_chew_db[taxon].keys())
+	
+
+print '\n\nList of selected CheWs and MCPs \n\n'
+chew_mcp = {}
+chew_mcp_strong = {}
+if 1 > 2:
+	print 'maluco'
+else:
+	for tax_name in main_chew_db.keys():
+		try:
+			if len(main_chew_db[tax_name].keys()) == 1 and len(main_mcp_db[tax_name].keys()) in num_mcp and main_chew_db[tax_name].keys()[0] in chew_list_sel:
+				for mcp in main_mcp_db[tax_name].keys():
+					output = tax_name
+					output = output + ' ' * (65 - len(output)) + main_chew_db[tax_name].keys()[0]
+					output = output + ' ' * (85 - len(output)) + main_chew_db[tax_name].values()[0][2][:-2]
+					output = output + ' ' * (95 - len(output)) + mcp
+					output = output + ' ' * (115 - len(output)) + main_mcp_db[tax_name][mcp][2][-5:-2]
+					if main_chew_db[tax_name].values()[0][1] == main_mcp_db[tax_name][mcp][1]:
+						output = output + ' ' * (125 - len(output)) + main_chew_db[tax_name].values()[0][1]
+						print output
+						if main_chew_db[tax_name].keys()[0] not in chew_mcp_strong.keys():
+							chew_mcp_strong[main_chew_db[tax_name].keys()[0]] = []
+	#						print 'yeah... it is new...'
+	#						print mcp
+	#					print chew_mcp_strong[main_chew_db[tax_name].keys()[0]]
+						chew_mcp_strong[main_chew_db[tax_name].keys()[0]].append(mcp)
+					else:
+						print output
+					if main_chew_db[tax_name].keys()[0] not in chew_mcp.keys():
+                		               	chew_mcp[main_chew_db[tax_name].keys()[0]] = []
+					chew_mcp[main_chew_db[tax_name].keys()[0]].append(mcp)
+		except KeyError:
+			pass
+
+print chew_mcp
+
+print '\nSelected CheWs: ' + str(len(chew_mcp.keys()))
+num_mcp_sel = 0
+for chew in chew_mcp.keys():
+	num_mcp_sel = num_mcp_sel + len(chew_mcp[chew])
+print 'Selected MCPs:  ' + str(num_mcp_sel)
+
+#print 'Same GN:' + str(len(chew_mcp_strong.keys())) + '\n'
+
+chew_notinaln = []
+print '\nREGULAR CANDIDATES\n'
+print 'First cut -> Not in CheW alingment'
+
+for name in chew_mcp.keys():
+	here = 'n'
+	for seq_name in chew_aln.keys():
+		if name in seq_name:
+			here = 'y'
+	if here == 'n':
+		chew_notinaln.append(name)
+		print name
+
+for seq_name in chew_notinaln:
+	del chew_mcp[seq_name]
+
+
+#		print seq_name
+
+#print str(chew_notinaln)
+print 'Sequences not in the alignment CheW alignment: ' + str(len(chew_notinaln))
+print 'Sequences still available: ' + str(len(chew_mcp.keys()))
+
+
+mcp_notinaln = []
+
+print '\nSecond cut -> Not in MCP alingment'
+
+for chew in chew_mcp.keys():
+	for name in chew_mcp[chew]:
+        	here = 'n'
+		for seq_name in mcp_aln.keys():
+			if name in seq_name:
+				here = 'y'
+	        if here == 'n':
+			mcp_notinaln.append(name)
+			print name
+			
+for seq_name in mcp_notinaln:
+	for chew in chew_mcp.keys():
+		for mcp in chew_mcp[chew]:
+			if seq_name == mcp:
+			        chew_mcp[chew].remove(mcp)
+				#print mcp
+	#               print seq_name
+	#print str(mcp_notinaln)
+
+for loci1 in chew_mcp.keys():
+	if chew_mcp[loci1] == []:
+		del chew_mcp[loci1]
+
+
+print 'Sequences not in the alignment MCP alignment: ' + str(len(mcp_notinaln))
+num_mcp_sel = 0
+for chew in chew_mcp.keys():
+        num_mcp_sel = num_mcp_sel + len(chew_mcp[chew])
+
+#	print chew_mcp[chew]
+	
+print 'Sequences still available: ' + str(num_mcp_sel)
+
+
+
+
+work_seq_chew = selectseq(chew_aln, chew_mcp.keys())
+
+print work_seq_chew.keys()
+print chew_mcp.keys()
+
+mcps_selected = []
+for mcp_list in chew_mcp.values():
+	mcps_selected.extend(mcp_list)
+work_seq_mcp = selectseq(mcp_aln, mcps_selected)
+#work_seq_chew_strong = selectseq(chew_aln, chew_mcp_strong.keys())
+#work_seq_mcp_strong = selectseq(mcp_aln, chew_mcp_strong.values())
+
+#outfile1 = open('chew_selected_strong.aln','w')
+#outfile1.write(alnwriter(work_seq_chew_strong))
+#outfile1.close()
+
+#outfile2 = open('mcp_selected_strong.aln','w')
+#outfile2.write(alnwriter(work_seq_mcp_strong))
+#outfile2.close()
+
+outfile3 = open('chew_selected' + tag + '.aln','w')
+outfile3.write(alnwriter(work_seq_chew))
+outfile3.close()
+
+outfile4 = open('mcp_selected' + tag + '.aln','w')
+outfile4.write(alnwriter(work_seq_mcp))
+outfile4.close()
+
+
+if '-concat' in sys.argv:
+	final_concat = concat(work_seq_chew,work_seq_mcp,chew_mcp)
+	final_aln = open('concat.aln','w')
+	final_aln.write(alnwriter(final_concat))
+	final_aln.close()
+
+	
+
+
+
+#Statististics
+
+
+max_chew = 0
+for chew in work_seq_chew.values():
+	if len(chew) > max_chew:
+		max_chew = len(chew)
+
+max_mcp = 0
+for mcp in work_seq_mcp.values():
+	if len(mcp) > max_mcp:
+		max_mcp = len(mcp)
+
+print '\nMaximum length of chews: ' + str(max_chew)
+print 'Maximum lenght of mcps:  ' + str(max_mcp) + '\n'
+
+
+
+# Real Deal Implementation Strike 1
+
+if '-hp' not in sys.argv:
+	AAindex = { 'A':0, 'C':0, 'D':-1, 'E':-1, 'F':0, 'G':0, 'H':0, 'I':0, 'K':1, 'L':0, 'M':0, 'N':0, 'P':0, 'Q':0, 'R':1, 'S':0, 'T':0, 'V':0, 'W':0, 'Y':0, '-':0} 
+	filename = 'stat_r_c' + tag + '.csv'
+else:
+	AAindex = { 'A':0.5, 'C':-0.5, 'D':0, 'E':0, 'F':0.5, 'G':-0.5, 'H':-0.5, 'I':0.5, 'K':0, 'L':0.5, 'M':0.5, 'N':-0.5, 'P':0.5, 'Q':-0.5, 'R':0, 'S':-0.5, 'T':-0.5, 'V':0.5, 'W':-0.5, 'Y':-0.5, '-':0}
+	filename = 'stat_r_hp' + tag + '.csv'
+
+
+# Calculating the Expectation Value and Standard Deviation for ith position on MCP and CheW
+
+N = num_mcp_sel
+
+Ew = [0] * max_chew
+Em = [0] * max_mcp
+sw2 = [0] * max_chew
+sm2 = [0] * max_mcp
+
+for chew,mcp_list in chew_mcp.iteritems():
+	chew_seq = work_seq_chew[chew]
+	for mcp in mcp_list:
+		mcp_seq = work_seq_mcp[mcp]
+		for i in range(len(chew_seq)):
+			Ew[i] = Ew[i] + float(AAindex[chew_seq[i]])/float(N)
+		for i in range(len(mcp_seq)):
+			Em[i] = Em[i] + float(AAindex[mcp_seq[i]])/float(N)
+
+print 'MCP average'
+print str(Em)
+print '\nCheW average'
+print str(Ew)
+
+for chew,mcp_list in chew_mcp.iteritems():
+	chew_seq = work_seq_chew[chew]
+	for mcp in mcp_list:
+		mcp_seq = work_seq_mcp[mcp]
+		for i in range(len(chew_seq)):
+			sw2[i] = sw2[i] + float(((AAindex[chew_seq[i]] - Ew[i])**2))/float(N)
+		for i in range(len(mcp_seq)):
+			sm2[i] = sm2[i] + float(((AAindex[mcp_seq[i]] - Em[i])**2))/float(N)
+
+#Calculation of the Pearson product-moment correlation
+
+print '\nMCP sdev'
+print str(sm2) 
+print '\nCheW sdev'
+print str(sw2)
+
+
+r = [0] * max_chew
+for i in range(len(r)):
+	r[i] = [0] * max_mcp
+
+for i in range(max_chew):
+	for j in range(max_mcp):
+		XY = 0 # Xi*Yi
+		for chew,mcp_list in chew_mcp.iteritems():
+			chew_seq = work_seq_chew[chew]
+			for mcp in mcp_list:
+				mcp_seq = work_seq_mcp[mcp]
+				XY = XY + AAindex[chew_seq[i]]*AAindex[mcp_seq[j]]
+		if sw2[i] < 1e-20 or sm2[j] < 1e-20:
+			r[i][j] = 0
+		else:
+	#		print str(XY)
+	#		print str(N)
+	#		print str(Ew[i])
+	#		print str(Em[j])
+	#		print str(sw2[i])
+	#		print str(sm2[j])
+	#		r[i][j] = N*Ew[i]*Em[j] 
+			if N < 10:
+				r[i][j] = float(XY  - N*Ew[i]*Em[j]) /float((N)*sqrt(sw2[i]*sm2[j]))
+			else:
+				r[i][j] = float(XY  - N*Ew[i]*Em[j]) /float((N-1)*sqrt(sw2[i]*sm2[j]))
+#			print str(r[i][j])
+
+print 'Correlation matrix'
+print str(r)
+
+
+output_r = ' '
+
+for i in range(max_mcp):
+        output_r = output_r + ',' + str(i+1)
+
+output_r = output_r + '\n'
+
+for i in range(max_chew):
+        output_r = output_r + str(i+1)
+        for j in range(max_mcp):
+                output_r = output_r + ',' + str(r[i][j])
+        output_r = output_r + '\n'
+
+outfile_r = open(filename,'w')
+outfile_r.write(output_r)
+outfile_r.close()
+
+#Implementation of ESCL
+
+if '-ESCL' in sys.argv or '-ESCL+' in sys.argv:
+	
+	
+	if '-ESCL+' in sys.argv:
+		score_table = ESCL2(work_seq_chew, work_seq_mcp,chew_mcp, norm='Yes')
+	else:	
+		score_table = ESCL(work_seq_chew, work_seq_mcp,chew_mcp,norm = 'Yes')
+	
+	score_table = renormtable(score_table)
+
+	new_table = []
+	for i in range(max_chew):
+		new_table_line = []
+		for j in range(max_mcp):
+			if score_table[i][j] == 1:
+				new_table_line.append('out')
+			else:
+				new_table_line.append(score_table[i][j])
+		new_table.append(new_table_line)
+	
+	score_table = new_table
+
+	print 'Size  ' + str(len(score_table[1]))
+
+	output_r = ' '
+
+	for i in range(max_mcp):
+        	output_r = output_r + ',' + str(i+1)
+	output_r = output_r + '\n'
+
+	for i in range(max_chew):
+        	output_r = output_r + str(i+1)
+	        for j in range(max_mcp):
+			output_r = output_r + ',' + str(score_table[i][j])
+		output_r = output_r + '\n'
+
+	outfile_r = open('ESCLscores.csv','w')
+	outfile_r.write(output_r)
+	outfile_r.close()
+	
+
+
+chew_table.close()
+mcp_table.close()
+
+
+

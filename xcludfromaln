@@ -1,0 +1,43 @@
+#!/usr/bin/env python
+import fileinput
+from bitk import *
+import sys
+
+if '-h' in sys.argv or len(sys.argv) == 1:
+	print 'Sequences in clustal format. \n \
+	Delete from the second alignment any sequence with the same name in first one\n' 
+	sys.exit()
+
+seq_dic1 = alnreader(sys.argv[1], just_name = 'Yes')
+seq_dic2 = alnreader(sys.argv[2], just_name = 'Yes')
+
+
+#print seq_dic
+
+output = ''
+seq_count = 0
+tot_count = len(seq_dic2.keys())
+
+for name2 in seq_dic2.keys():
+	for name1 in seq_dic1.keys():
+		if name2 == name1:
+			seq_count = seq_count + 1
+			del seq_dic2[name2]
+			print 'Deleted: ' + name2
+
+print '\nTotal sequences on the second alignment: ' + str(tot_count)
+print 'Sequences deleted: ' + str(seq_count)
+print 'Remain sequences: ' + str(tot_count - seq_count)
+
+output = alnwriter(seq_dic2)
+
+#output = output.replace('_', '')
+
+
+outfile = open(sys.argv[2][:-3] + 'x.aln', 'w')
+outfile.write(output)
+outfile.close()
+
+print 'Done'
+
+

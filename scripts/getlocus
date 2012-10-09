@@ -1,0 +1,28 @@
+#! /usr/bin/env python 
+###################################
+##    Davi Ortega                ##
+###################################
+import bitk
+import sys
+
+
+if '-h' in sys.argv:
+	print 'This program gets the organism id-locus from Kristin\'s format\n\n\tSintax: python getlocus.py fasta_file.fa'
+	sys.exit()
+
+seq_dic, seq_list = bitk.fastareader(sys.argv[1])
+
+
+output = ''
+list = []
+#print seq_dic.keys()
+for name in seq_list:
+	organism = name.split('-')[0]+'-'+name.split('-')[1]
+	if organism not in list:
+		list.append(organism)
+		output += organism + '\n'
+
+outfile = open('locus.list', 'w')
+outfile.write(output)
+outfile.close
+

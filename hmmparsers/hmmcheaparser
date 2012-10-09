@@ -1,0 +1,63 @@
+#! /usr/bin/env python 
+###################################
+##    Davi Ortega                ##
+###################################
+import sys
+import bitk
+
+if '-h' in sys.argv:
+	print "Update fasta file with class information retrived from chea-class-library.hmm output file"
+	print "Sintax: hmmcheaparser.py fasta_file.fa output_hmm.dat"
+	print "outfile = fasta_file.new.fa"
+	sys.exit()
+
+DIFF_THRES = 150
+MIN_SCORE = 200
+
+
+seq_dic, seq_list = bitk.fastareader(sys.argv[1])
+
+hmmfile = open(sys.argv[2],'r')
+
+new_seq = 1
+for line in hmmfile:
+	if "Query sequence" in line:
+		tag = line.split(':')[1].replace(' ','').replace('\n','')
+		new_seq = 0
+	if ("------" in line) and (new_seq == 0):
+		new_seq = 1
+		chea_class = []
+		for line2 in hmmfile:
+			line_info = line2.split(' ')
+			while '' in line_info:
+				line_info.remove('')
+			try:
+				chea_class.append([line_info[0].replace('chea-',''),float(line_info[1])])
+			except ValueError:
+				if line_info[1] == 'hits':
+					chea_class.append(['None','None'])
+					break
+			if len(chea_class) == 2:
+				break
+		if chea_class[0][0] == 'None':
+			seq_dic[tag + '-' + chea_class[0][0]] = seq_dic[tag]
+			del seq_dic[tag]
+		elif (chea_class[0][1] >= MIN_SCORE) and (chea_class[0][1] - DIFF_THRES >= chea_class[1][1]):
+			seq_dic[tag + '-' + chea_class[0][0]] = seq_dic[tag]
+			del seq_dic[tag]
+		else:
+			seq_dic[tag + '-' + 'Uncat'] = seq_dic[tag]
+			del seq_dic[tag]
+
+hmmfile.close()
+
+outfile = open(sys.argv[1][:-2] + 'class.fa', 'w')
+output = ''
+for tag, seq in seq_dic.iteritems():
+	output += '>' + tag + '\n' + seq + '\n'
+
+outfile.write(output)
+outfile.close()
+
+
+

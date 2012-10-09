@@ -1,0 +1,59 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 3/12/2012 
+###################################
+import sys
+import fuzzy_davi
+import sys
+import time
+import os
+if '-h' in sys.argv:
+	print 'Reads RMSD matrix and return points in 3D\nOptions: \n -e for export coordinates \n-f for format in different columns by name'
+	sys.exit()
+
+start = time.time()
+m0 = fuzzy_davi.memory()
+
+names, Dmatrix = fuzzy_davi.readDmGENlist(sys.argv[1],';')
+print "File loaded in: " + str(time.time() - start)
+print "Memory load: " + str(fuzzy_davi.memory(m0))
+
+#names.sort()
+print len(Dmatrix)
+if '-e' in sys.argv:
+	X, X_2D = fuzzy_davi.coord2(names, Dmatrix, sys.argv[1], 'y')
+else:
+	X, X_2D = fuzzy_davi.coord2(names, Dmatrix, sys.argv[1])
+
+output = ''
+out = ''
+
+old_prefix = ''
+tabs = -1
+frame = 0
+
+for name in names:
+	line = X_2D[name]
+        output = output + name + '{'
+	out += name + '\t'
+#	out += '\t'*tabs*len(line)
+	if name[:3] + name[9:12] != old_prefix:
+		tabs += 1
+		old_prefix = name[:3] + name[9:12]
+		frame = 0
+        for val in line:
+       	        output = output + str(val) + ' , '
+		if line[0] == val and '-f' in sys.argv:
+			out += str(val).replace('(','').replace('+0j)','') + '\t'*(tabs*(len(line))+1)
+		else:
+			out += str(val).replace('(','').replace('+0j)','') + '\t'
+	
+        output = output + '}\n'
+	out += str(frame) + '\n'
+	frame += 1
+
+
+fileout = open(sys.argv[1][:-3] + 'coord.txt', 'w')
+fileout.write(out)
+fileout.close()
+

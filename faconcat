@@ -1,0 +1,69 @@
+#!/usr/bin/env python
+import bitk
+import sys
+
+if '-h' in sys.argv:
+	print "Concatenates sequences in fasta format:\n\n\tSintaxe:\n\n\tfaconcat left_seq.fa right_seq.fa pairs.list \n\t pairs.list is an ANSI file with information about which sequence from the first file should be concatenated with the second file in the following format\n\n locileft1:lociright1\n\tlocileft2:lociright2\n\tlocileft3:lociright3\n\t     .       .\n\t     .       .\n\t     .       .\n"
+	sys.exit()
+
+
+sequences1 = sys.argv[1]
+sequences2 = sys.argv[2]
+
+seq1_dic, seq1_list = bitk.fastareader(sequences1)
+seq2_dic, seq2_list = bitk.fastareader(sequences2)
+
+L1 = bitk.check_len(seq1_dic)
+L2 = bitk.check_len(seq2_dic)
+
+if L1 == -1 or L2 == -1:
+	print "Sequences not aligned."
+	sys.exit()
+
+
+
+if len(sys.argv) > 3:
+	seq = open(sys.argv[3],'r')
+	list_pairs = []
+	for line in seq:
+		if line != '':
+			line = line.replace('\n','')
+			seq1 = line.split(':')[0]
+                	if '/' in seq1:
+                        	seq1 = seq1[:seq1.find('/')]
+	                seq2 = line.split(':')[1]
+        	        if '/' in seq2:
+                	        seq2 = seq2[:seq2.find('/')]
+	   		pair = seq1 + ':' + seq2
+			list_pairs.append(pair)
+
+
+output = ''
+dic_out = ''		
+
+for index in range(len(list_pairs)):
+	seq1 = list_pairs[index].split(':')[0]
+	seq2 = list_pairs[index].split(':')[1]
+	print seq1 + ':' + seq2
+	try:
+		output += '>' + str(index) + '\n' + seq1_dic[seq1].replace('\n','') + seq2_dic[seq2].replace('\n','') + '\n'
+	except KeyError:
+		print index
+		print seq1
+		print seq1_dic[seq1]
+		print seq2
+		print seq1_dic[seq2]
+		sys.exit()
+	dic_out += str(index) + '\t' + list_pairs[index] + '\n'
+
+aln_file = open('concat.1.' + str(L1) + '.' + str(L1+1) + '.' + str(L1+L2-1) + '.fa','w')
+dic_file = open('dic_faconcat.1.' + str(L1) + '.' + str(L1+1) + '.' + str(L1+L2-1) + '.dat','w')
+
+aln_file.write(output)
+dic_file.write(dic_out)
+
+aln_file.close()
+dic_file.close()
+	
+print 'Done'
+

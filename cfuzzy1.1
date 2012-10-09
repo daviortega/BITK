@@ -1,0 +1,142 @@
+#!/usr/bin/env python
+import fileinput
+from fuzzy_davi import *
+import random
+import sys
+from os import listdir
+from os import getcwd
+
+if '-h' in sys.argv:
+	print 'cfuzzy1.1 num_cluster fuzzyness precision tree.dist files\nExamples\n \
+		cfuzzy1.1 2 1.3 0.0000000001 Test1.dist\n \
+		cfuzzy1.1 4 1.5 0.00000001 Test1.dist Test1V.dist'
+	sys.exit()
+if len(sys.argv) < 4:
+	print 'not enough arguments'
+	sys.exit()
+
+
+num_clus = sys.argv[1]
+m = sys.argv[2]
+
+
+NAMES = []
+DMATRIX = []
+AllX = []
+
+for filename in sys.argv[4:]:
+	names, Dmatrix = readDm(filename)
+	X = coord(names, Dmatrix, filename)
+	AllX.append(X)
+	NAMES.append(names)
+	DMATRIX.append(DMATRIX)
+
+if len(NAMES) == 1:
+	DMATRIX = 0
+	NAMES = 0
+	AllX = 0
+else:
+	print 'Code incomplete'
+	sys.exit()
+	
+filename = sys.argv[4]
+
+
+output = ''
+
+for name, line in X.iteritems():
+	output = output + name + '{'
+	for val in line:
+		output = output + str(val) + ' , '
+	output = output + '}\n'
+print '\n\n\n Coordinates\n\n' + output
+
+#Finding the highest density region
+
+#x_avg, x_std = x_stat(X)
+
+
+
+
+# centroids generators
+
+C = {}
+Cnames = []
+for i in range(int(num_clus)):
+        Ct = []
+	for j in range(len(X)):
+                centroid = random.gauss(-2,2)
+		Ct.append(centroid)
+        C[i+1] = Ct
+	Cnames.append(i+1)
+
+U_old = UmatrixG(names,X,Cnames,C,m)
+C = centroidesG(names,X,U_old,m)
+U_new = UmatrixG(names,X,Cnames,C,m)
+
+max_Uold = 0
+for i in U_old:
+	if max_Uold < max(i):
+                max_Uold = max(i)
+
+max_Unew = 0
+for i in U_new:
+        if max_Unew < max(i):
+                max_Unew = max(i)
+
+step = 0
+e = float(sys.argv[3])
+
+while abs(max_Unew - max_Uold) > e:
+        step = step + 1
+        U_old = []
+        for i in U_new:
+                U_old.append(i)
+        C = centroidesG(names,X,U_old,float(m))
+        U_new = UmatrixG(names,X,Cnames,C,float(m))
+ 
+	max_Uold = 0
+        for i in U_old:
+                if max_Uold < max(i):
+			max_Uold = max(i)
+	
+	max_Unew = 0
+	for i in U_new:
+		if max_Unew < max(i):
+			max_Unew = max(i)
+	
+	print str(step) + ' --- Error: ' + str(max_Unew - max_Uold)
+	if max_Unew - max_Uold < 0 and step == 1:
+		print 'Decrease fuzzyness'
+		sys.exit()
+#	for i in Cnames:
+#		print str(C[i]) + '\n'
+
+output = ''
+for i in range(len(names)):
+	output = output + names[i] + ' '*(9-len(names[i])) + ' --- '
+	total = 0
+	for j in U_new[i]:
+		if j < 0.0001:
+			j = 0.0001
+		val = str(j)[:5]
+		total = total + j
+		output = output + val + '   '
+	output = output + ' --- ' + str(total) + '\n'
+
+print '\n\n\n Results \n\n' + output
+
+files = listdir(getcwd())
+
+key_num = 0
+for file in files:
+	if filename[:-4] + str(num_clus) + '.m' + str(m) + '.results' in file:
+		key_num = key_num + 1
+if key_num == 0:
+	key_num = ''
+else:
+	key_num = str(key_num)
+
+outfile = open(filename[:-4] + str(num_clus) + '.m' + str(m) + '.results.' + key_num + '.txt','w')
+outfile.write(output)
+outfile.close

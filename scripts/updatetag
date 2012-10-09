@@ -1,0 +1,43 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 7/8/2012 
+###################################
+import bitk
+import sys
+if '-h' in sys.argv:
+	print 'Transfer MSA from old dataset to new updating tags. New sequences should be added separatelly.\nSintax: updatetag old_fastafile.fa new_fastafile.fa [options] \n'
+	sys.exit()
+
+
+seq_dic_old, seq_list_old = bitk.fastareader(sys.argv[1])
+seq_dic_new, seq_list_new = bitk.fastareader(sys.argv[2])
+
+in_list = []
+
+out_in = ''
+
+for tag_old in seq_list_old:
+	for tag_new in seq_list_new:
+		if tag_new not in in_list and seq_dic_old[tag_old].replace('-','') == seq_dic_new[tag_new].replace('-',''):
+			in_list.append(tag_new)
+			out_in += '>' + tag_new + '\n' + seq_dic_old[tag_old] + '\n'
+#		elif len(seq_dic_old[tag_old].replace('-','')) == len(seq_dic_new[tag_new].replace('-','')):
+#			print seq_dic_old[tag_old].replace('-','')
+#			print seq_dic_new[tag_new].replace('-','')
+#			print '\n'
+
+out_out = ''
+
+for tag in seq_list_new:
+	if tag not in in_list:
+		out_out += '>' + tag + '\n' + seq_dic_new[tag] + '\n'
+		
+outfile = open(sys.argv[2][:-3] + '.updated.fa', 'w')
+outfile.write(out_in)
+outfile.close()
+
+outfile = open(sys.argv[2][:-3] + '.out.fa', 'w')
+outfile.write(out_out)
+outfile.close()
+
+

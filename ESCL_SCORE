@@ -1,0 +1,67 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 2/10/2010 
+###################################
+import sys
+import bitk
+if '-h' in sys.argv:
+	print 'This file will produce a matrix of ESCL score between positions of two alignments of interacting proteins\n \
+	Sintax: ESCL_SCORE fasta_file1.fa fasta_file2.fa fasta_file3.fa fasta_file4.fa ...\n\n\n \
+	The files must be ordered by pairs of classes since all the sequences from the same organism will be treated as interacting (between pairs)\n \
+	Files must be ordered as the following: A_1 B_1 A_2 B_2 A_3 B_3 (where A,B are molecules and 1,2 are classes)\n \
+	OBS: THE FILES MUST HAVE A SEQUENCE TAG AS: orgn_ID-locus\n\
+	where orgn_ID must be the same in both files for sequences of the same organism.\n'
+	sys.exit()
+
+elif (len(sys.argv) - 1) %2 == 1 :
+	print "Odd number of arguments, choose -h for help"
+	sys.exit()
+
+else:
+	seq1_dic = {}
+	seq2_dic = {}
+	print len(sys.argv)
+	print range(1,len(sys.argv),2)
+	for i in range(1,len(sys.argv),2):
+		if len(seq1_dic.keys()) == 0 and  len(seq2_dic.keys()) == 0: 
+			seq1_dic = bitk.fastareader(sys.argv[i])
+			seq2_dic = bitk.fastareader(sys.argv[i+1])
+			seq_seq = bitk.match_pairs(seq1_dic, seq2_dic)
+		else:
+			seq1_tmp = bitk.fastareader(sys.argv[i])
+			seq2_tmp = bitk.fastareader(sys.argv[i+1])
+			#check for conflicts:
+			for seq_tag in seq1_tmp.keys():
+				if seq_tag in seq1_dic.keys() or seq_tag in seq2_dic.keys():
+					print "STOP !!!! Check your alignments, you have a conflict: sequence present in more than 1 alignment"
+					sys.exit()
+			
+			for seq_tag in seq2_tmp.keys():
+				if seq_tag in seq1_dic.keys() or seq_tag in seq2_dic.keys():
+					print "STOP !!!! Check your alignments, you have a conflict: sequence present in more than 1 alignment"
+					sys.exit()
+			seq_seq_tmp =  bitk.match_pairs(seq1_tmp, seq2_tmp)
+			seq1_dic.update(seq1_tmp)
+			seq2_dic.update(seq2_tmp)
+			seq_seq.update(seq_seq_tmp)
+
+
+#Calculation
+
+score = bitk.ESCL2(seq1_dic, seq2_dic, seq_seq)
+
+output = ''
+
+for i in range(len(score)):
+	for j in range(len(score[0])):
+		output += str(score[i][j]) + ','
+	output += '\n'
+		
+
+
+
+datafile = open('score_table.dat','w')
+datafile.write(output)
+datafile.close()
+
+

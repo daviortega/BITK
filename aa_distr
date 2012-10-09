@@ -1,0 +1,49 @@
+#! /usr/bin/env python 
+###################################
+##    Davi Ortega                ##
+###################################
+import bitk
+import sys
+
+if '-h' in sys.argv:
+	print 'Writes the file aa_dist.dat with the amino-acid distribution of the position(s) passed as argument: \n\n \
+		\tSintaxe: aa_distr alignment.fa N1 N2 N3... NN\n\tSintaxe: aa_distr alignment.fa all (for all positions)'
+	sys.exit()
+
+aln, aln_list = bitk.fastareader(sys.argv[1])
+if 'all' == sys.argv[2]:
+	list_pos = range(len(aln[aln.keys()[0]]))
+else:
+	list_pos = []
+	for num in sys.argv[2:]:
+		list_pos.append(int(num)-1)
+
+output = '\t-\tA\tI\tL\tM\tF\tV\tP\tG\tN\tC\tQ\tH\tS\tT\tW\tY\tR\tK\tD\tE'
+
+AA_list = output.split('\t')[1:]
+
+output += '\n'
+
+for pos in list_pos:
+	if pos < 0:
+		print "Negative Coordinate. Please consider revision of you arguments. Indexation starts with 1"
+		sys.exit()
+	AA_dic = bitk.aa_distr(aln, int(pos))
+#	line = ''
+#	for seq in aln_list:
+#		line += str(aln[seq][int(pos)])
+#	print line
+	#AA_list = AA_dic.keys()
+	#AA_list.sort()
+	output += str(pos)
+	for AA in AA_list:
+		output += '\t' + str(AA_dic[AA])
+	output += '\n'
+
+datafile = open('aa_distr.dat','w')
+datafile.write(output)
+datafile.close()
+
+print 'Done'
+
+

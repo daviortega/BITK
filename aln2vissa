@@ -1,0 +1,14 @@
+#!/usr/bin/env python
+import fileinput
+from bitk import *
+import sys
+
+sequences = sys.argv[1]
+output = aln2vissa(sequences)
+outfile = open(sequences, 'w')
+outfile.write(output)
+outfile.close()
+
+print 'Done'
+
+

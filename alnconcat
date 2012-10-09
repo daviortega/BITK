@@ -1,0 +1,54 @@
+#!/usr/bin/env python
+import fileinput
+from bitk import *
+import sys
+
+if '-h' in sys.argv:
+	print "Concatenates sequences in clustalw format:\n\n\tSintaxe:\n\n\talnconcat left_seq.aln right_seq.aln (same loci numbers)\n\talnconcat left_seq.aln right_seq.aln seq_seq.dat \
+	\n\n\t seq_seq.dat is a ANSI file with information about which sequence from the first file should be concatenated with the second file in the following format\n\n \
+	locileft1;lociright1\n\tlocileft2;lociright2\n\tlocileft3;lociright3\n\t     .       .\n\t     .       .\n\t     .       .\n"
+	sys.exit()
+
+
+sequences1 = sys.argv[1]
+sequences2 = sys.argv[2]
+
+
+if len(sys.argv) > 3:
+	seq = open(sys.argv[3],'r')
+	seq_seq = {}
+	for line in seq:
+		line = line.replace('\n','')
+		seq1 = line.split(';')[0]
+		if '/' in seq1:
+			seq1 = seq1[:seq1.find('/')]
+		seq2 = line.split(';')[1]
+		if '/' in seq2:
+			seq2 = seq2[:seq2.find('/')]
+		seq_seq[seq1] = seq2
+		
+
+print seq_seq
+seq1 = alnreader(sequences1,'no','Yes')
+seq2 = alnreader(sequences2,'no','Yes')
+
+list = check_loci(seq1.keys(),seq2.keys())
+
+for loci in list:
+	if loci in seq1.keys():
+		del seq1[loci]
+	if loci in seq2.keys():
+		del seq2[loci]
+
+
+
+if len(sys.argv) > 3:
+	final = concat(seq1,seq2,seq_seq)
+else:
+	final = concat(seq1,seq2)
+
+outfile = open('output.aln','w')
+outfile.write(alnwriter(final))
+outfile.close()
+print 'Done'
+

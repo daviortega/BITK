@@ -1,0 +1,1238 @@
+<html>
+<head>
+
+<title>SQL*Loader load speed tips </title>
+<meta name="keywords" content="fast Oracle data load import sql*loader sqlldr data pump loading">
+<meta name="description" content="fast Oracle data load import sql*loader sqlldr data pump loading">
+
+<!--[if !mso]>
+<style>h1
+	{margin-top:12.0pt;
+	margin-right:0in;
+	margin-bottom:3.0pt;
+	margin-left:0in;
+	page-break-after:avoid;
+	font-size:14.0pt;
+	font-family:"Times New Roman";
+	}
+h2
+	{margin-top:12.0pt;
+	margin-right:0in;
+	margin-bottom:3.0pt;
+	margin-left:0in;
+	page-break-after:avoid;
+	font-size:12.0pt;
+	font-family:"Times New Roman";
+	font-style:italic}
+
+ li.MsoNormal
+	{mso-style-parent:"";
+	margin-bottom:.0001pt;
+	font-size:12.0pt;
+	font-family:"Times New Roman";
+	margin-left:0in; margin-right:0in; margin-top:0in}
+h4
+	{margin-top:12.0pt;
+	margin-right:0in;
+	margin-bottom:3.0pt;
+	margin-left:0in;
+	page-break-after:avoid;
+	font-size:14.0pt;
+	font-family:"Times New Roman";
+	font-weight:bold}
+div{color:#000}div{font-family:Times New Roman,sans-serif}.g{margin:1em 0}.r{display:inline;font-weight:normal;margin:0}.r{font-size:100%}a{color:#00c}a{font-family:Times New Roman,sans-serif}td{color:#000}td{font-family:Times New Roman,sans-serif}.j{width:34em}.a{color:green}a.fl{color:#77c}.bl{display:none}span.postcolor
+	{}
+.m{color:#666}.m{font-size:84%}</style>
+<![endif]-->
+
+</head>
+
+
+
+
+<body>
+
+
+<table border="0" cellspacing="0" cellpadding="0" width="100%" style="border-collapse: collapse">
+<tbody>
+<tr>
+<td><!--webbot bot="Include" U-Include="header.htm" TAG="BODY" startspan -->
+<script src="http://www.dba-oracle.com/__utm.js" type="text/javascript"></script>
+<table width="860" height="122" border="0" cellpadding="0" cellspacing="0">
+  <tr>
+    <td width="760" height="100">
+	<img src="http://www.dba-oracle.com/images/header_new.gif" width="760" height="100" longdesc="Call now: 252-767-6166" alt="Call now: 252-767-6166"></td>
+    <td background="http://www.dba-oracle.com/images/header-new-1px.gif" width="100">&nbsp;</td>
+  </tr>
+  <tr background="http://www.dba-oracle.com/images/tab-1px.gif">
+    <td height="22" colspan="2" background="http://www.dba-oracle.com/images/header-new-1px.gif">
+    <img src="http://www.dba-oracle.com/images/tabs-consulting.gif" border="0" usemap="#Map" width="810" height="22"></td>
+  </tr>
+</table>
+<map name="Map">
+  <area shape="poly" coords="276, 2, 296, 20, 421, 20, 404, 2" href="http://www.dba-oracle.com/training.htm" alt="Oracle Training">
+  <area shape="poly" coords="407, 3, 423, 20, 548, 20, 530, 3" href="http://www.remote-dba.net/" alt="Oracle Support">
+  <area shape="poly" coords="674, 19, 549, 20, 531, 3, 656, 2, 674, 19" href="http://www.dba-oracle.com/developer" alt="Development">
+  <area shape="poly" coords="782,3,660,3,675,18,798,18,784,5" href="http://www.dba-oracle.com/oracle_applications" alt="Oracle Apps">
+</map>
+<!--webbot bot="Include" i-checksum="17374" endspan --></td>
+</tr>
+</tbody>
+</table>
+<div align="left">
+<table border="0" width="870" cellspacing="0" cellpadding="0" style="border-collapse: collapse">
+<tr>
+<td valign="top" width="88">
+<!--webbot bot="Include" U-Include="toc.htm" TAG="BODY" startspan -->
+
+<STYLE>
+
+
+
+.toc A:link {
+
+
+
+	FONT: 8pt/20px helvetica,verdana; COLOR: black; TEXT-DECORATION: none
+
+
+
+}
+
+
+
+.toc A:visited {
+
+
+
+	FONT: 8pt/20px helvetica,verdana; COLOR: black; TEXT-DECORATION: none
+
+
+
+}
+
+
+
+.toc A:hover {
+
+
+
+	FONT: 8pt/20px helvetica,verdana; COLOR: black; TEXT-DECORATION: underline
+
+
+
+}
+
+
+
+.style1 {
+
+	font-family: helvetica, verdana;
+
+	font-size: 8pt;
+
+}
+
+
+
+.style3 {
+
+	font-family: helvetica, verdana;
+
+}
+
+.style4 {
+
+	font-family: helvetica, verdana;
+
+	font-weight: bold;
+
+}
+
+
+
+</STYLE>
+
+<FORM action=http://www.email-publisher.com/survey/ method=post
+
+      target=New_Window>
+
+<TABLE height="100%" width=124 border=0>
+
+  <TBODY>
+
+      <TABLE cellSpacing=0 cellPadding=0 border=0 width="145">
+
+        <TBODY>
+
+<br>
+
+  <tr>
+
+          <TD height=18 bgcolor="#FFFFFF">
+
+            <DIV align=center><STRONG><FONT face="Times New Roman" size=2 color="#800000">Free
+
+            Oracle Tips</FONT></STRONG></DIV></TD></TR>
+
+        <TR align=middle>
+
+          <TD noWrap bgcolor="#800000"> <INPUT style="FONT-SIZE: 8pt" size=15
+
+            value="your email" name=email><INPUT style="FONT-SIZE: 8pt" type=submit value=Go name=submit>
+
+            <BR><font color="#FFFFFF"><INPUT type=radio value=HTML name=type><FONT face="Times New Roman" size=2>HTML</FONT>&nbsp;<INPUT type=radio value=TEXT
+
+            name=type></font><FONT face="Times New Roman" size=2><font color="#FFFFFF">Text</font> <INPUT
+
+            type=hidden value=oracle_tips@topica.email-publisher.com name=lists>
+
+            </FONT></TD>
+
+  </tr> 
+
+  <TR vAlign=top>
+
+    <TD style="BORDER-RIGHT: black 1px solid" width=144 height="100%"><SPAN 
+
+      class=toc><!-- LINKS GO BELOW.  DONT FORGET TO END EACH LINE WITH A <BR> TAG -->
+
+</form>
+
+<table width="100%" cellpadding="0" border="0" cellspacing="0">
+
+
+
+        <tr>
+
+                <td bgcolor="#800000" align="center"><br>
+
+<form action="http://dba-oracle.com/googlesearchsite_proc.htm" id="cse-search-box">
+
+
+
+        <FONT face="Times New Roman" size=2 color="#FFFFFF">Search BC Oracle Sites</font>  
+
+  <input type="hidden" name="cx" value="000522505899594707971:4-ldikxixw4"/>
+
+    <input type="hidden" name="cof" value="FORID:10" />
+
+    <input type="hidden" name="ie" value="UTF-8" />
+
+    <input type="text" name="q" size="15" />
+
+    <input type="submit" name="sa" value="Search" style="FONT-SIZE: 8pt" />
+
+</form>
+
+<script type="text/javascript" src="http://www.google.com/coop/cse/brand?form=cse-search-box&lang=en&sitesearch=true"></script>
+
+</td>
+
+</tr>
+
+</table>    
+
+<B><SPAN 
+
+      style="FONT-SIZE: 8pt">&nbsp;<A 
+
+      href="http://www.dba-oracle.com/">Home</A><BR class="style3">&nbsp;<a href="http://www.dba-oracle.com/contact_us.htm">E-mail Us</a><br class="style3">
+
+	&nbsp;<A 
+
+      href="http://www.dba-oracle.com/articles.htm">Oracle 
+
+      Articles</A><span class="style3"></FONT></span></SPAN></b><p><B><SPAN 
+
+      style="FONT-SIZE: 8pt">
+
+    <IMG 
+
+      src="http://www.dba-oracle.com/images/toc1_Services.jpg" 
+
+      border=0 width="110" height="30"></SPAN><BR><FONT size=1><SPAN 
+
+      style="FONT-SIZE: 8pt">&nbsp;<A 
+
+      href="http://www.dba-oracle.com/training.htm">Oracle 
+
+      Training</A></SPAN></font><SPAN 
+
+      style="FONT-SIZE: 8pt"><BR class="style3"><FONT size=1>&nbsp;<A 
+
+      href="http://www.dba-oracle.com/oracle_news/">Oracle 
+
+      Tips </A></font></SPAN><FONT size=1><SPAN style="FONT-SIZE: 8pt">
+
+	<BR class="style3">&nbsp;<A 
+
+      href="http://www.dbaforums.org/oracle">Oracle 
+
+      Forum</A><BR class="style3">&nbsp;<A 
+
+      href="http://www.dba-oracle.com/bc-catalog.pdf">Class 
+
+      Catalog</A><BR></SPAN><BR><!-- DO NOT CHANGE FROM HERE ON -->
+
+    <SPAN 
+
+      style="FONT-SIZE: 8pt">
+
+    <IMG src="http://www.dba-oracle.com/images/toc2_Support.jpg" border=0 width="110" height="30"></SPAN><BR><SPAN class=toc><SPAN 
+
+      style="FONT-SIZE: 8pt">&nbsp;<A href="http://www.remote-dba.net/">Remote 
+
+      DBA</A></SPAN><BR class="style3"><SPAN style="FONT-SIZE: 8pt">&nbsp;<A 
+
+      href="http://www.dba-oracle.com/oracle_tuning_consulting.htm">Oracle 
+
+      Tuning</A></SPAN><BR class="style3"><SPAN style="FONT-SIZE: 8pt">&nbsp;<A 
+
+      href="http://www.dba-oracle.com/emergency_oracle_support.htm">Emergency 
+
+	911</A></SPAN><BR class="style3"><SPAN 
+
+      style="FONT-SIZE: 8pt">&nbsp;<A 
+
+      href="http://www.dba-oracle.com/shadow_oracle_rac.htm">RAC 
+
+      Support</A></SPAN><BR class="style3"><SPAN style="FONT-SIZE: 8pt">&nbsp;<A 
+
+      href="http://www.dba-oracle.com/oracle_applications/">Apps 
+
+      Support</A></SPAN><BR class="style3"><SPAN style="FONT-SIZE: 8pt">&nbsp;<A 
+
+      href="http://www.dba-oracle.com/developer/dev_systems_analysis_support_consulting_training.htm">Analysis</A></SPAN><BR class="style3"><SPAN 
+
+      style="FONT-SIZE: 8pt">&nbsp;<A 
+
+      href="http://www.dba-oracle.com/developer/dev_systems_design_support_consulting_training.htm">Design</A></SPAN><BR class="style3"><SPAN 
+
+      style="FONT-SIZE: 8pt">&nbsp;<A 
+
+      href="http://www.dba-oracle.com/developer/dev_implementation_support_consulting_training.htm">Implementation</A></SPAN><BR class="style3"><SPAN 
+
+      style="FONT-SIZE: 8pt">&nbsp;<A href="http://www.dba-oracle.com/support/">Oracle 
+
+      Support</A></SPAN></SPAN></p>
+
+	<P>
+
+      <IMG src="http://www.dba-oracle.com/images/toc4_Consulting.jpg" 
+
+      border=0 width="110" height="30"><BR><SPAN class=toc><B><SPAN style="FONT-SIZE: 8pt">&nbsp;<A 
+
+      href="http://www.dba-oracle.com/sql_tuning.htm">SQL Tuning</A><BR>&nbsp;<A 
+
+      href="http://www.dba-oracle.com/t_security_consulting_support.htm">Security</A></SPAN></B></SPAN><BR><SPAN 
+
+      class=toc>&nbsp;<A 
+
+      href="http://www.dba-oracle.com/unix_oracle_consulting.htm">Oracle 
+
+      UNIX</A></SPAN><BR><SPAN 
+
+      class=toc>&nbsp;<A 
+
+      href="http://www.dba-oracle.com/t_linux_oracle_consulting_support.htm">Oracle 
+
+      Linux</A></SPAN><BR><SPAN class=toc>&nbsp;<A 
+
+      href="http://www.dba-oracle.com/monitoring.htm">Monitoring</A><BR>&nbsp;<A 
+
+      href="http://www.remote-dba.net/services.htm">Remote s</A></SPAN></font></b><SPAN class=toc><span class="style1"><a href="http://www.remote-dba.net/services.htm">upport</a></span></SPAN><FONT size=1><B><BR><SPAN class=toc>&nbsp;<A 
+
+      href="http://www.remote-dba.net/plans.htm">Remote 
+
+      plans</A></SPAN><BR><SPAN class=toc>&nbsp;<A 
+
+      href="http://www.remote-dba.net/services.htm">Remote 
+
+      </A></SPAN></b></font><a href="http://www.remote-dba.net/services.htm">
+
+		services</a><FONT size=1><B><SPAN class=toc><BR>&nbsp;<A 
+
+      href="http://www.dba-oracle.com/dev_Oracle%20_Application_Server_support_consulting_training.htm">Application 
+
+      Server</A></SPAN><br>
+
+&nbsp;<A 
+
+      href="http://www.dba-oracle.com/oracle_applications/">Applications</A><BR><SPAN class=toc>&nbsp;<A 
+
+      href="http://www.dba-oracle.com/developer/dev_Oracle%20_Developer_forms_support_consulting_training.htm">Oracle 
+
+      Forms</A></SPAN><BR><SPAN class=toc>&nbsp;<A 
+
+      href="http://www.dba-oracle.com/developer/dev_Oracle%20_Portal_support_consulting_training.htm">Oracle 
+
+      Portal</A></SPAN><BR><SPAN class=toc>&nbsp;<A 
+
+      href="http://www.dba-oracle.com/oracle_applications/Oracle_11i.htm">App 
+
+      Upgrades</A></SPAN><BR><SPAN class=toc>&nbsp;<a href="http://www.dba-sql-server.com">SQL 
+
+      Server</a><BR>&nbsp;<a href="http://www.dba-oracle.com/concepts/">Oracle Concepts</a><BR>&nbsp;<A 
+
+      href="http://www.dba-oracle.com/developer/s_software_development.htm">Software Support</A></SPAN><BR></b><SPAN 
+
+      class=toc><B>&nbsp;<A href="http://www.remote-dba.net/remote_oracle.htm">Remote 
+
+	  S</A></b></font><span class="style1"><a href="http://www.remote-dba.net/remote_oracle.htm">upport</a></span><FONT size=1><B> </b></font> 
+
+      </SPAN><FONT size=1><B>&nbsp;<br>
+
+&nbsp;<A href="http://www.dba-oracle.com/shad_oracle_development.htm">Development</A> &nbsp;</b></font><br>
+
+		<FONT size=1><B><span style="font-size: 7pt">&nbsp;<A href="http://www.dba-oracle.com/shad_oracle_implementation.htm">Implementation</A></span></b></font><P>
+
+      <SPAN 
+
+      class=toc><B><FONT size=1>
+
+    <IMG src="http://www.dba-oracle.com/images/toc3_About_Us.jpg" 
+
+      border=0 width="110" height="30"><BR>&nbsp;<A 
+
+      href="http://www.dba-oracle.com/qualifications.htm">Consulting Staff</A><SPAN 
+
+      style="FONT-SIZE: 8pt"><BR class="style3"></SPAN>&nbsp;<A 
+
+      href="http://www.dba-oracle.com/consulting_prices.htm">Consulting 
+
+      Prices</A><BR class="style3">&nbsp;<A href="http://www.dba-oracle.com/jobs.htm">Help 
+
+      Wanted</A>!</font></b></span><P>
+
+      &nbsp;<P>
+
+      <FONT size=1><B>
+
+    <IMG src="http://www.dba-oracle.com/images/toc_books.jpg" 
+
+      border=0 width="110" height="30"><br>
+
+		</b></font>
+
+    <B><FONT size=1><SPAN 
+
+      style="FONT-SIZE: 8pt">&nbsp;<A 
+
+      href="http://www.dba-oracle.com/poster.htm">Oracle Posters</A></SPAN><BR class="style3"><SPAN 
+
+      style="FONT-SIZE: 8pt">&nbsp;<A 
+
+      href="http://www.rampant-books.com/menu_oracle.htm">Oracle Books</A></SPAN></font></b><FONT size=1><br class="style4">
+
+		</font>
+
+    <B><FONT size=1><SPAN 
+
+      style="FONT-SIZE: 8pt">&nbsp;<A 
+
+      href="http://www.dba-oracle.com/bp/bp_elec_adv_mon_tuning.htm">Oracle 
+
+      Scripts</A></SPAN></font></b><FONT size=1><B><br class="style3">
+
+&nbsp;<A href="http://www.ion-dba.com/">Ion</A> <br class="style3">
+
+&nbsp;<A href="http://www.excel-db.net">Excel-DB</A> &nbsp;&nbsp;</b></font><P>
+
+      <B><br>
+
+	<FONT size=1><SPAN 
+
+      style="FONT-SIZE: 8pt">&nbsp;</SPAN></font></b><FONT size=1><P class=toc>
+
+    <font face="Verdana"><SPAN 
+
+      class=toc><FONT size=1><B><A 
+
+      href="http://www.dba-oracle.com/privacy.htm">Privacy 
+
+      Policy</A></b></font></span></font></P>
+
+	<P class=toc>
+
+    </font><span class="style1"><a href="http://dba-oracle.blogspot.com/">
+
+	Blog</a></span>
+
+	</P>
+
+	<P class=toc>
+
+    <span class="style1"><a href="http://www.travel-golf.org">Golf 
+
+	Travel</a></span><B><FONT size=1><BR>&nbsp;</P>
+
+		</TD>
+
+	</TR>
+
+	</TBODY>
+
+</TABLE>
+
+</FORM>
+
+
+
+<!--webbot bot="Include" i-checksum="24302" endspan --><p>&nbsp;</td>
+<td valign="top" width="560">
+<table border="0" cellpadding="4" cellspacing="0" style="border-collapse: collapse" width="549" id="AutoNumber1">
+<tr>
+<td width="2%">&nbsp;</td>
+<td>
+<div style="color: #000; font-family: Times New Roman">
+<table border="0" cellpadding="0" cellspacing="0" style="border-collapse: collapse" width="521" id="table2">
+<tr>
+<td width="83" style="font-family: Times New Roman: 12px; color: #000">
+<img border="1" src="images/auth_pic_don_burleson_120_140.jpg" width="120" height="140"></td>
+<td width="8" style="font-family: Times New Roman: 12px; color: #000">&nbsp;</td>
+<td width="380" style="font-family: Times New Roman; font-size: 12px; color: #000">
+<font size="2"> 
+<h1>
+Hypercharge SQL*Loader load speed performance</h1>
+<p><i>Oracle Tips by Burleson Consulting<br>
+February 2004, Updated February 22, 2008</i></p>
+</h1>
+</td>
+</tr>
+</table>
+
+        </div>
+<div style="color: #000; font-family: Times New Roman">
+	<font size="3">
+	<p>Is there any limit to the speed of Oracle?&nbsp; With Oracle announcing 
+          a new record one million transactions per minute, many believe that 
+          there is nothing that Oracle cannot do.&nbsp; However, what if we have a requirement for a system that must 
+          accept high-volume data loads into a single table:</p>
+          <ul>
+            <li>500,000 rows per second </li>
+            <li>50 megabytes per second</li>
+          </ul>
+          <p>Is this possible? Using the right tricks you can make Oracle load 
+          data at unbelievable speed.&nbsp; However, special knowledge and tricks are 
+          required.</p>
+          <p>Oracle provides us with many choices for online data loading:&nbsp;</p>
+          <ul>
+            <li>SQL insert and merge statements </li>
+            <li>PL/SQL bulk loads using the forall operator</li>
+          </ul>
+          <p>If we can load in batch mode, we also have more options:</p>
+          <ul>
+            <li>SQL*Loader </li>
+            <li>Oracle Data Pump </li>
+            <li>Oracle import utility</li>
+          </ul>
+          <p>However there are vast differences in load speed (Figure 1).</p>
+          <p>
+          <img border="0" src="images/hypercharging_oracle_loading.gif" width="575" height="395"></p>
+          <p><br>
+          <i>Figure 1: Sample data load speeds</i></p>
+          <p><b><font size="4">Batch Data Loading</font></b></p>
+          <p>If you are loading your data from flat files there are many 
+          products and Oracle tools to improve your load speed:</p>
+          <p><b><font size="4">Oracle Data load tools:</font></b></p>
+          <ul>
+            <p><b>Oracle10g Data Pump</b> - With Data 
+            Pump Import, a single stream of data load is about 15-45 times 
+            faster than original Import. This is because original Import uses 
+            only conventional mode inserts, whereas Data Pump Import uses the 
+            direct path method of loading. </p>
+            <p><b>
+            Oracle SQL*Loader</b> - Oracle SQL*Loader has dozens of options 
+            including direct-path loads, unrecoverable, etc and get super-fast 
+            loads. Here are tips for getting
+            <a href="http://www.remote-dba.net/teas_rem_util18.htm">high-speed 
+            loads</a> with SQL*Loader.</p>
+            <p><b>
+            Oracle import Utility</b> - Oracle has numerous options to
+            <a href="http://www.dba-oracle.com/oracle_tips_load_speed.htm">
+            improve data load speed</a> with its import utility.</p>
+          </ul>
+          <p>See my related notes on loading with SQL*Loader:</p>
+<div id="res" style="font-family: arial,sans-serif">
+	<div style="font-family: arial,sans-serif">
+		<ul>
+			<li>
+			<div class="g">
+				<h2 class="r"><span style="font-style: normal">
+				<a class="l" onmousedown="return clk(this.href,'','','res','2','&amp;sig2=D8OVLxANR7l44pvQupRxjg')" href="tips_sqlldr_loader.htm">
+				SQL*Loader (sqlldr) Utility tips</a></span></h2>
+			</div>
+			</li>
+			<li>
+			<div class="g">
+				<h2 class="r"><span style="font-style: normal">
+				<a class="l" onmousedown="return clk(this.href,'','','res','3','&amp;sig2=EGWhK7cHNpZhe20Tb6OkOA')" href="t_sql_loader_date_format_error_syntax.htm">
+				Fix SQL*Loader date format errors</a></span></h2>
+			</div>
+			</li>
+			<li>
+			<div class="g">
+				<h2 class="r"><span style="font-style: normal">
+				<a class="l" onmousedown="return clk(this.href,'','','res','4','&amp;sig2=BomQRF9UPA_0OBKli25xgg')" href="t_monitoring_sql_loader_inserts.htm">
+				Monitoring SQL*Loader Inserts</a></span></h2>
+			</div>
+			</li>
+			<li>
+			<div class="g">
+				<h2 class="r"><span style="font-style: normal">
+				<a class="l" onmousedown="return clk(this.href,'','','res','5','&amp;sig2=M9ha6JN73miTuQRMl0TNiw')" href="oracle_news/2004_9_3_rittman.htm">
+				OTN Technical Note On Improving SQL*Loader Performance</a></span></h2>
+			</div>
+			</li>
+			<li>
+			<div class="g">
+				<h2 class="r"><span style="font-style: normal">
+				<a class="l" onmousedown="return clk(this.href,'','','res','6','&amp;sig2=3OXWniKS-A8UsuZZB5-_Sw')" href="art_otn_cbo_p7.htm">
+				Oracle SQL undocumented tuning hints</a></span></h2>
+			</div>
+			</li>
+			<li>
+			<div class="g">
+				<h2 class="r"><span style="font-style: normal">
+				<a class="l" onmousedown="return clk(this.href,'','','res','7','&amp;sig2=IWASoCw_omzbuc4lMnG-dQ')" href="t_sqlldr_sql_loader_table_reorganization.htm">
+				Using SQL*Loader to Reorganize Oracle Tables</a></span></h2>
+			</div>
+			</li>
+			<li>
+			<div class="g">
+				<h2 class="r"><span style="font-style: normal">
+				<a class="l" onmousedown="return clk(this.href,'','','res','8','&amp;sig2=xGOOso2VajIOCxH1VAHUSA')" href="t_loading_clob_data_sqlldr_sql_loader.htm">
+				Loading CLOB data with sqlldr (SQL*Loader)</a></span></h2>
+			</div>
+			</li>
+			<li>
+			<div class="g">
+				<h2 class="r"><span style="font-style: normal">
+				<a class="l" onmousedown="return clk(this.href,'','','res','9','&amp;sig2=4EC6BK5mnwn4fRVBaR3MHA')" href="t_sql_loader_sqlldr_external_tables.htm">
+				SQL*Loader External Tables</a></span></h2>
+			</div>
+			</li>
+		</ul>
+	</div>
+</div>
+	<!--webbot bot="Include" TAG="BODY" U-Include="include_utility_book.htm" startspan -->
+
+
+
+
+
+
+<p>
+    <table border="0" cellpadding="0" style="border-collapse: collapse; width: 50%;" id="table1">
+
+      <tr>
+
+        <td width="121" valign="top">
+
+        &nbsp;</td>
+
+        <td>
+
+    	<div class="style400">
+			<b><font size="4">&nbsp;</font></b><font SIZE="3">
+		<table border="0" style="width: 500; height: 192px">
+
+		<tr>
+
+			<td style="width: 49">
+
+			<a href="http://www.rampant-books.com/book_0801_oracle_utilities.htm">
+
+			<img height="158" src="http://dba-oracle.com/images/book_cover_oracle_utilities_120.jpg" width="120" border="2"></a> </td>
+
+			<td class="style100">
+			&nbsp;</td>
+
+			<td class="style100">
+			<div class="style100" style="height: 118px">
+
+    <b><font size="4"><span class="style600">Get the Complete</span><br class="style600">
+				<span class="style600">Oracle Utility Information&nbsp; </span>
+				<br class="style600">
+
+				</font></b><br class="style600"><font SIZE="3" class="style700">
+				<span class="style600">The landmark book 
+				<a href="http://www.rampant-books.com/book_0801_oracle_utilities.htm">&quot;Advanced Oracle 
+				Utilities The Definitive Reference&quot;&nbsp; </a>contains over 600 pages of 
+				filled with valuable information on Oracle's secret utilities. 
+				This book includes scripts and tools to hypercharge Oracle 11g 
+				performance and you can
+				<a href="http://rampant.cc/cart/catalog/catalog/default.php?cPath=21&amp;sort=2a&amp;page=2&amp;action=buy_now&amp;products_id=169">buy it
+				</a>for 30% off directly from the publisher.</span></font></div>
+			</td>
+
+			<td class="style100">
+			&nbsp;</td>
+
+		</tr>
+
+	</table>
+
+			</font>
+
+			
+
+     
+
+        
+
+
+
+
+
+
+
+
+
+
+
+<p class="style700"></p>
+
+			
+
+     
+
+        
+
+
+
+
+
+
+
+
+
+
+
+<!--webbot bot="Include" i-checksum="46660" endspan --><hr>
+          <p><b><font size="4">Online Data Loading</font></b></p>
+          <p>Don't use standard SQL inserts as they are far slower than other 
+          approaches. If you must use SQL inserts, make sure to use the APPEND 
+          hint to bypass the freelists and raise the high-water mark for the 
+          table. You are way better off using PL/SQL with the bulk insert 
+          features (up to 100x faster).</p>
+          <p>Other things to ensure:</p>
+          <ul>
+            <li>
+            <p class="Bullet" style="text-indent: 0in; margin-left: 0in"><b>Use 
+            parallel DML</b> - Parallelize the data loads according to the 
+            number of processors and disk layout. Try to saturate your 
+            processors with parallel processes.&nbsp;<br>
+&nbsp;</li>
+            <li>
+            <p class="Bullet" style="text-indent: 0in; margin-left: 0in"><b>
+            Disable constraints and indexes</b> – Disable RI during load and 
+            re-enable (in parallel) following the load.<br>
+&nbsp;</li>
+            <li>
+            <p class="MsoNormal"><b>Tune object parms</b> - Use multiple 
+            freelists or freelist groups for target tables. Avoid using bitmap 
+            freelists ASS management (automatic segment space management) for 
+            super high-volume loads.<br>
+&nbsp;</li>
+            <li>
+            <p class="Bullet" style="text-indent: 0in; margin-left: 0in"><b>
+            Pre-sort the data in index key order</b> - This will make subsequent 
+            SQL run far faster for index range scans.<br>
+&nbsp;</li>
+            <li>
+            <p class="Bullet" style="text-indent: 0in; margin-left: 0in"><b>Use 
+            RAM Disk</b> - Place undo tablespace and online redo logs on 
+            Solid-state disk (RAM SAN)<br>
+&nbsp;</li>
+            <li>
+            <p class="Bullet" style="text-indent: 0in; margin-left: 0in"><b>Use 
+            SAME RAID</b> - Avoid RAID5 and use Oracle Stripe and Mirror 
+            Everywhere approach (RAID 0+1, RAID10). However, this doesn't mean 
+            one large array smeared with everything, you will see performance 
+            gains from separating temp, data and index, redo and undo segments 
+            onto separate RAID areas.<br>
+&nbsp;</li>
+            <li>
+            <p class="Bullet" style="text-indent: 0in; margin-left: 0in"><b>Use 
+            a small db_cache_size</b> - This will minimize DBWR work. In 
+            Oracle9i you can use the alter system set db_cache_size command to 
+            temporarily reduce the data buffer cache size.<br>
+&nbsp;</li>
+            <li>
+            <p class="Bullet" style="text-indent: 0in; margin-left: 0in"><b>
+            Watch your commit frequency</b> - Too frequent checkpoints can 
+            be a performance issue. To few commits can cause undo segment 
+            problems.<br>
+&nbsp;</li>
+            <li>
+            <p class="Bullet" style="text-indent: 0in; margin-left: 0in"><b>Use 
+            a large blocksize</b> - Data loads onto 32k blocksizes will run far 
+            faster because Oracle will be able to insert more rows into an empty 
+            block before a write.<br>
+            <br>
+            Here is a small benchmark showing the performance of loads into a 
+            larger blocksize:<br>
+            <br>
+            <font face="Courier New" size="1">alter system set 
+            db_2k_cache_size=64m scope=spfile;<br>
+            alter system set db_16k_cache_size=64m scope=spfile;<br>
+            startup force<br>
+            create tablespace twok blocksize 2k; &lt;-- using ASM defaults to 100m<br>
+            create tablespace sixteenk blocksize 16k;<br>
+            create table load2k tablespace twok as select * from dba_objects; &lt; 
+            creates 8k rows<br>
+            drop table load2k; &lt;- first create was to preload buffers<br>
+            <br>
+            set timing on;<br>
+            create table load2k tablespace twok as select * from dba_objects;<br>
+            create table load16k tablespace sixteenk as select * from 
+            dba_objects;</font><br>
+            <br>
+            For a larger sample, I re-issued the create processes with:<br>
+            <br>
+            <font face="Courier New" size="2">select * from dba_source (80k 
+            rows).</font><br>
+            <br>
+            Even with this super-tiny sample on Linux using Oracle10g with ASM 
+            the results where impressive:<br>
+            <br>
+</font>
+
+
+
+            <font face="Courier New" size="1">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
+            2k&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 16k<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+            <u>blksze&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; blksze</u><br>
+            8k table size&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
+            4.33 secs&nbsp;&nbsp; 4.16 secs <br>
+            80k table size&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
+            8.74 secs&nbsp;&nbsp; 8.31 secs </font>
+<font size="3">
+			<br>
+&nbsp;</li>
+          </ul>
+          <p><b><font size="4">Driving your server</font></b></p>
+          <p>It is critical to take STATSPACK reports during data loading, 
+          paying special attention to the top-5 wait events. </p>
+          <ul>
+            <p><b>I/O-bound</b> - Move to faster media (SSD), especially for 
+            undo and redo files. </p>
+            <p><b>CPU-bound</b> - Add more processors and increase degree of 
+            parallel DML</p>
+            <p><b>Network-bound</b> - Move data loading onto the save server as 
+            the Oracle instance</p>
+          </ul>
+          <p>Using these techniques you can achieve blistering data load speeds 
+          for multi-terabyte Oracle databases.</p>
+<table width="99%" border="0">
+	<tr>
+		<td><span style="font-size: 12pt">
+		<a href="http://www.rampant-books.com/book_1002_oracle_tuning_definitive_reference_2nd_ed.htm">
+		<img height="158" src="images/book_cover_10g_proactive_tuning_120.gif" width="120" border="1"></a></span></td>
+		<td vAlign="top" width="524"><font style="font-size: 12pt">
+		<font style="font-size: 12pt" size="3">If you like Oracle tuning, you 
+		might enjoy my book</font> &quot;<a href="http://www.rampant-books.com/book_1002_oracle_tuning_definitive_reference_2nd_ed.htm">Oracle 
+		Tuning: The Definitive Reference</a>&quot;, with 950 pages of tuning tips and 
+		scripts.&nbsp; 
+		<p>You can buy it direct from the publisher for 30%-off and get instant 
+		access to the code depot of Oracle tuning scripts.</font></td>
+	</tr>
+</table>
+</font>
+
+
+
+</div>
+<hr>
+<!--webbot bot="Include" U-Include="include_current.htm" TAG="BODY" startspan -->
+
+<table border="0" cellpadding="0" cellspacing="0" style="border-collapse: collapse; width: 49%;" bordercolor="#111111" id="AutoNumber1">
+  <tr>
+    <td width="100%" valign="top">
+    <p align="center">
+    <img border="0" src="images/include_current.jpg" width="524" height="375"></p>
+    </td>
+  </tr>
+</table>
+
+<!--webbot bot="Include" i-checksum="38295" endspan --><p class="MsoNormal">&nbsp;</p>
+</td>
+</tr>
+</table>
+</td>
+<td valign="top" width="9">
+<p>&nbsp;</td>
+<td valign="top" width="215">
+<!--webbot bot="Include" U-Include="ads.htm" TAG="BODY" startspan -->
+
+    <table border="0" cellpadding="0" cellspacing="0" style="border-collapse: collapse" bordercolor="#111111" width="16%" id="AutoNumber1">
+
+      <tr>
+
+        <td width="100%">
+
+
+
+<script language="JavaScript">
+
+<!--
+
+
+
+function SymError()
+
+{
+
+  return true;
+
+}
+
+
+
+window.onerror = SymError;
+
+
+
+var SymRealWinOpen = window.open;
+
+
+
+function SymWinOpen(url, name, attributes)
+
+{
+
+  return (new Object());
+
+}
+
+
+
+window.open = SymWinOpen;
+
+
+
+//-->
+
+        </script>
+
+
+
+		<table border="0" width="100%">
+
+			<tr>
+
+				<td><span style="font-size: 14pt">&nbsp;</span></td>
+
+			</tr>
+
+			
+
+			<tr>
+
+				<td height="16">
+
+				<script language="javascript" src="http://www.dba-oracle.com/oracle_news/rssview.php?url=http%3A%2F%2Fwww.dba-oracle.com%2Foracle_news%2Frssfeed.php&showtitle=1&showimg=0&showinput=0&maxitems=5&showdescs=0&titletrim=0&titlemax=0&desctrim=0&descmax=0&tabwidth=122px&linktarget=_blank&cssurl=&dotransition=1&bordercol=%2300359E&headbgcol=%23999999&headtxtcol=%23ffffff&titlebgcol=%23dddddd&titletxtcol=%230000ff&itembgcol=%23ffffff&itemtxtcol=%23000000&mode=javascript&ctl=0"> </script></span>
+
+				</p>
+
+                </td>
+
+			</tr>
+
+			
+
+			<tr>
+
+				<td>
+
+        		<a href="http://rampant-books.com/book_1002_oracle_tuning_definitive_reference_2nd_ed.htm">
+				<img alt="" class="style1" height="327" src="http://dba-oracle.com/images/oracle_tuning_definitive_book_ad.jpg" width="121"></a>&nbsp;</td>
+
+			</tr>
+<tr>
+
+				<td>
+
+        <span style="font-size: 4pt">&nbsp; </span></td>
+
+			</tr>
+
+		<tr>
+
+				<td>
+
+        		<a href="http://www.confio.com/English/Forms/Free_Whitepapers.php?source=Burleson" target="_blank">
+
+				<img class="style1" src="images/tunahelper-120x240.gif" width="120" height="240"></a>&nbsp;</td>
+
+			</tr>
+	  
+
+			<tr>
+
+				<td>
+
+        		&nbsp;</td>
+
+			</tr>
+
+		<tr>
+
+				<td>
+
+        		<a href="http://www.dba-oracle.com/BC_cruise.htm">
+
+        <a href="http://www.ion-dba.com/">
+
+        <img border="1" src="http://www.dba-oracle.com/images/wise-ad.gif" align="left" longdesc="Oracle performance tuning software" alt="Oracle performance tuning software" lowsrc="Oracle%20performance%20tuning%20software" width="120" height="90"></a></a></td>
+
+			</tr>
+
+			<tr>
+
+				<td>
+
+        <span style="font-size: 4pt">&nbsp; </span></td>
+
+			</tr>
+
+			
+
+			<tr>
+
+				<td>
+
+        <a href="http://www.dba-oracle.com/oracle_health_check.htm">
+
+		<img border="1" src="images/health_check_ad1.jpg" width="120" height="140"></a></td>
+
+			</tr>
+
+			<tr>
+
+				<td><span style="font-size: 4pt">&nbsp;</span></td>
+
+			</tr>
+
+						<tr>
+
+				<td><br><span style="font-size: 4pt">&nbsp;</span></td>
+
+			</tr>
+
+			<tr>
+
+				<td height="35" align="left">
+
+        <p align="center">
+
+		<a href="http://www.dba-oracle.com/oracle_scripts.htm">
+
+		<img border="1" src="images/oracle_scripts_120.jpg" width="120" height="120" align="left"></a></td>
+
+			</tr>			
+
+			<tr>
+
+				<td><span style="font-size: 4pt">&nbsp;</span></td>
+
+			</tr>
+
+			<tr>
+
+				<td>
+
+            	&nbsp;</td>
+
+			</tr>
+
+			<tr>
+
+				<td><span style="font-size: 4pt">&nbsp;</span></td>
+
+			</tr>
+
+			<tr>
+
+				<td>
+
+            <a href="http://www.rampant-books.com/poster_oracle_database.htm">
+
+        <span style="font-size: 6pt">
+
+		<img border="0" src="http://www.dba-oracle.com/images/ad_freeposter.gif" align="left" longdesc="Oracle performance Tuning 10g reference poster" alt="Oracle performance Tuning 10g reference poster" lowsrc="Oracle%20performance%20Tuning%20" width="120" height="90"></span></a></td>
+
+			</tr>
+
+			<tr>
+
+				<td><span style="font-size: 4pt">&nbsp;</span></td>
+
+			</tr>
+
+			<tr>
+
+				<td>
+
+            	&nbsp;</td>
+
+			</tr>
+
+			<tr>
+
+				<td><span style="font-size: 4pt">&nbsp;</span></td>
+
+			</tr>
+
+			<tr>
+
+				<td>
+
+        <a href="http://www.dba-oracle.com/oracle_command_syntax_poster.htm">
+
+        <span style="font-size: 6pt">
+
+        <img border="0" src="http://www.dba-oracle.com/images/ad_cmnd_syntax.gif" longdesc="Oracle training - Linux commands reference" alt="Oracle training in Linux commands" lowsrc="Oracle%20training%20Linux" width="120" height="90"></span></a></td>
+
+			</tr>
+
+			<tr>
+
+				<td>&nbsp;</td>
+
+			</tr>
+
+			<tr>
+
+				<td>
+
+        <a href="http://www.excel-db.net">
+
+		<img border="0" src="images/exceldb_logo_oracle_120.jpg" width="120" height="107" lowsrc="Oracle%20training%20Excel" longdesc="Oracle training Excel" alt="Oracle training Excel"></a></td>
+
+			</tr>
+
+			<tr>
+
+				<td>&nbsp;</td>
+
+			</tr>
+
+			<tr>
+
+				<td>
+
+            <span style="font-size: 6pt">
+
+            <a style="font-family: Times New Roman, Helvetica, sans-serif; color: #FF0000" href="http://www.rampant-books.com/menu_oracle.htm">
+
+        <img alt="Oracle training &amp; performance tuning books" border="1" src="http://www.fast-track.cc/images/adrampant.gif" width="120" height="90" style="border: 1px solid #000000" longdesc="Oracle training &amp; performance tuning books" lowsrc="Oracle%20training%20&%20performance%20tuning%20books"></a></span></td>
+
+			</tr>
+
+			<tr>
+
+				<td>&nbsp;</td>
+
+			</tr>
+
+			<tr>
+
+				<td>
+
+        <a href="http://www.dba-oracle.com/training.htm">
+
+		<img border="1" src="images/training_ad1.jpg" width="120" height="104"></a></td>
+
+			</tr>
+
+		</table>
+
+        </td>
+
+      </tr>
+
+    </table>
+
+  <!--webbot bot="Include" i-checksum="47794" endspan --><p>&nbsp;</td>
+</tr>
+</table>
+</div>
+
+<!--webbot bot="Include" U-Include="footer.htm" TAG="BODY" startspan -->
+<table width="400" cellpadding="2" cellspacing="0" bgcolor="#FFFFFF" bordercolor="#FFFFFF" align="center" class="style6">
+	<tr>
+		<td align="center" style="width: 299px">
+		<p class="style5" style="width: 372px">Burleson is the American Team<p style="width: 398px">
+		<img src="images/american%20flag%20picture.jpg" width="387" height="252"><p align="left" style="width: 395px">
+		<p align="left" style="width: 412px"><font face="Times New Roman"><b>
+		<font color="#000000" style="font-size: 9pt"><i>Note:</i> </font>
+		<font color="#800000" style="font-size: 9pt">This Oracle 
+    documentation was created as a support and Oracle training reference for use by our 
+	 
+	DBA performance tuning consulting professionals.&nbsp; 
+	Feel free to ask questions on our
+		<a href="http://dbaforums.org/oracle/index.php?showforum=2">
+		<font color="#800000">Oracle forum</font></a>.</font></b></font><p align="left" style="width: 414px">
+		<b><i><font face="Times New Roman" style="font-size: 9pt">Verify</font></i></b><font face="Times New Roman"><b><font color="#000000" style="font-size: 9pt"><i> 
+	experience!</i> </font></b></font><b>
+		<font face="Times New Roman" style="font-size: 9pt" color="#800000">Anyone 
+	considering using the services of an Oracle support expert should 
+	independently investigate their credentials and experience, and not rely on 
+	advertisements and self-proclaimed expertise. All legitimate Oracle experts 
+	publish 
+	their <a href="http://www.dba-oracle.com/qualifications.htm">Oracle 
+	qualifications</a>. </font></b>
+		<p align="left" style="width: 420px">
+		<b><font face="Times New Roman"><i>
+		<font color="#000000" style="font-size: 9pt">Errata? </font></i>
+		<font color="#000000" style="font-size: 9pt">&nbsp;</font><font color="#800000" style="font-size: 9pt">Oracle technology is changing and we 
+    strive to update our BC Oracle support information.&nbsp; If you find an error 
+    or have a suggestion for improving our content, we would appreciate your 
+    feedback.&nbsp; Just&nbsp; </span></font></font>
+		<font color="#800000" face="Times New Roman" style="font-size: 9pt" font>e-mail: 
+		</font>
+		<font color="#800000" face="Times New Roman" style="font-size: 9pt">&nbsp;<img border="0" src="http://www.dba-oracle.com/images/email_address.jpg" width="144" height="14">and include the URL for the page.</font></b><p align="left" style="width: 372px">
+		<b><font style="font-size: 12pt" font color="#FFFFFF"><br>&nbsp;<img border="0" src="images/BC_logo_98.jpg" width="98" height="109">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+				<img border="0" src="images/phone.gif" width="189" height="100"><table border="0" cellpadding="0" style="border-collapse: collapse; width: 95%;" align="center">
+			<tr>
+				<td style="width: 24px">
+				<br><br><br><br><br><br><br><br></td>
+				<td width="322" valign="top">
+				<p align="center"><b><font color="#800000" size="1"><br></font>
+				<font color="#800000" size="5">Burleson Consulting</font><font color="#800000" size="4"><br>
+				</font><font size="2" color="#800000"><br>The Oracle of 
+			Database Support</font></b><font style="font-size: 12pt" font color="#FFFFFF"><b><p align="center">
+				<font size="2" color="#800000">
+				<a class="style3" href="oracle_performance_consulting.htm">
+				<span class="style4">Oracle</span></a></font></b><font size="2" color="#800000"><strong><a class="style3" href="oracle_performance_consulting.htm"><span class="style4"> 
+			Performance Tuning</span></a></strong></font></font><p align="center" class="style7">
+				<strong><a class="style3" href="http://www.remote-dba.net">
+				<span class="style4">Remote DBA Services</span></a></strong><p align="center">
+				<b><font color="#800000" size="3"><br>&nbsp;</font></b></td>
+			</tr>
+		</table>
+ 
+ 
+ 		</font><font font color="#FFFFFF">
+		<p style="height: 18px; width: 383px"><font color="#800000" style="font-size: 8pt">
+		Copyright © 1996 -&nbsp; 2010 by Burleson 
+        Enterprises, Inc. </font></p>
+		<p style="height: 18px; width: 383px">
+		<font color="#800000" style="font-size: 8pt">All rights reserved.</font></p>
+		</font><font style="font-size: 8pt" color="#800000">
+		<p style="width: 380px">Oracle</font><span class="style1"> ©</span><font style="font-size: 8pt" color="#800000"> 
+		is the registered trademark of Oracle Corporation.<br><br></font>
+		<font style="font-size: 12pt" font color="#FFFFFF">
+		<font color="#800000"><br></font><font color="#FFFFFF">
+		</font></p>
+		</td>
+	</tr>
+</table>
+<!--webbot bot="Include" i-checksum="15013" endspan --><p>
+</p>
+
+</body></html>

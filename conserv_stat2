@@ -1,0 +1,72 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 6/17/2010 
+###################################
+import sys
+import bitk
+
+if '-h' in sys.argv:
+	print "This program reads a MSA and returns the Amino Acid and the counts of its appearance. \n \
+		Sintax: conser_stat fasta_file.fa [options] \n Options: \n \
+		-ng	Ignores columns where gaps are the most common hit\n \
+		-s	Sorts columns by value"
+	sys.exit()
+
+seq_dic, seq_list = bitk.fastareader(sys.argv[1])
+
+max_len = 0
+
+for seq in seq_dic.values():
+	if len(seq) > max_len:
+		max_len = len(seq)
+
+N_seq = len(seq_dic.keys())
+
+output = ''
+
+list = []
+
+
+for i in range(max_len):
+	AA = bitk.aa_distr(seq_dic, i)
+	max_count = 0
+	max_aa = ''
+	for aa, counts in AA.iteritems():
+		if max_count < int(counts):
+			max_aa = aa
+			max_count = counts
+		
+	if '-ng' in sys.argv and max_aa != '-':
+		output += str(i+1) + '\t' + max_aa + '\t' + str(max_count) + '\t' + str(100*max_count/float(N_seq)) + '\n'
+		list.append([ i+1, max_aa, max_count ])
+	elif '-ng' not in sys.argv:
+		output += str(i+1) + '\t' + max_aa + '\t' + str(max_count) + '\t' + str(100*max_count/float(N_seq)) + '\n'
+		list.append( [ i+1, max_aa, max_count ] )
+
+max_len = len(list)
+
+if '-s' in sys.argv:
+	output = ''
+	for i in range(max_len):
+		max_score = 0
+		max_index = 0
+		for j in range(len(list)):
+			if max_score < list[j][2]:
+				max_score = list[j][2]
+				pop_index = j
+		
+		output += str(list[pop_index][0]) + '\t' + list[pop_index][1] + '\t' + str(max_score) + '\t' + str(100*max_score/float(N_seq)) + '\n'
+		list.pop(pop_index)
+
+		
+			
+				
+		
+
+dataout = open('data_stat.dat', 'w')
+dataout.write(output)
+dataout.close()
+	
+print 'Done'		
+
+

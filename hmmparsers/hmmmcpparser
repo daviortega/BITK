@@ -1,0 +1,55 @@
+#! /usr/bin/env python 
+###################################
+##    Davi Ortega                ##
+###################################
+import sys
+import bitk
+
+if '-h' in sys.argv:
+	print "Update fasta file with class information retrived from mcp-roger.hmm output file"
+	print "Sintax: hmmmcpparser.py fasta_file.fa output_hmm.dat"
+	print "outfile = fasta_file.new.fa"
+	sys.exit()
+
+DIFF_THRES = 50
+MIN_SCORE = 100
+
+
+seq_dic, seq_list = bitk.fastareader(sys.argv[1])
+
+hmmfile = open(sys.argv[2],'r')
+
+new_seq = 1
+for line in hmmfile:
+	if "Query sequence" in line:
+		tag = line.split(':')[1].replace(' ','').replace('\n','')
+		new_seq = 0
+	if ("------" in line) and (new_seq == 0):
+		new_seq = 1
+		mcp_class = []
+		for line2 in hmmfile:
+			line_info = line2.split(' ')
+			while '' in line_info:
+				line_info.remove('')
+			mcp_class.append([line_info[0],float(line_info[1])])
+			if len(mcp_class) == 2:
+				break
+		if (mcp_class[0][1] >= MIN_SCORE) and (mcp_class[0][1] - DIFF_THRES >= mcp_class[1][1]):
+			seq_dic[tag + '--' + mcp_class[0][0]] = seq_dic[tag]
+			del seq_dic[tag]
+		else:
+			seq_dic[tag + '--' + 'Uncat'] = seq_dic[tag]
+			del seq_dic[tag]
+
+hmmfile.close()
+
+outfile = open(sys.argv[1][:-2] + 'class.fa', 'w')
+output = ''
+for tag, seq in seq_dic.iteritems():
+	output += '>' + tag + '\n' + seq + '\n'
+
+outfile.write(output)
+outfile.close()
+
+
+

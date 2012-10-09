@@ -1,0 +1,200 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 3/11/2011 
+###################################
+import math
+import numpy
+import sys
+import copy
+import re
+import os
+
+if '-h' in sys.argv:
+	print 'Calculates the correlation between all alpha carbons in a giving trajectory (pdb) \
+	\n\tSintax: ca_ca_corr_matrix Dt B trajectory.pdb (Dt is the correlation delay default = 0, B is the number of blocks that the simulations will be divided default = 1) \n \
+	Options: -v verbose'
+	sys.exit()
+
+sys.stdout.write('Starting reading and parsing /')
+sys.stdout.flush()
+
+pdb_file = open(sys.argv[3],'r')
+DT = int(sys.argv[1])
+B = int(sys.argv[2])
+
+if B == 0:
+	print 'B = 0 is impossible, making B = 1'
+	B = 1
+	
+
+#print '\nStarting parser'
+
+res_list = []
+dic_vec = {}
+
+token = 0
+
+for line in pdb_file:
+	if ' CA ' in line:
+		line_s = line.split(' ')
+		while '' in line_s:
+			line_s.remove('')
+		if line_s[5]+line_s[4] not in dic_vec.keys():
+			dic_vec[line_s[5]+line_s[4]] = [[ float(line_s[6]), float(line_s[7]), float(line_s[8])] ]
+			res_list.append(line_s[5]+line_s[4])
+			#print line_s[5]+line_s[4] + ' ' + line_s[6] + ' ' + line_s[7] + ' ' + line_s[8]
+		else:
+			dic_vec[line_s[5]+line_s[4]].append([float(line_s[6]), float(line_s[7]), float(line_s[8])])
+		if token == 0:
+			sys.stdout.write('\b-')
+			sys.stdout.flush()
+			token += 1
+		elif token == 1:
+			sys.stdout.write('\b\\')
+                        sys.stdout.flush()
+			token += 1
+                elif token == 2:
+			sys.stdout.write('\b|')
+                        sys.stdout.flush()
+			token += 1
+                elif token == 3:
+			sys.stdout.write('\b-')
+                        sys.stdout.flush()
+			token += 1
+                elif token == 4:
+			sys.stdout.write('\b/')
+                        sys.stdout.flush()
+			token = 0
+               
+
+		
+		
+print 'Parser is done. Starting calculations:'
+
+		
+#calculations
+
+T = len(dic_vec[dic_vec.keys()[0]])
+
+w = len(dic_vec[dic_vec.keys()[0]]) - int(DT)
+
+
+dic_matrix = {}
+res_list2 = []
+
+for resi in res_list:
+	res_list2.append(resi)
+	dic_matrix[resi] = {}
+
+res_list_done = []
+
+
+for resi in res_list:
+	#output += resi + ';'
+#	print 'Calculating ' + resi
+	for resj in res_list2:
+		dic_matrix[resi][resj] = {}
+		dic_matrix[resj][resi] = {}
+		if 1 == 1: #resi != resj and DT == 0:
+			for b in range(B):
+				start = b * ( T / B - DT / B )
+				end = ( b + 1 ) * ( T / B - DT / B )
+				xi = 0
+        	                yi = 0
+	                        zi = 0
+	                        xj = 0
+        	                yj = 0
+                	        zj = 0
+                        	rirj = 0
+	                        riri = 0
+        	                rjrj = 0
+				for i in range(start,end):
+					xi += dic_vec[resi][i][0]
+					yi += dic_vec[resi][i][1]
+					zi += dic_vec[resi][i][2]
+					xj += dic_vec[resj][i+DT][0]
+	                	        yj += dic_vec[resj][i+DT][1]
+        	                	zj += dic_vec[resj][i+DT][2]
+					rirj += dic_vec[resi][i][0]*dic_vec[resj][i+DT][0] + dic_vec[resi][i][1]*dic_vec[resj][i+DT][1] + dic_vec[resi][i][2]*dic_vec[resj][i+DT][2]
+					riri += dic_vec[resi][i][0]*dic_vec[resi][i][0] + dic_vec[resi][i][1]*dic_vec[resi][i][1] + dic_vec[resi][i][2]*dic_vec[resi][i][2]
+					rjrj += dic_vec[resj][i+DT][0]*dic_vec[resj][i+DT][0] + dic_vec[resj][i+DT][1]*dic_vec[resj][i+DT][1] + dic_vec[resj][i+DT][2]*dic_vec[resj][i+DT][2]
+
+				dic_matrix[resi][resj][b] = ( int(len(range(start,end))) * ( rirj ) - (xi*xj + yi*yj + zi*zj)) /float(math.sqrt( int(len(range(start,end))) * riri - ( xi*xi + yi*yi + zi*zi )) * math.sqrt( int(len(range(start,end))) * rjrj - ( xj*xj + yj*yj + zj*zj )))
+				#output += str(dic_matrix[resi][resj]) + ';'
+				if '-v' in sys.argv:
+					print 'Block ' + str(b) + ' ' + resi + '-' + resj + '-> ' + str(dic_matrix[resi][resj][b])
+		else:
+			dic_matrix[resi][resj] = 1
+                        #output += '1;'
+	#output += '\n'
+	res_list2.remove(resi)
+	
+print 'Calculation completed.'
+print 'Duplicating results to symmetric matrix'
+
+for b in range(B):
+	output = ';'
+	for resi in res_list:
+	        output += resi + ';'
+        	res_list2.append(resi)
+	output += '\n'
+	for resi in res_list:
+		output += resi + ';'
+		for resj in res_list:
+#			print resi
+ #                       print resj
+  #                      print b
+   ##                     print dic_matrix[resi][resj]
+     #                   print dic_matrix[resi][resj][b]
+#			a = copy.copy(dic_matrix[resi][resj][b])
+#			print 'done'
+                        dic_matrix[resj][resi][b] = dic_matrix[resi][resj][b]
+#			except KeyError:
+#				print resi
+#				print resj
+#				print b
+#				print dic_matrix[resi][resj]
+#				print dic_matrix[resi][resj][b]
+#				sys.exit()
+			
+			output += str(dic_matrix[resi][resj][b]) + ';'
+		output += '\n'
+	
+	print 'Duplication of block ' + str(b) + 'complete'
+	print 'Writting file: ' + 'caca_corr_DT_' + str(DT) + '_' + str(b) + '.dat'
+	outfile = open('caca_corr_DT_' + str(DT) + '_' + str(b) + '.dat','w')
+	outfile.write(output)
+	outfile.close()
+
+
+# Preparing for gnuplots.
+
+
+if '-gnuplot' in sys.argv:
+	print 'Gnuplot option recognized. Starting reformating data'
+	os.system('mkdir gnuplot_image')
+	res_m = re.compile("[0-9]+")
+	for b in range(B):
+		output = '0\t0\t-1\n0\t1\t1\n\n'
+		for resi in res_list:
+			for resj in res_list:
+				output += res_m.findall(resi)[0] + '\t' + res_m.findall(resj)[0] + '\t' + str(dic_matrix[resi][resj][b]) + '\n'
+			output += '\n'
+	
+		outfile = open('./gnuplot_image/gnuplot_' + str(DT) + '_' + str(b) + '.dat','w')
+        	outfile.write(output)
+	        outfile.close()
+
+	print 'Done writting reformating data, activating gnuplot to generate the figures'
+	print 'Figures will be generated in the following directory: gnuplot_image'
+
+
+
+
+
+print 'Files written, I am done! Have a good day!'
+
+pdb_file.close()
+
+
+

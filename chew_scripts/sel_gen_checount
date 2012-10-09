@@ -1,0 +1,77 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 6/30/2012 
+###################################
+import sys
+if '-h' in sys.argv:
+	print 'select the genomes (by mist_id) that contains the specific number of che sequences\ncomplete chea    chew    mcp     cheb    checx   ched    cher    chev    chez    other'
+	sys.exit()
+
+#complete chea    chew    mcp     cheb    checx   ched    cher    chev    chez    other
+# 1 for complete genomes, 0 for drafts and A for any
+# use N+ for N and larger than N
+# use N- for N and less than N
+# use A for any
+# use N1_N2 for between N1 and N2 (inclusive)
+
+# input parser
+rules = sys.argv[2:]
+
+datafile = open(sys.argv[1],'r')
+
+
+list_bugs = []
+
+for line in datafile:
+	if 'bug' not in line:
+		fields = line.split('\t')
+		#rule checker:
+		test = True
+		for N in range(len(rules)):
+			if rules[N] == 'A':
+				test = True
+			elif rules[N].isdigit():
+				if int(rules[N]) != int(fields[N+3]):
+					test = False
+					break
+			elif rules[N][-1] == '+':
+				if int(rules[N][:-1]) > int(fields[N+3]):
+					test = False
+					break
+			elif rules[N][-1] == '-':
+				if int(rules[N][:-1]) < int(fields[N+3]):
+					test = False
+					break
+			elif '_' in rules[N]:
+				interval = rules[N].split('_')
+				if int(interval[0]) > int(fields[N+3]) or int(interval[1]) < int(fields[N+3]):
+					test = False
+					break
+			else:
+				print 'something is wrong'
+				print line
+				print rules
+				print fields
+				sys.exit()
+#		if N != len(rules):
+#			print 'break in rule: ' + str(N)
+		if test:
+			list_bugs.append(fields[0])
+#			print fields
+#		elif N == 3:
+#			print 'BREAK'
+#			print fields
+datafile.close()
+output = ''
+for bug in list_bugs:
+	output += bug + '\n'
+
+outfile = open('selected_genomes.txt','w')
+outfile.write(output)
+outfile.close()
+
+
+
+print list_bugs
+print len(list_bugs)
+			

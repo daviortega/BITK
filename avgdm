@@ -1,0 +1,48 @@
+#!/usr/bin/env python
+import fileinput
+from fuzzy_davi import *
+import random
+import sys
+
+if '-h' in sys.argv:
+	print 'readm datafile'
+	sys.exit()
+if len(sys.argv) < 1:
+	print 'not enough arguments'
+	sys.exit()
+All = {}
+k = 0
+for file in sys.argv[1:]:
+	names, Dmatrix = readDm(file)
+	All[file] = [names, Dmatrix]
+	if k == 0:
+		avg_names = names
+		k = 1
+
+num_mat = len(All.keys())
+
+All_new = reorderDm(All)
+
+
+avg_Dmatrix = {}
+
+for file in All_new.keys():
+	Dmatrix = All_new[file][1]
+	val = []
+	for name in Dmatrix.keys():
+		if name in avg_Dmatrix.keys():
+			for i in range(len(Dmatrix[name])):
+				avg_Dmatrix[name][i] = avg_Dmatrix[name][i] + float(Dmatrix[name][i])/float(num_mat)
+		else:
+			avg_Dmatrix[name] = []
+			for i in range(len(Dmatrix[name])):
+				avg_Dmatrix[name].append(float(Dmatrix[name][i])/float(num_mat))
+			
+writeDmphy(avg_names, avg_Dmatrix, 'avg.dist')
+
+
+for name in names:
+	print name + ' - ' + str(avg_Dmatrix[name])
+	
+
+

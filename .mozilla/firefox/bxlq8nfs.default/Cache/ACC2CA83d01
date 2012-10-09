@@ -1,0 +1,480 @@
+var _customTrackingImg_StudioPreInterstitial = new Image(1, 1).src =  'http://ad.doubleclick.net/ad/N270.Publisher_JavaScript/B3433024.16;sz=1x1;ord='+ Math.random() * 1000000000000000000;
+
+// Developer: Pclarke@google.com
+// Update:  08/11/08 Changed load listeners position
+// Update:  08/18/08 added a DHTML close method
+
+var superElement;
+var SDcreative;
+var SDcore;
+var externalCounter = 0;
+
+SuperDivMethod.prototype = new SuperDivCreative();
+
+function SuperDivCreative()
+    {   
+	this.floterCreativeZindex = creative.assets[core.ASSET_TYPE_FLOATING].zIndex;
+    this.pageElementArray = new Array();
+	this.innerDivzIndex = '0'; //this should not change
+	this.tableElementID = 'studioTableElement';//This should not change
+    this.innerTableElement= '';
+	this.superDivPositionTop = 0; // changes the superDiv top element, this does not need to change unless the you want parts of the page to be visible
+    //this.superDivColor = 'black'; //Please name text (superDivColor='white') or hex code(superDivColor='#ffffff';) if no color leave string empty	
+	
+	/////////////////////////////////////////////
+	///////////////////////////////////////////// 
+	//Changeable Variables START
+    //must re-make page elemet array// generates an error when set to true
+	this.pageElementArray['object'] = true;  //hides Flash objects when true.  This can also be set in Studio 
+    this.pageElementArray['embed'] = true;   //hides Embeds objects when true. This can also be set in Studio
+    this.pageElementArray['applet'] = false; //hides Applet objects when true. This can also be set in Studio
+    this.pageElementArray['iframe'] = false; //hides Iframe objects when true. This can also be set in Studio
+    this.pageElementArray['select'] = false; //hides Select objects when true. This can also be set in Studio	
+	
+    this.hideScrollBars = false;  //hides the page scrollbars when true  
+    this.backgroundOpacity = 20; //Changes the background opacity of all elements in the superDiv
+    this.studioStyleProperties = 'BODY{MARGIN:0px;HEIGHT:100%;} #mylink{font-family:Arial, Helvetica, sans-serif;font-size:14px;font-weight:bold; color:cornflowerblue;}#mylink:hover{color:red;}'; //Adds additional CSS styles properties to the HTML page. 	
+    
+	this.innerDivPositionTop = 0; //This top position is relative to the superDiv 0,0
+    //this.innerDivColor = 'black'; //Changes the color of the inner table.
+	
+    this.tablePositionTop = 0;      //Top position of the table within the super-div     
+	//his.tableElementColor= "black";  //Changes the background color of the table element
+	
+	//Changeable Variables END
+	///////////////////////////////////////////////////////////////
+	///////////////////////////////////////////////////////////////
+    }
+
+var tablePosition = 0;
+	
+SuperDivMethod.prototype.addSuperDivInnerElements = function()
+    {
+	////////////////TABLE BACKGROUND SHELL START
+		 this.innerTableElement += '<div align=center id="positionTable" style="position:relative; width:100%; height:100%; top:' + tablePosition
+       + 'px; background-image:url(http://motifcdn2.doubleclick.net/NAM/km_dfp/Transcontinental/YellowUnited_698839_Prestitial/screen.png); z-index:214000">';
+	     //this.innerTableElement += '</div>';
+		 //this.innerTableElement += '<table width="1024" height="768" border="0" align="center" cellpadding="0" cellspacing="0">';
+         //this.innerTableElement += '<tr>';
+         //this.innerTableElement += '<td width="133" valign="top"><a href="http://www.google.com" target="_blank"><img src="http://motifcdn2.doubleclick.net/NAM/km_dfp/Philly.com/images/header_button_2.jpg" width="130" height="47" border="0" /></a></td>';
+         //this.innerTableElement += '<td width="760" valign="top"><img src="http://motifcdn2.doubleclick.net/NAM/km_dfp/Philly.com/images/header_clean.jpg" alt="ad" width="749" height="47" /></td>';
+         //this.innerTableElement += '<td width="145" valign="top" align="right"><span id="skipAdButton" onMouseOver="javascript:swapCursorOn();" onMouseOut="javascript:swapCursorOff();"class="link" onclick="javascript:externalHideCreativeElements()"><img src="http://motifcdn2.doubleclick.net/NAM/km_dfp/Philly.com/images/skip_button.jpg" alt="skip this ad" width="145" height="47" /></span></td>';
+         //this.innerTableElement += ' </tr>';
+	     //this.innerTableElement += ' <tr>';
+         //this.innerTableElement += ' <td height="480" colspan="3" valign="top" bgcolor="#333333"></td>';
+         //this.innerTableElement += ' </tr>';
+	     //this.innerTableElement += '<tr>';
+         //this.innerTableElement += ' <td colspan="3" valign="top"><img src="http://motifcdn2.doubleclick.net/NAM/km_dfp/Philly.com/images/Main_Footer.jpg" width="1024" height="242" /></td>';
+         //this.innerTableElement += ' </tr>';
+         //this.innerTableElement += '</table>';
+		 ///////////////////TABLE BACKGROUND SHELL END
+	
+    return this.innerTableElement = (this.innerTableElement != '' || this.innerTableElement != 'undefined') ? this.innerTableElement : '';
+    }
+	
+SuperDivMethod.prototype.isWindowsOS = function() {
+    return (navigator.appVersion.indexOf("Windows") != -1);
+}
+
+SuperDivMethod.prototype.isIEB = function()
+    {
+    return(navigator.appVersion.indexOf("MSIE") != -1 && navigator.userAgent.indexOf("Opera") < 0);
+    }
+
+SuperDivMethod.prototype.isFFB = function()
+    {
+    return navigator.appVersion.indexOf("firefox") != -1;
+    }
+
+SuperDivMethod.prototype.isMacOS = function()
+    {
+    return navigator.appVersion.indexOf("Mac") != -1;
+    }
+
+SuperDivMethod.prototype.isCHB = function()
+    {
+    var appUserAgent = navigator.userAgent.toUpperCase();
+    var appVendor = (navigator.vendor != undefined) ? navigator.vendor.toUpperCase() : "";
+    return(appUserAgent.indexOf("CHROME") != -1) && (appVendor.indexOf("GOOGLE") != -1);
+    }
+
+SuperDivMethod.prototype.isSFB = function()
+    {
+    var br = "Safari";
+    var index = navigator.userAgent.indexOf(br);
+    var appVendor = (navigator.vendor != undefined) ? navigator.vendor.toUpperCase() : "";
+    return(navigator.appVersion.indexOf(br) != -1) && parseFloat(navigator.userAgent.substring(index + br.length + 1)) >= 312.6 && (appVendor.indexOf("APPLE") != -1);
+    }
+
+SuperDivMethod.prototype.checkBodyValue = function()
+    {
+    if (this.isIEB())
+        {
+        var marginValue = "0px";
+        var heightValue = "100%";
+        var body = document.body;
+
+        if (body.currentStyle.margin != marginValue)            
+            body.style.margin = marginValue;            
+
+        if (body.currentStyle.height != heightValue)            
+            body.style.height = heightValue;           
+        }
+    }
+
+SuperDivMethod.prototype.createSuperDiv = function()
+    {
+    this.superDiv = document.createElement('div');
+    this.superDiv.id = "StudioSuperDiv";
+    this.superDiv.style.position = 'absolute';
+    this.superDiv.style.top = '0px';
+    this.superDiv.style.left = '0px';
+    this.superDiv.style.width = '100%';
+    this.superDiv.style.height = '100%';
+    //this.superDiv.style.backgroundColor = 'black';   
+    this.superDiv.style.zIndex = this.floterCreativeZindex-1;
+    this.superDiv.style.visibility = 'visible';
+    this.superDiv.innerHTML = this.createSuperDivMainBackground();
+    this.appendSuperDivMainBackground(this.superDiv);
+    }
+
+SuperDivMethod.prototype.createSuperDivMainBackground = function()
+    {
+    this.SDInnerHtml = '<div align=center height="100%" id="innerDivSD" style="position:relative; width:100%; height:100%; top:' + this.innerDivPositionTop + 'px; background-color:' + this.innerDivColor + '; z-index:' + this.innerDivzIndex + '">';
+    this.SDInnerHtml += this.addSuperDivInnerElements();
+    this.SDInnerHtml += '</div>';
+    return this.SDInnerHtml;
+    }
+
+SuperDivMethod.prototype.appendSuperDivMainBackground = function(sdHTML)
+    {
+    this.body = document.getElementsByTagName('body')[0];
+    this.body.insertBefore(sdHTML, this.body.firstChild);
+    }
+
+SuperDivMethod.prototype.createElementStyle = function()
+    {
+    var styleProperties = SDcreative;
+    var studioStyleElement = document.createElement('style');
+    studioStyleElement.setAttribute("type", "text/css");
+
+    if (studioStyleElement.styleSheet)
+        {
+        studioStyleElement.styleSheet.cssText = styleProperties.studioStyleProperties;
+        }
+
+    else
+        {
+        var dartTextNode = document.createTextNode(styleProperties.studioStyleProperties);
+        studioStyleElement.appendChild(dartTextNode);
+        }
+    document.getElementsByTagName('head')[0].appendChild(studioStyleElement);
+    }
+
+SuperDivMethod.prototype.attachEventListeners = function(eventName, handler, capture)
+    {
+    if (window.addEventListener)
+        {
+        window.addEventListener("resize", updateInterstitialPosition, false);
+        window.addEventListener("scroll", updateInterstitialPosition, false);		 
+        }
+
+    if (window.attachEvent)
+        {
+        window.attachEvent("onresize", updateInterstitialPosition);
+        window.attachEvent('onscroll', updateInterstitialPosition); 		
+        }
+    }
+
+SuperDivMethod.prototype.removeEventListners = function()
+    {
+    if (window.addEventListener)
+        {
+        window.removeEventListener("resize", updateInterstitialPosition, false);
+        window.removeEventListener("scroll", updateInterstitialPosition, false);		  
+        }
+
+    if (window.attachEvent)
+        {
+        window.detachEvent("onresize", updateInterstitialPosition);
+        window.detachEvent('onscroll', updateInterstitialPosition);  		
+        }
+    }
+
+SuperDivMethod.prototype.displayScrollBars = function(shouldHide)
+    {
+    var windObject = typeof (window["TheWindow"]) != "undefined" ? TheWindow : window;
+    dartScroller = windObject.document.documentElement.clientHeight > 0 ? "document.documentElement" : "document.body";
+
+    if (shouldHide)
+        {
+        windObject.eval(dartScroller).style.overflow = "hidden";
+        }
+
+    else
+        {
+        windObject.eval(dartScroller).style.overflow = "";
+        }
+    }
+
+SuperDivMethod.prototype.getWindowDimensions = function()
+    {
+    windowObject = new Object();
+    windowObject.windowObjectW = 0;
+    windowObject.windowObjectH = 0;
+
+    if (typeof (window.innerWidth) == 'number')
+        {
+        windowObject.windowObjectW = window.innerWidth;
+        windowObject.windowObjectH = window.innerHeight;
+        }
+
+    else if (document.documentElement && (document.documentElement.clientWidth || document.documentElement.clientHeight))
+        {
+        windowObject.windowObjectW = document.documentElement.clientWidth;
+        windowObject.windowObjectH = document.documentElement.clientHeight;
+        }
+
+    else if (document.body && (document.body.clientWidth || document.body.clientHeight))
+        {
+        windowObject.windowObjectW = document.body.clientWidth;
+        windowObject.windowObjectH = document.body.clientHeight;
+        }
+    return windowObject;
+    }
+
+SuperDivMethod.prototype.getScrollPosition = function()
+    {
+    scrollObject = new Object();
+    scrollObject.scrOfX = 0;
+    scrollObject.scrOfY = 0;
+
+    if (typeof (window.pageYOffset) == 'number')
+        {
+        scrollObject.scrOfY = window.pageYOffset;
+        scrollObject.scrOfX = window.pageXOffset;
+        }
+
+    else if (document.body && (document.body.scrollLeft || document.body.scrollTop))
+        {
+        scrollObject.scrOfY = document.body.scrollTop;
+        scrollObject.scrOfX = document.body.scrollLeft;
+        }
+
+    else if (document.documentElement && (document.documentElement.scrollLeft || document.documentElement.scrollTop))
+        {
+        scrollObject.scrOfY = document.documentElement.scrollTop;
+        scrollObject.scrOfX = document.documentElement.scrollLeft;
+        }
+    return scrollObject;
+    }
+
+SuperDivMethod.prototype.setStudioCreativeID = function(CID)
+    {
+    this.cID = CID;
+	this.studioCreativeFlashID = 'FLASH_' + this.cID
+	this.studioCreativeDivID = 'DIV_' + this.cID
+    }
+
+function SuperDivMethod()
+    {
+    }
+
+function updateInterstitialPosition()
+    {
+	if (typeof superElement == 'undefined'){ return;}
+    var scrollPositionX = superElement.getScrollPosition().scrOfX;
+    var scrollPositionY = superElement.getScrollPosition().scrOfY;
+    var windowWidth = superElement.getWindowDimensions().windowObjectW;
+    var windowHeight = superElement.getWindowDimensions().windowObjectH;
+    superElement.setSuperDivPosition(windowWidth, windowHeight, scrollPositionX, scrollPositionY);
+    }
+
+SuperDivMethod.prototype.setSuperDivPosition = function(windowW, windowH, scrollX, scrollY)
+    {			
+    SD = document.getElementById(superElement.superDiv.id);
+	
+    SD.style.top = eval(scrollY + SDcreative.superDivPositionTop) + 'px';
+
+    if (SDcreative.superDivPositionTop != '0')
+        {
+        SD.style.height = windowH - SDcreative.superDivPositionTop - .1 + 'px';
+        }
+
+    sTable = document.getElementById('studioTableElement');
+
+    if (sTable != null)
+        {
+        sTable.style.top = parseInt(SD.style.top) + SDcreative.tablePositionTop - scrollY + 'px';
+        }
+		this.setStudioCreativeTopPosition(scrollX, scrollY);
+    }
+
+SuperDivMethod.prototype.pageElementCommand = function(commandValue)
+    {	
+    for (currentPageElement in this.pageElementArray)
+        {
+		(commandValue) ? this.hidePageElements(this.pageElementArray[currentPageElement], currentPageElement) : this.hidePageElements(false, currentPageElement)	
+		}
+    }
+
+SuperDivMethod.prototype.hidePageElements = function(param, objectType)
+    {		
+    var components = new Array();
+    var objComponents = new Array();
+    objComponents = [top.document.getElementsByTagName(objectType)];
+
+		for (i = 0; i < objComponents.length; i++)
+			{
+			try
+				{
+				for (j = 0; j < objComponents[i].length; j++)
+					{
+					components.push(objComponents[i][j]);
+					var objRef = components[j];					
+					if (param && components[j].id.indexOf(this.studioCreativeFlashID) == -1)
+						{							
+						if (objRef.style.visibility == "hidden")
+							{
+							return;
+							}
+						objRef.style.visibility = "hidden";
+						}
+	
+					else if (!param && components[j].id.indexOf(this.studioCreativeFlashID) == -1)
+						{					
+						objRef.style.visibility = "visible";
+						}
+					}
+				}
+			catch (e)
+				{
+            }
+        }
+    }
+		
+SuperDivMethod.prototype.overwriteStudioCoreStopDisplay = function(){
+
+	if (typeof dartCreativeDisplayManagers[creative.creativeIdentifier] != 'undefined'){
+		
+	dartCreativeDisplayManagers[creative.creativeIdentifier].newStopDisplay = function(variableName){			
+		 var asset = this.getAsset(variableName);
+			  this.notifyPreviewHandler(asset, "stopDisplay");
+			  var div = this.toObject("DIV_" + variableName);
+			  var flash = this.toObject("FLASH_" + variableName);
+			  var rid = this.creative.renderingId;
+			  if(asset.isMainAsset) {
+				this.stopStandardTimers(rid);
+			  }
+			  this.flushCounters(rid);
+			  if(!this.isAnyCompanionVisible(variableName)) {
+				/* Schedule turning off event bin after some delay to count remaining events in event bin */
+				this.scheduleTurnOffEventBinFlushing(rid, 2);
+			  }
+			  div.removeChild(flash);
+			  div.style.visibility = "hidden";
+			  this._adjustWindowElements(variableName, false);	
+		}		
+		
+	dartCreativeDisplayManagers[creative.creativeIdentifier].stopDisplay = function(variableName){	
+		externalHideCreativeElements(); 	
+		//removed stopDisplay methods to newStopDisplay(above)
+		}
+	}
+}
+
+SuperDivMethod.prototype.HideCreativeElements = function()
+    {
+    this.superDiv.style.display = 'none';
+    this.removeEventListners();
+    this.pageElementCommand(false);	
+	if (this.hideScrollBars) this.displayScrollBars(!this.hideScrollBars);
+	}
+	
+SuperDivMethod.prototype.setStudioCreativeTopPosition = function(sX, sY){		
+	var ele = document.getElementById(this.studioCreativeDivID);
+	if (ele != null){
+		ele.style.top = sY + parseInt(creative.assets[core.ASSET_TYPE_FLOATING].top) + 'px';		
+		}
+		
+		else
+		{
+		setTimeout("updateInterstitialPosition()",50)	
+		}
+	}
+
+SuperDivMethod.prototype.setBackgroundOpacity = function()
+    {		
+    opacity = this.backgroundOpacity;
+	try{
+    var object = document.getElementById(this.tableElementID).style;
+    object.opacity = (opacity / 100);
+    object.MozOpacity = (opacity / 100);
+    object.KhtmlOpacity = (opacity / 100);
+    object.filter = "alpha(opacity=" + opacity + ")";
+	}
+	
+	catch (e){}
+    }
+	
+	
+function externalDisplayCreativeElements()
+    {
+    externalCounter++;
+	
+    
+        SDcreative = new SuperDivCreative();
+
+        superElement = new SuperDivMethod();
+		
+        superElement.setStudioCreativeID(creative.assets[core.ASSET_TYPE_FLOATING].variableName);
+		superElement.overwriteStudioCoreStopDisplay();
+        superElement.createSuperDiv();
+        superElement.createElementStyle();
+        superElement.checkBodyValue();
+        superElement.attachEventListeners();
+        superElement.displayScrollBars(superElement.hideScrollBars);
+        superElement.pageElementCommand(true);
+        superElement.setBackgroundOpacity();	   
+
+    }	
+	
+function externalHideCreativeElements(){
+	superElement.HideCreativeElements();	
+	if(dartCreativeDisplayManagers[creative.creativeIdentifier]){		
+		dartCreativeDisplayManagers[creative.creativeIdentifier].newStopDisplay(creative.assets[core.ASSET_TYPE_FLOATING].variableName);
+		}
+	}
+
+ if (window.attachEvent){
+        window.attachEvent("onload",  updateInterstitialPosition);
+        }
+    else if (window.addEventListener){
+        window.addEventListener("load",  updateInterstitialPosition, false);
+        }
+    else if (window.onload != null){
+        window.onload = function(){
+             updateInterstitialPosition();
+            }
+        }
+    else
+		{
+        window.onload =  updateInterstitialPosition;
+        }
+		
+function loadExternalParameters(){	
+	externalDisplayCreativeElements();
+	}	
+		
+function Performance(){ 
+  var prototypeStartDateTime = new Date();
+  for (var i = 0; i < 20000; i++){
+    var x = new SuperDivMethod(); 
+  }  
+  var prototypeEndDateTime = new Date();  
+  
+  var prototypeTime = prototypeEndDateTime.getTime() - prototypeStartDateTime.getTime();
+  alert("prototype time: " + prototypeTime);
+}
+
+//Performance()

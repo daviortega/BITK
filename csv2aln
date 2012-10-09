@@ -1,0 +1,47 @@
+#!/usr/bin/env python
+#import fileinput
+from bitk import *
+import os
+from os import listdir
+from os import getcwd
+import sys
+
+arg = sys.argv
+
+if '-h' in sys.argv:
+	print 'Transform a file "name,sequence" (or csv) format to clustalW\n\n \
+		Sintaxe: csv2aln yourfile.csv'
+	sys.exit()
+
+
+if '-ng' in sys.argv:
+	ng = 1
+else:
+	ng = 0
+
+files = []
+if 'all' in sys.argv:
+	files = listdir(getcwd())
+else:
+	files.append(sys.argv[1]) 
+
+print files
+
+for seq in files:
+	print seq[:-2] + 'aln'
+	aln = open(seq,'r')
+	seq_dic = {}
+	for line in aln:
+		name = line[:line.find(',')]
+		sequence = line[line.find(',')+1:-2]
+		seq_dic[name] = sequence
+	if ng == 1:
+		seq_dic = nogaps(seq_dic)
+	outfile = open( seq[:-3] + 'aln' ,'w')
+	dataout = alnwriter(seq_dic)
+#	dataout = ''
+#	for k, v in output.iteritems():
+#		dataout = dataout + k[0:] + '\n' + v + '\n'
+	outfile.write(dataout)
+	outfile.close()
+

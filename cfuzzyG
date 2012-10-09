@@ -1,0 +1,82 @@
+#!/usr/bin/env python
+import fileinput
+from fuzzy_davi import *
+import random
+import sys
+
+if '-h' in sys.argv:
+	print 'cfuzzy data_size/class number_of_classes real_number_of_classes m e num_dim'
+	sys.exit()
+if len(sys.argv) < 6:
+	print 'not enough arguments'
+	sys.exit()
+
+data = datagenG(int(sys.argv[1]),int(sys.argv[3]),int(sys.argv[6]))
+print data
+
+
+# centroids generators
+
+C = {}
+for i in range(int(sys.argv[2])):
+	Ct = []
+	for j in range(int(sys.argv[6])):
+		centroid = random.uniform(0,10)
+		Ct.append(centroid)
+	C[i] = Ct
+print C
+
+U_old = UmatrixG(data,C,sys.argv[4])
+
+# test
+
+for Uk in U_old:
+	sum = 0
+	for i in Uk:
+		sum = sum + i
+	print sum
+
+
+print U_old
+C = centroidesG(data,U_old,sys.argv[4])
+print C
+U_new = UmatrixG(data,C,sys.argv[4])
+
+max_Uold = 0
+for i in U_old:
+	if max_Uold < max(i):
+		max_Uold = max(i)
+max_Unew = 0
+for i in U_new:
+        if max_Unew < max(i):
+		max_Unew = max(i)
+
+step = 0
+e = float(sys.argv[5])
+
+while abs(max_Unew - max_Uold) > e:
+	step = step + 1
+	U_old = []
+	for i in U_new:
+		U_old.append(i)
+	C = centroidesG(data,U_old,float(sys.argv[4]))
+	U_new = UmatrixG(data,C,float(sys.argv[4]))
+
+	max_Uold = 0
+	for i in U_old:
+		if max_Uold < max(i):
+			max_Uold = max(i)
+	max_Unew = 0
+	for i in U_new:
+	        if max_Unew < max(i):
+	                max_Unew = max(i)
+
+	print str(step)
+	print U_new
+
+print 'Done'
+print data
+print C
+
+
+

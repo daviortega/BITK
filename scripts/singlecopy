@@ -1,0 +1,35 @@
+#! /usr/bin/env python 
+###################################
+##    Davi Ortega                ##
+###################################
+import bitk
+import sys
+
+if '-h' in sys.argv:
+	print 'Eliminates sequences of organisms with multiple copies of the molecule.\n\n\t Sintaxe: python singlecopy.py alignment.fa'
+	sys.exit()
+
+seq_dic, seq_list = bitk.fastareader(sys.argv[1])
+
+ok_list = []
+del_list = []
+
+for name in seq_dic.keys():
+	organism = name.split('-')[0]
+	if organism not in ok_list:
+		ok_list.append(organism)
+	elif organism not in del_list:
+		del_list.append(organism)
+print ok_list
+print del_list
+output = ''
+for name, seq in seq_dic.iteritems():
+	organism = name.split('-')[0]
+	if organism not in del_list:
+		output += '>' + name + '\n' + seq + '\n'
+
+datafile = open(sys.argv[1][:-3] + '.singlecopy.fa', 'w')
+datafile.write(output)
+datafile.close()
+
+

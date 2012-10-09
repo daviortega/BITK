@@ -1,0 +1,21 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 6/30/2010 
+###################################
+import sys
+import bitk
+
+if '-h' in sys.argv:
+	print "Calculate the average of distance matrix calculated by protdist (phylip)\n \
+		Sintax: distprot_avg dist_matrixfile.dat"
+
+Dmatrix, names = bitk.readDm(sys.argv[1])
+
+avg = 0
+
+for name in names:
+	avg += sum(Dmatrix[name])
+
+avg = float(avg) / (len(names) * len(names))
+
+print avg

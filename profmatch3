@@ -1,0 +1,230 @@
+#!/usr/bin/env python
+import os
+import sys
+from bitk import *
+from os import listdir
+from os import getcwd
+
+if '-h' in sys.argv:
+	print 'Prepare every cluster in a different file in a fasta format, put them in one directory and run profmatch3\n \n \
+		Default linsi(mafft) alignment and profile match\n \n\
+		Flags: \n \
+		-ng	nogaps\n \
+		-aln	clustalw alignment and clustalw profile match\n \
+		-c	clustalw profile match\n \
+		-mc	T-coffee alignment with Meta coffee\n \
+		-ptc	T-coffee accurate profile match\n \
+		-vissa  runs vissa on the profiles\n \
+		-vissaP runs vissa on the Final profile\n \
+		-np	No profile match\n \
+		-na	No Alignment\n \
+		-groups Separate the output of each file in directories ./groupn (Beta)\n \n \
+		If in fasta format files must end with .fa and in clustalw with .aln'
+	sys.exit()	
+
+print 'Starting'
+
+prof = 1
+if '-np' in sys.argv:
+	prof = 0
+
+alnn = 1
+if '-na' in sys.argv:
+	alnn = 0
+	vissa_files = listdir(getcwd())
+	for file in vissa_files:
+		if file[-3:] == '.fa':
+			tag = 'fasta'
+			os.system('cp ' + file + ' ' + file[:-3] + '.profile.' + file[-2:])
+		else:
+			tag = 'vissaonly'
+			os.system('cp ' + file + ' ' + file[:-4] + '.profile.' + file[-3:])
+	files = []
+        profile_files = listdir(getcwd())
+	for file in profile_files:
+		if file.find('.profile.') != -1:
+			files.append(file)
+
+
+if '-ng' in sys.argv:
+	ng = 1
+else:
+	ng = 0
+
+if '-groups' in sys.argv:
+	prefix = []
+	original_files = listdir(getcwd())
+	for file in original_files:
+		prefix.append(file[:-2])
+
+
+#program = 'clustalw'
+#if 'fa' in sys.argv:
+#	program = 'ginsi'
+#if '-c' in sys.argv:
+#	prof = 'clustaw'
+#if '-f' in sys.argv:
+#	prof = 'mafft'
+
+if alnn == 1:
+	old_files = listdir(getcwd())
+	files = []
+	for aln in old_files:
+		files.append(aln)
+
+	if 'profmatch' in files:
+		files.remove('profmatch')
+	if 'nohup.out' in files:
+		files.remove('nohup.out')
+
+	alnprog = 'linsi'
+	profprog = 'mafft'
+	
+	if '-aln' in sys.argv:
+		tag = 'pureclustalw'
+		new_files = []
+		for seq in files:
+			output = fastareader(seq)
+			if ng == 1:
+				output = nogaps(output)
+			output = alnwriter(output)
+			outfile = open(seq[:-2] + 'aln', 'w')
+			outfile.write(output)
+			outfile.close()
+			new_files.append(seq)
+			os.system('clustalw -infile=' + seq + ' -outfile=' + seq[:-2] + 'profile.aln') 
+		profprog = 'clustalw'
+	else:
+		if '-mc' in sys.argv:
+			tag = 'T-Coffee-mafft'
+			for aln in files:
+				os.system('t_coffee -infile ' + aln + ' -outfile ' + aln[:-2] + 'profile.fa -special_mode mcoffee -output fasta_aln')
+				os.system('t_coffee -infile ' + aln[:-2] + 'profile.fa -outfile ' + aln[:-2] + 'eval.html -special_mode evaluate')
+				os.system('rm *.dnd')
+				#new_files = listdir(getcwd())
+			files = []
+			for file in listdir(getcwd()):
+				if file.find('.profile.') != -1:
+					files.append(file)
+			os.system('rm *.dnd')
+			if '-c' in sys.argv:
+				tag = 'T-Coffee-clustalw'
+				profprog = 'clustalw'
+				for aln in files:
+					os.system('fa2aln ' + aln)
+				#new_files = listdir(getcwd())
+				files = []
+				for file in listdir(getcwd()):
+					if file.find('.profile.aln') != -1:
+						files.append(file)
+		else:
+			tag = 'puremafft'
+			for aln in files:
+				os.system('linsi ' + aln + ' > ' + aln[:-2] + 'profile.fa')
+		#	new_files = listdir(getcwd())
+			files = []
+			for file in listdir(getcwd()):
+				if file.find('.profile.') != -1:
+					files.append(file)
+			if '-c' in sys.argv:
+				tag = 'mafft-clustalw'
+				profprog = 'clustalw'
+				for aln in files:
+					os.system('fa2aln ' + aln)
+	#			new_files = listdir(getcwd())
+				files = []
+				for file in listdir(getcwd()):
+					if file.find('.profile.aln') != -1:
+						files.append(file)
+if '-vissa' in sys.argv:
+	vissa_files = []
+	new_files = listdir(getcwd())
+	for file in new_files:
+		if file.find('.profile.') != -1:
+			vissa_files.append(file)
+	if tag == 'puremafft' or tag == 'T-Coffee-mafft' or tag == 'fasta':
+		for file in vissa_files:
+			os.system('fa2aln ' + file)
+	vissa_files = []
+	new_files = listdir(getcwd())
+	for file in new_files:
+               if file.find('.profile.aln') != -1:
+                        vissa_files.append(file)
+	for file in vissa_files:
+		os.system('aln2vissa ' + file)
+		os.system('aln2ss_xml ' + file + ' > ' + file[:-3] + 'xml')
+		#vissafile = open( file[:-3] + 'xmlf', 'r')
+		#realvissa = ''
+		#for line in vissafile:
+		#	if line[0] != '[':
+		#		realvisa = realvissa + line
+		#vissafile.close()
+		#vissafile = open( file[:-2] + 'xml', 'w')
+		#vissafile.write(realvissa)
+		#vissafile.close()
+		os.system('vissa ' + file[:-3] + 'xml > ' + file[:-3] + 'doc')
+	os.system('rm tmp*')
+if '-ptc' in sys.argv:
+	profprog = 't-coffee'
+
+for file in files:
+	print file + '\n'
+
+if prof == 1:
+	new_files = files
+	#if 'profmatch' in new_files:
+	#	new_files.remove('profmatch')
+
+	#for aln in old_files:
+	#	new_files.remove(aln)
+
+	list = range(2,len(new_files))
+
+	#print old_files
+	#print new_files
+	#print list
+	if profprog == 'mafft':
+		os.system('mafft-profile ' + new_files[0] + ' ' + new_files[1] + ' > Profile.tmp1.fa')
+		for seq_num in list:
+			os.system('mafft-profile Profile.tmp'+ str(seq_num-1)+'.fa ' +  new_files[seq_num] + ' > Profile.tmp'+ str(seq_num) +'.fa')
+		os.system('cp Profile.tmp'+str(list[-1])+'.fa Profile.Final.' + tag + '.aln')
+		os.system('rm Profile.tmp*')
+		os.system('rm pre')
+		os.system('rm trace')
+	if profprog == 't-coffee':
+		all_prof = ''
+		for file in new_files:
+			all_prof = all_prof + file + ','
+		print all_prof
+		os.system('t_coffee -profile=' + all_prof + ' -outfile=Profile.Final.' + profprog + '.aln -profile_comparison=full50')
+		os.system('t_coffee -infile=Profile.Final.' + profprog + '.aln -outfile=Profile.Final.'+ profprog +'.eval.html -special_mode=evaluate')
+		os.system('rm pre')
+		os.system('rm trace')
+
+	if profprog == 'clustalw':
+		os.system('clustalw -Profile1=' + new_files[0] + ' -Profile2=' + new_files[1] + ' -outfile=Profile.tmp1.aln')
+		for seq_num in list:
+			os.system('clustalw -Profile1=Profile.tmp'+ str(seq_num-1)+'.aln -Profile2='+ new_files[seq_num] + ' -outfile=Profile.tmp'+ str(seq_num)+'.aln')
+		os.system('cp Profile.tmp'+ str(list[-1]) +'.aln Profile.Final.' + tag + '.aln')
+		os.system('rm *dnd')
+		os.system('rm Profile.tmp*')
+
+if '-groups' in sys.argv:
+        n = 1
+        for aln in prefix:
+                group = 'group' + str(n)
+                os.system('mkdir ' + group)
+                os.system('mv ' + aln + '* ./' + group)
+                n = n + 1
+
+
+if '-vissaP' in sys.argv:
+	if profprog == 't-coffee':
+		os.system('aln2vissa Profile.Final.' + profprog + '.aln')
+		os.system('aln2ss_xml Profile.Final.' + profprog + '.aln > Profile.Final.' + profprog + '.xml')
+		os.system('vissa Profile.Final.' + profprog + '.xml > Profile.Final.' + profprog + '.doc')
+
+
+
+print 'Done'
+

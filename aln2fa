@@ -1,0 +1,35 @@
+#!/usr/bin/env python
+import fileinput
+from bitk import *
+import sys
+
+if '-h' in sys.argv:
+	print "Simple: clustawl format to FASTA\n\n\tSintax:\n\taln2fa clustaw.aln [options]\n\n\n\tOptions:\n\n\t-name SEQ_NAME/XX-XXXX = SEQ_NAME\n\n\t-s  sorted "
+	sys.exit()
+
+sequences = sys.argv[1]
+if '-name' in sys.argv:
+	seq = alnreader(sequences,'no','Yes')
+	seq_list = alnreader(sequences, 'Yes', 'Yes')
+else:
+	seq = alnreader(sequences)
+	seq_list = alnreader(sequences, 'Yes')
+
+
+output = ''
+if '-s' not in sys.argv:
+	for loci in seq_list:
+		output += '>'+loci+'\n'+seq[loci]+'\n'
+else:
+	list = seq.keys()
+	list.sort()
+	for loci in list:
+		output += '>'+loci+'\n'+seq[loci]+'\n'
+
+
+
+output = output.replace('\015','')
+outfile = open(sequences[:-3]+'fa','w')
+outfile.write(output)
+outfile.close()
+print 'Done'

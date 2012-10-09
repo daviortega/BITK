@@ -1,0 +1,152 @@
+#! /usr/bin/env python 
+###################################
+##    Davi Ortega                ##
+###################################
+import bitk
+import sys
+import numpy
+
+if '-h' in sys.argv:
+	print " This will count MCP vs Class \n sintax: mcpxchea orgn.list mcp.fa chea.fa"
+	sys.exit()
+
+mcps_dic = bitk.fastareader(sys.argv[1])
+chea_dic = bitk.fastareader(sys.argv[2])
+
+#orgn_file = open(sys.argv[1], 'r')
+
+orgn_dic = {}
+
+#for line in orgn_file:
+#	orgn_list.append(line.replace('\n',''))
+
+#orgn_file.close()
+
+mcp_class_list = []
+
+for mcps in mcps_dic.keys():
+	orgn = mcps.split('-')[0].replace('>','')
+	mcp_class = mcps.split('-')[3].replace('\n','')
+	if mcp_class not in mcp_class_list:
+		mcp_class_list.append(mcp_class)
+	if orgn not in orgn_dic.keys():
+		orgn_dic[orgn] = [[],[]]
+		orgn_dic[orgn][0].append(mcp_class)		
+	elif mcp_class not in orgn_dic[orgn][0]:
+		orgn_dic[orgn][0].append(mcp_class)
+	if mcp_class == '':
+		print mcps
+
+print mcp_class_list
+
+chea_class_list = []
+
+for chea in chea_dic.keys():
+	orgn = chea.split('-')[0].replace('>','')
+	chea_class = chea.split('-')[2]
+	if chea_class not in chea_class_list:
+		chea_class_list.append(chea_class)
+	if orgn not in orgn_dic.keys():
+		orgn_dic[orgn] = [[],[]]
+		orgn_dic[orgn][1].append(chea_class)
+	elif chea_class not in orgn_dic[orgn][1]:
+		orgn_dic[orgn][1].append(chea_class)
+	
+print chea_class_list
+output = ';'
+
+#print chea_class_list
+
+for mcp_class in mcp_class_list:
+	output += mcp_class + ';'
+
+output += '\n'
+
+counts = numpy.zeros((len(chea_class_list),len(mcp_class_list)),float)
+
+for i in range(len(chea_class_list)):
+	total = 0
+	#output += chea_class_list[i] + ';'
+	for j in range(len(mcp_class_list)):
+		for orgn in orgn_dic.keys():
+			if (mcp_class_list[j] in orgn_dic[orgn][0]) and (chea_class_list[i] in orgn_dic[orgn][1]):
+				counts[i][j] += 1
+		#print str(i) + '\t' + str(j) + '\t' + str(counts[i][j])
+	#for val in counts:
+	#	output += str(val) + ';'
+	#output += '\n'
+#print counts
+
+for j in range(len(counts[0])):
+	SUM = 0
+	for i in range(len(counts)):
+		SUM += counts[i][j]
+	for i in range(len(counts)):
+		counts[i][j] = float(counts[i][j])/float(SUM)
+
+#for i in range(len(counts)):
+#	SUM = 0
+#	for j in range(len(counts[0])):
+#		SUM += counts[i][j]
+#	for j in range(len(counts[0])):
+#		counts[i][j] = float(counts[i][j])/float(SUM)
+
+
+
+
+
+output = ''
+
+#counts = counts[:8,:8]
+
+
+token = 0
+
+#print chea_class_list
+#print mcp_class_list
+#print "After:"
+
+while token == 0:
+	#print "rounds"
+	new_counts = counts.copy()
+	#print chea_class_list
+	counts, chea_class_list = bitk.sortrow(counts, chea_class_list)
+	#print chea_class_list
+	counts, mcp_class_list = bitk.sortcol(counts, mcp_class_list)
+	#counts = bitk.sortcol(counts)
+	diff = 0
+	for i in range(len(counts)):
+		for j in range(len(counts[0])):
+			if  new_counts[i,j] != counts[i,j]:
+				diff = 1
+	if diff == 0:
+		token = 1
+
+print chea_class_list
+print mcp_class_list
+
+
+#counts.sort(axis=1)
+
+for i in range(len(counts)):
+	for j in range(len(counts[0])):
+		output += str(j) + '\t' + str(len(counts[0])-i) + '\t' + str(counts[i][j]) +'\n'
+
+#M = orgnanMatrix(mcp_class_list, chea_class_list, counts)
+
+
+
+
+
+
+
+
+
+out_file = open('corrMatrix.csv', 'w')
+out_file.write(output)
+out_file.close()
+
+
+				
+				
+		

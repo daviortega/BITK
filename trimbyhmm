@@ -1,0 +1,40 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 7/8/2012 
+###################################
+import bitk
+import os
+import sys
+if '-h' in sys.argv:
+	print 'trim sequences by hmmer hit: trimbyhmm pfam_model.hmm fastafile.fa'
+	sys.exit()
+
+hmm_model = sys.argv[1]
+fasta_file = sys.argv[2]
+
+
+os.system('hmmsearch --noali --cut_tc ' + hmm_model + ' ' + fasta_file + ' > output_' + fasta_file[:-3] + '.dat')
+
+seq_dic, seq_list = bitk.fastareader(fasta_file)
+datafile = open('output_' + fasta_file[:-3] + '.dat','r')
+
+new_seq_dic = {}
+output = ''
+for line in datafile:
+	if '>>' in line:
+        	name = line.split(' ')[1]
+                for line in datafile:
+                       	if line[60:66].replace(' ','').isdigit():
+                               	start = int(line[60:66])
+                               	end = int(line[68:74])
+                               	new_seq_dic[name] = seq_dic[name][start:end]
+                               	output += '>' + name + '\n' + seq_dic[name][start:end] + '\n'
+                               	#print name + '\t' + str(start) + '\t' + str(end)
+                               	break
+
+datafile.close()
+
+outfile = open(fasta_file[:-3] + '.hmmtrim.fa', 'w')
+outfile.write(output)
+outfile.close()
+print 'Done'

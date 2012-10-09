@@ -1,0 +1,78 @@
+#! /usr/bin/env python 
+###################################
+##    Davi Ortega                ##
+###################################
+import sys
+import bitk
+
+if '-h' in sys.argv:
+	print "read two gene.list from seqtag2012 -g and its two respective fasta.fa file and pair genes that are inside a determined window. \
+	find_pairs2 prot1.gene.list prot2.gene.list prot1.fa prot2.fa N\n N is the number of genes in the window."
+	sys.exit()
+
+
+msa_dic1, msa_list1 = bitk.fastareader(sys.argv[3])
+msa_dic2, msa_list2 = bitk.fastareader(sys.argv[4])
+
+W = int(sys.argv[5])
+tag_geneid = {}
+
+
+datafile1 = open(sys.argv[1],'r')
+seq1 = {}
+
+for line in datafile1:
+	seqtag, gene_id, pos = line.split(';')
+	tag_geneid[gene_id] = seqtag
+	genome = seqtag.split('-')[0].split('.')[-1]
+	if genome not in seq1.keys():
+		seq1[genome] = [ gene_id + ':' + pos ]
+	else:
+		seq1[genome].append(gene_id + ':' + pos)
+
+datafile2 = open(sys.argv[2],'r')
+seq2 = {}
+
+for line in datafile2:
+        seqtag, gene_id, pos = line.split(';')
+        tag_geneid[gene_id] = seqtag
+        genome = seqtag.split('-')[0].split('.')[-1]
+        if genome not in seq2.keys():
+                seq2[genome] = [ gene_id + ':' + pos ]
+        else:
+                seq2[genome].append(gene_id + ':' + pos)
+
+pairs = ''
+fasta1_tag = []
+fasta2_tag = []
+msa1 = ''
+msa2 = ''
+
+
+for gen1 in seq1.keys():
+	for geneA in seq1[gen1]:
+		if gen1 in seq2.keys():
+			for geneB in seq2[gen1]:
+				if abs(int(geneA.split(':')[1])- int(geneB.split(':')[1])) < W and tag_geneid[geneA.split(':')[0]] in msa_dic1 and tag_geneid[geneB.split(':')[0]] in msa_dic2:
+					pairs += tag_geneid[geneA.split(':')[0]] + ':' + tag_geneid[geneB.split(':')[0]] + '\n'
+					if tag_geneid[geneA.split(':')[0]] not in fasta1_tag:
+						fasta1_tag.append(tag_geneid[geneA.split(':')[0]])
+						msa1 += '>' + tag_geneid[geneA.split(':')[0]] + '\n' + msa_dic1[tag_geneid[geneA.split(':')[0]]] + '\n'
+					if tag_geneid[geneB.split(':')[0]] not in fasta2_tag:
+        	                                fasta2_tag.append(tag_geneid[geneB.split(':')[0]])
+						msa2 += '>' + tag_geneid[geneB.split(':')[0]] + '\n' + msa_dic2[tag_geneid[geneB.split(':')[0]]] +'\n'
+
+outfile1 = open('msa1.fa','w')
+outfile1.write(msa1)
+outfile1.close()
+
+outfile2 = open('msa2.fa','w')
+outfile2.write(msa2)
+outfile2.close()
+
+ 
+outfile3 = open('pairing.list','w')
+outfile3.write(pairs)
+outfile3.close()
+	
+

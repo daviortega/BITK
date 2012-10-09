@@ -1,0 +1,303 @@
+#!/usr/bin/env python
+from os import system
+import os
+import sys
+import time
+from bitk import *
+
+if '-h' in sys.argv:
+	print 'General Reader of Kristin\'s table.\n\n \
+	chew_table chew_aln mcp_table mcp_aln\n'
+	sys.exit()
+
+chew_table = open(sys.argv[1],'r')
+chew_aln = alnreader(sys.argv[2])
+mcp_table = open(sys.argv[3],'r')
+mcp_aln = alnreader(sys.argv[4])
+
+
+main_chew_db = {}
+main_mcp_db = {}
+
+for line in mcp_table:
+        NCBI = line[:line.find(',')]
+        line = line[line.find(',')+1:]
+        loci = line[:line.find(',')]
+        line = line[line.find(',')+1:]
+        tax_name = line[:line.find(',')]
+        line = line[line.find(',')+1:]
+        GN = line[:line.find(',')]
+        classes = line[line.find(',')+1:]
+        main_mcp_db[tax_name] = { loci : [NCBI, GN, classes] }
+
+for line in chew_table:
+	NCBI = line[:line.find(',')]
+	line = line[line.find(',')+1:]
+	loci = line[:line.find(',')]
+	line = line[line.find(',')+1:]
+	tax_name = line[:line.find(',')]
+	line = line[line.find(',')+1:]
+	GN = line[:line.find(',')]
+	classes = line[line.find(',')+1:]
+	main_chew_db[tax_name] = { loci : [NCBI, GN, classes] }
+	
+chew_mcp = {}
+chew_mcp_strong = {}
+
+
+for tax_name in main_chew_db.keys():
+	output = tax_name
+	try:
+		if len(main_chew_db[tax_name].keys()) == 1 and len(main_mcp_db[tax_name].keys()) == 1:
+			output = output + ' ' * (60 - len(output)) + main_chew_db[tax_name].keys()[0]
+			output = output + ' ' * (80 - len(output)) + main_mcp_db[tax_name].keys()[0]
+			output = output + ' ' * (100 - len(output)) + main_chew_db[tax_name].values()[0][2][:-2]
+			if main_chew_db[tax_name].values()[0][1] == main_mcp_db[tax_name].values()[0][1]:
+				output = output + ' ' * (110 - len(output)) + main_chew_db[tax_name].values()[0][1]
+				print output
+				chew_mcp_strong[main_chew_db[tax_name].keys()[0]] = main_mcp_db[tax_name].keys()[0]
+			else:
+				print output
+			chew_mcp[main_chew_db[tax_name].keys()[0]] = main_mcp_db[tax_name].keys()[0]
+	except KeyError:
+		pass
+
+
+print 'Single CheW and MCP:' + str(len(chew_mcp.keys()))
+print 'Same NG:' + str(len(chew_mcp_strong.keys())) + '\n'
+
+chew_notinaln = []
+print '\nREGULAR CANDIDATES\n'
+print 'First cut -> Not in CheW alingment'
+
+for name in chew_mcp.keys():
+	here = 'n'
+	for seq_name in chew_aln.keys():
+		if name in seq_name:
+			here = 'y'
+	if here == 'n':
+		chew_notinaln.append(name)
+
+for seq_name in chew_notinaln:
+	del chew_mcp[seq_name]
+
+
+#		print seq_name
+
+#print str(chew_notinaln)
+print 'Sequences not in the alignment CheW alignment: ' + str(len(chew_notinaln))
+print 'Sequences still available: ' + str(len(chew_mcp.keys()))
+
+mcp_notinaln = []
+
+print '\nSecond cut -> Not in MCP alingment'
+
+for name in chew_mcp.values():
+        here = 'n'
+	for seq_name in mcp_aln.keys():
+		if name in seq_name:
+			here = 'y'
+        if here == 'n':
+		mcp_notinaln.append(name)
+
+for seq_name in mcp_notinaln:
+	for chew, mcp in chew_mcp:
+		if seq_name == mcp:
+		        del chew_mcp[chew]
+#               print seq_name
+#print str(mcp_notinaln)
+print 'Sequences not in the alignment MCP alignment: ' + str(len(mcp_notinaln))
+print 'Sequences still available: ' + str(len(chew_mcp.keys()))
+
+print'\n\nSTRONG CANDIDATES\n'
+
+chew_strong_notinaln = []
+
+print 'First cut -> Not in CheW alingment'
+
+for name in chew_mcp_strong.keys():
+        here = 'n'
+        for seq_name in chew_aln.keys():
+                if name in seq_name:
+                        here = 'y'
+        if here == 'n':
+		chew_strong_notinaln.append(name)
+
+for seq_name in chew_strong_notinaln:
+        del chew_mcp_strong[seq_name]
+
+#               print seq_name
+#print str(chew_strong_notinaln)
+print 'Sequences not in the alignment CheW alignment: ' + str(len(chew_strong_notinaln))
+print 'Sequences still available: ' + str(len(chew_mcp_strong.keys()))
+
+mcp_strong_notinaln = []
+
+print '\nSecond cut -> Not in MCP alingment'
+for name in chew_mcp_strong.values():
+        here = 'n'
+	for seq_name in mcp_aln.keys():
+                if name in seq_name:
+                        here = 'y'
+        if here == 'n':
+                mcp_strong_notinaln.append(name)
+
+for seq_name in mcp_strong_notinaln:
+        for chew, mcp in chew_mcp_strong:
+                if seq_name == mcp:
+			del chew_mcp_strong[chew]
+			
+#               print seq_name
+
+#print str(mcp_strong_notinaln)
+print 'Sequences not in the alignment MCP alignment: ' + str(len(mcp_strong_notinaln))
+print 'Sequences still available: ' + str(len(chew_mcp_strong.keys())) + '\n'
+		
+
+work_seq_chew = selectseq(chew_aln, chew_mcp.keys())
+work_seq_mcp = selectseq(mcp_aln, chew_mcp.values())
+work_seq_chew_strong = selectseq(chew_aln, chew_mcp_strong.keys())
+work_seq_mcp_strong = selectseq(mcp_aln, chew_mcp_strong.values())
+
+outfile1 = open('chew_selected_strong.aln','w')
+outfile1.write(alnwriter(work_seq_chew_strong))
+outfile1.close()
+
+outfile2 = open('mcp_selected_strong.aln','w')
+outfile2.write(alnwriter(work_seq_mcp_strong))
+outfile2.close()
+
+outfile3 = open('chew_selected.aln','w')
+outfile3.write(alnwriter(work_seq_chew))
+outfile3.close()
+
+outfile4 = open('mcp_selected.aln','w')
+outfile4.write(alnwriter(work_seq_mcp))
+outfile4.close()
+
+#Statististics
+
+charge_dic = { 'R':['D','E'], 'K':['D','E'], 'D':['K','R'], 'E':['K','R'] }
+op_charge_dic = {'D':['D','E'], 'E':['D','E'], 'R':['K','R'], 'K':['K','R']}
+aa_pos = 'RK'
+aa_neg = 'DE'
+
+print '\nElectrostatic Statistics: All Candidates\n'
+
+max_chew = 0
+max_mcp = 0
+
+chew_pos_charge = 0
+chew_neg_charge = 0
+
+for chew in work_seq_chew.values():
+	if len(chew) >= max_chew:
+		max_chew = len(chew)
+for mcp in work_seq_mcp.values():
+	if len(mcp) >= max_mcp:
+	                max_mcp = len(mcp)
+
+print 'Max len chew:' + str(max_chew)
+print 'Max len mcp :' + str(max_mcp)
+
+chew_pos_charge = [ 0 ] * max_chew
+chew_neg_charge = [ 0 ] * max_chew
+
+for chew in work_seq_chew.values():
+	for i in range(max_chew):
+		if chew[i] in aa_pos:
+			chew_pos_charge[i] = chew_pos_charge[i] + 1
+		if chew[i] in aa_neg:
+			chew_neg_charge[i] = chew_neg_charge[i] + 1
+
+for i in range(max_chew):
+	chew_pos_charge[i] = float(chew_pos_charge[i])/float(len(chew_mcp.keys()))
+	chew_neg_charge[i] = float(chew_neg_charge[i])/float(len(chew_mcp.keys()))
+
+mcp_pos_charge = [ 0 ] * max_mcp
+mcp_neg_charge = [ 0 ] * max_mcp
+
+for mcp in work_seq_mcp.values():
+        for i in range(max_mcp):
+                if mcp[i] in aa_pos:
+                        mcp_pos_charge[i] = mcp_pos_charge[i] + 1
+		if mcp[i] in aa_neg:
+                        mcp_neg_charge[i] = mcp_neg_charge[i] + 1
+
+print str(mcp_pos_charge)
+
+for i in range(max_mcp):
+	mcp_pos_charge[i] = float(mcp_pos_charge[i])/float(len(chew_mcp.keys()))
+	mcp_neg_charge[i] = float(mcp_neg_charge[i])/float(len(chew_mcp.keys()))
+
+print str(mcp_pos_charge)
+
+
+
+stat_table = [ 0 ] * max_chew
+stat_table_wei = [ 0 ] * max_chew
+for i in range(len(stat_table)):
+	stat_table[i] = [ 0 ] * max_mcp
+	stat_table_wei[i] = [ 0 ] * max_mcp
+
+for chew, mcp in chew_mcp.iteritems():
+	chew_seq = work_seq_chew[chew]
+	print chew_seq
+	mcp_seq = work_seq_mcp[mcp]
+	for i in range(len(chew_seq)):
+		chew_row = stat_table[i]
+		chew_row_wei = stat_table_wei[i]
+		if chew_seq[i] in charge_dic.keys():
+			for j in range(len(mcp_seq)):
+				if mcp_seq[j] in charge_dic[chew_seq[i]]:
+					chew_row[j] = chew_row[j] + 1
+					if mcp_seq[j] in aa_pos:
+						chew_row_wei[j] = chew_row_wei[j] + float((1-mcp_pos_charge[j])*(1-chew_neg_charge[i]))
+					else:
+						chew_row_wei[j] = chew_row_wei[j] + float((1-mcp_neg_charge[j])*(1-chew_pos_charge[i]))
+				else:
+					if mcp_seq[j] in op_charge_dic[chew_seq[i]]:
+						chew_row[j] = chew_row[j] - 1
+						if mcp_seq[j] in aa_pos:
+							chew_row_wei[j] = chew_row_wei[j] - float(1*(1-mcp_pos_charge[j])*(1-chew_neg_charge[i]))
+						else:
+						        chew_row_wei[j] = chew_row_wei[j] - float(1*(1-mcp_neg_charge[j])*(1-chew_pos_charge[i]))
+
+		stat_table[i] = chew_row
+		stat_table_wei[i] = chew_row_wei
+
+print str(stat_table_wei)
+
+output_stat = ' '
+output_stat_wei = ' '
+
+for i in range(max_mcp):
+	output_stat = output_stat + ',' + str(i+1)
+	output_stat_wei = output_stat_wei + ',' + str(i+1)
+
+output_stat = output_stat + '\n'
+output_stat_wei = output_stat_wei + '\n'
+
+for i in range(max_chew):
+	output_stat = output_stat + str(i+1)
+	output_stat_wei = output_stat_wei + str(i+1)
+	for j in range(max_mcp):
+		output_stat = output_stat + ',' + str(stat_table[i][j])
+		output_stat_wei = output_stat_wei + ',' + str(stat_table_wei[i][j])
+	output_stat = output_stat + '\n'
+	output_stat_wei = output_stat_wei + '\n'
+
+outfile = open('stat_result.csv','w')
+outfile.write(output_stat)
+outfile.close()
+
+outfile_wei = open('stat_result_wei.csv','w')
+outfile_wei.write(output_stat_wei)
+outfile_wei.close()
+
+
+chew_table.close()
+mcp_table.close()
+
+
+

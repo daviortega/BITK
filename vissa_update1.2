@@ -1,0 +1,88 @@
+#!/usr/bin/env python
+import fileinput
+from bitk import *
+import sys
+import os
+
+if '-h' in sys.argv or len(sys.argv) == 1:
+	print "\n\nAlignment in clustal format and the old (or original) vissa xml file. \n\n \
+	If you fell like you will need several upgrades of your SS prediction by vissa while you are \n \
+	making your alignment and you do not have Luke's magical alignment program, you may want to \n \
+	not spent years wating for all that jazz again and again.\n\n \
+	Instructions: \n\n \
+	1) Run your alignment with no gaps on aln2ss_xml and save your xml file\n \
+	2) From now on this xml can be used with your tweaked alignment to redo the final html format\n \
+	3) Just run vissa_upgrade sequence_alignment_in_clustal_format.aln your_xml_vissa.xml [options]\n \
+	4) Even if your alignment doesn't have all the sequences on the initial file it should work fine.\n\n\n \
+	NEW on the VERSION 1.2:\n\n \
+	Now updates segments\n \
+	Option -name : NAME_SEQ/X-XXX  => NAME_SEQ\n \
+	Bugs !? E-mail: Davi Ortega -> dortega@utk.edu\n\n\n"
+	sys.exit()
+
+seq_dic = alnreader(sys.argv[1])
+if '-name' in sys.argv:
+	seq_dic = alnreader(sys.argv[1],'no','Yes')
+
+xml_file = open(sys.argv[2],'r')
+
+seq_list = []
+new_xml = ''
+counts = 0
+for line in xml_file:
+	if counts == 0:
+		if line.find('<source>') != -1:
+			line = '\t\t<source>'+sys.argv[1]+'</source>\n'
+		if line.find('<sequence id') != -1:
+			#name = line[line.find('"')+1:-3]
+			if '-name' in sys.argv:
+				namefull = line[line.find('"')+1:-3]
+				name = line[line.find('"')+1:line.find("/")]
+			else:
+				name = line[line.find('"')+1:-3]
+				namefull = name
+			
+			seq_list.append(name)
+			if name not in seq_dic.keys():
+				print 'Not in the list -> ' + name
+				counts = 5
+			else:
+				place = line.find(namefull)
+				line = line.replace(namefull,'')
+				new_xml = new_xml + line[:place] + name + line[place:]
+		else:
+			if '<characters>' in line:
+				line = line[line.find('>'):]
+				seg_start = line.find(seq_dic[name].replace('-',''))
+				seg_stop = seg_start + len(seq_dic[name].replace('-',''))
+				line = '\t\t<characters>'+line[seg_start:seg_stop]+'</characters>\n'
+			elif '<alignment>' in line:
+				line = line[line.find('>'):]
+				line = '\t\t<alignment>'+seq_dic[name]+'</alignment>\n'
+			elif '<secondary>' in line:
+				line = line[line.find('>'):]
+				line = '\t\t<secondary>'+line[seg_start:seg_stop]+'</secondary>\n'
+			elif '<confidence>' in line:
+				line = line[line.find('>'):]
+				line = '\t\t<confidence>'+line[seg_start:seg_stop]+'</confidence>\n'
+			new_xml = new_xml + line
+	else:
+		counts = counts - 1
+#		print counts
+
+print '\n\nSequences in the alignment and not in the SS_xml information file:\n\n'
+
+for names in seq_dic.keys():
+	if names not in seq_list:
+		print names
+
+outfile = open(sys.argv[1][:-3] + 'upgrade.xml', 'w')
+outfile.write(new_xml)
+outfile.close()
+
+os.system('vissa '+sys.argv[1][:-3] + 'upgrade.xml > '+sys.argv[1][:-3] + 'upgrade.doc')
+xml_file.close()
+
+print 'Done'
+
+

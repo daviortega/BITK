@@ -1,0 +1,41 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 4/19/2011 
+###################################
+import bitk
+import sys
+
+if '-h' in sys.argv:
+	print 'Exclude sequences above some identity level\nSintax: xclud_ident #Ident_cutoff msa.fa'
+	sys.exit()
+
+ID_cut = float(sys.argv[1])
+seq_dic, seq_list = bitk.fastareader(sys.argv[2],'r')
+
+ID_matrix = bitk.buildIDmatrix(seq_dic)
+
+xcluded = []
+
+for seq1 in seq_list:
+	if seq1 not in xcluded:
+		for seq2 in seq_list:
+			if (seq1 != seq2) and seq2 not in xcluded:
+				if ID_matrix[seq1][seq2] > ID_cut:
+					xcluded.append(seq2)
+#			except KeyError:
+#				print seq1
+#				print seq2
+#				print xcluded
+#				sys.exit()
+
+output = ''
+for seq in seq_list:
+	if seq not in xcluded:
+		output += '>' + seq + '\n' + seq_dic[seq] + '\n'
+
+outfile = open(sys.argv[2][:-2] + sys.argv[1] + '.fa','w')
+outfile.write(output)
+outfile.close()
+
+	
+

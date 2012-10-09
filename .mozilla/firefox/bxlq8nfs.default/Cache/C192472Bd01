@@ -1,0 +1,506 @@
+function setFrameSize() {
+    var frameHeight = document.location.hash.replace('#', '');
+
+    if (frameHeight) {
+        document.getElementById("netseer_landingpage_frame").height = frameHeight;
+    }
+}
+
+(function () {
+	var isDOMLoaded = false;
+    function createCookie(name, value, days) {
+        var expires = "";
+        if (days) {
+            var date = new Date();
+            date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+            expires = "; expires=" + date.toGMTString();
+        }
+        document.cookie = name + "=" + value + expires + "; path=/";
+    }
+
+    function readCookie(name) {
+        var nameEQ = name + "=";
+        var ca = document.cookie.split(";");
+        for (var i = 0; i < ca.length; i++) {
+            var c = ca[i];
+            while (c.charAt(0) == " ") {
+                c = c.substring(1, c.length);
+            }
+            if (c.indexOf(nameEQ) == 0) {
+                return c.substring(nameEQ.length, c.length);
+            }
+        }
+        return null;
+    }
+
+    function eraseCookie(name) {
+        createCookie(name, "", -1);
+    }
+
+    function getQuerystring(key, url, default_, seperator) {
+        if (default_ == null) {
+            default_ = "";
+        }
+
+        if (seperator == null) {
+            seperator = "&";
+        }
+
+        key = key.replace(/[\[]/, "\\[").replace(/[\]]/, "\\]");
+        var regex = new RegExp("[\\?" + seperator + "]" + key + "=([^" + seperator + "#]*)");
+        var qs = regex.exec(url);
+        if (qs == null) {
+            return default_;
+        } else {
+            return qs[1];
+        }
+    }
+
+    function getProtocol(a) {
+        if (a && a["location"] && a["location"].protocol && a["location"].protocol["toString"]().toLowerCase() == "https:") return "https://";
+        return "http://"
+    }
+
+    function getServerEndPoint(a) {
+        return getProtocol(a) + "contextlinks.netseer.com";
+        // return getProtocol(a) + "localhost:8080";
+    }
+
+    function getLocationForYahoo(url) {
+        var vars = url.href.split("$,");
+        return vars[vars.length - 1];
+    }
+
+    function RemoveHTML(strText) {
+        var regEx = /<[^>]*>/g;
+        return strText.replace(regEx, "");
+    }
+
+    function check(b) {
+        return b != null ? "\"" + b + "\"" : "\"\"";
+    }
+
+    function encodeUrl(b) {
+        if (b) {
+            try {
+                if (typeof encodeURIComponent == "function") {
+                    return encodeURIComponent(b);
+                } else {
+                    return escape(b);
+                }
+            } catch (e) {
+                return "";
+            }
+        } else {
+            return b;
+        }
+    }
+
+    function decodeUrl(b) {
+        if (b) {
+            try {
+                if (typeof decodeURIComponent == "function") {
+                    return decodeURIComponent(b);
+                } else {
+                    return unescape(b);
+                }
+            } catch (e) {
+                return "";
+            }
+        } else {
+            return b;
+        }
+    }
+
+    function addToUrl(b, a) {
+        if (a) {
+            window.netseer_ad_url += "&" + b + "=" + a;
+        }
+    }
+
+    function addParam(b, a) {
+        if (a) {
+            window.netseer_page_params += "&" + b + "=" + a;
+        }
+    }
+
+    function addToUrlNoKey(a) {
+        if (a) {
+            window.netseer_ad_url += "&" + a;
+        }
+    }
+
+    function addEncodedUrl(b, a) {
+        if (a) {
+            addToUrl(b, encodeUrl(a));
+        }
+    }
+
+    function setColor(b, a, d) {
+        if (a && typeof a == "object") {
+            a = a[d % a.length];
+        }
+        addToUrl("color_" + b, a);
+    }
+
+    function checkClient(b) {
+        b = b.toLowerCase();
+        if (b.substring(0, 3) != "ca-") {
+            b = "ca-" + b;
+        }
+        return b;
+    }
+
+    function decode64(input) {
+
+        var keyStr = "ABCDEFGHIJKLMNOP" + "QRSTUVWXYZabcdef" + "ghijklmnopqrstuv" + "wxyz0123456789+/" + "=";
+        var output = "";
+        var chr1, chr2, chr3 = "";
+        var enc1, enc2, enc3, enc4 = "";
+        var i = 0;
+
+        // remove all characters that are not A-Z, a-z, 0-9, +, /, or =
+        var base64test = /[^A-Za-z0-9\+\/\=]/g;
+        if (base64test.exec(input)) {
+            return "invalid base64 url";
+        }
+        input = input.replace(/[^A-Za-z0-9\+\/\=]/g, "");
+
+        do {
+            enc1 = keyStr.indexOf(input.charAt(i++));
+            enc2 = keyStr.indexOf(input.charAt(i++));
+            enc3 = keyStr.indexOf(input.charAt(i++));
+            enc4 = keyStr.indexOf(input.charAt(i++));
+
+            chr1 = (enc1 << 2) | (enc2 >> 4);
+            chr2 = ((enc2 & 15) << 4) | (enc3 >> 2);
+            chr3 = ((enc3 & 3) << 6) | enc4;
+
+            output = output + String.fromCharCode(chr1);
+
+            if (enc3 != 64) {
+                output = output + String.fromCharCode(chr2);
+            }
+            if (enc4 != 64) {
+                output = output + String.fromCharCode(chr3);
+            }
+
+            chr1 = chr2 = chr3 = "";
+            enc1 = enc2 = enc3 = enc4 = "";
+
+        } while (i < input.length);
+
+        return output;
+    }
+
+    function setToNull(b) {
+        var a = null;
+        b.netseer_query = a;
+        b.netseer_ad_frameborder = a;
+        b.netseer_ad_format = a;
+        b.netseer_page_url = a;
+        b.netseer_output_format = a;
+        b.netseer_language = a;
+        b.netseer_gl = a;
+        b.netseer_country = a;
+        b.netseer_region = a;
+        b.netseer_city = a;
+        b.netseer_hints = a;
+        b.netseer_safe = a;
+        b.netseer_encoding = a;
+        b.netseer_ad_output = a;
+        b.netseer_max_num_ads = a;
+        b.netseer_ad_channel = a;
+        b.netseer_contents = a;
+        b.netseer_alternate_ad_url = a;
+        b.netseer_alternate_color = a;
+        b.netseer_color_bg = a;
+        b.netseer_color_text = a;
+        b.netseer_color_link = a;
+        b.netseer_color_url = a;
+        b.netseer_color_border = a;
+        b.netseer_color_line = a;
+        b.netseer_adtest = a;
+        b.netseer_kw_type = a;
+        b.netseer_kw = a;
+        b.netseer_num_radlinks = a;
+        b.netseer_max_radlink_len = a;
+        b.netseer_rl_filtering = a;
+        b.netseer_rl_mode = a;
+        b.netseer_rt = a;
+        b.netseer_ad_type = a;
+        b.netseer_image_size = a;
+        b.netseer_feedback = a;
+        b.netseer_skip = a;
+        b.netseer_page_location = a;
+        b.netseer_referrer_url = a;
+        b.netseer_ad_region = a;
+        b.netseer_ad_section = a;
+        b.netseer_bid = a;
+        b.netseer_cpa_choice = a;
+        b.netseer_cust_age = a;
+        b.netseer_cust_gender = a;
+        b.netseer_cust_interests = a;
+        b.netseer_cust_id = a;
+        b.netseer_cust_job = a;
+        b.netseer_cust_u_url = a;
+        b.netseer_sim = a;
+        b.netseer_color_bilboard = a;
+        b.netseer_banner_id = a;
+        b.netseer_network_id = a;
+        b.netseer_tracking_url = a;
+        b.netseer_tracking_url_encoded = a;
+        b.netseer_page_url_key = a;
+        b.netseer_search_current_url = a;
+        b.netseer_page_params = a;
+        b.netseer_page_url_base64 = a;
+        b.netseer_landing_page_type = a;
+        b.netseer_background_color = a;
+        b.netseer_click_target = a;
+        b.netseer_pixel_param1 = a;
+        b.netseer_pixel_param2 = a;
+        b.netseer_pixel_param3 = a;
+        b.netseer_pixel_id = a;
+        b.netseer_tag_id = a;
+        b.netseer_client_id = a;
+        b.netseer_task = a;
+        b.netseer_creative_id = a;
+        b.netseer_adgroup_id = a;
+        b.netseer_campaign_id = a;
+        b.netseer_auction_id = a;
+        b.netseer_slot_index = a;
+        b.netseer_metro = a;
+        b.netseer_region = a;
+        b.netseer_imp_type = a;
+        b.netseer_adx_guserid = a;
+        b.netseer_advs = a;
+        b.netseer_taglink_id = a;
+        b.netseer_segment = a;
+        b.netseer_iframe_buster = a;
+        b.netseer_search_param = a;
+        b.netseer_recirculation_sites = a;
+    }
+
+    function makeOutput(netseer_task, netseer_ad_height, netseer_ad_width, netseer_iframe_buster, d) {
+
+        d = d.substring(0, 2083);
+        d = d.replace(/%\w?$/, "");
+
+        if (netseer_task == 'lp') {
+            document.write("<iframe onLoad=\"setFrameSize();\" id=\"netseer_landingpage_frame\"  name=\"netseer_landingpage_frame\" width=" + check(netseer_ad_width) + " height=" + check(netseer_ad_height) + " src=" + check(d) + " frameborder=\"0\" marginwidth=\"0\" marginheight=\"0\" vspace=\"0\" hspace=\"0\" allowtransparency=\"true\" scrolling=\"no\"></iframe>");
+          
+
+        } else if (netseer_task == 'ad') {
+
+            if (netseer_iframe_buster) {
+                var destUrl = netseer_iframe_buster + "?forward_url=" + encodeUrl(d) + "&height=" + netseer_ad_height + "&width=" + netseer_ad_width;
+                document.write("<iframe name=\"netseer_ads_frame\" width=" + check(netseer_ad_width) + " height=" + check(netseer_ad_height) + " src=" + check(destUrl) + " frameborder=\"0\" marginwidth=\"0\" marginheight=\"0\" vspace=\"0\" hspace=\"0\" allowtransparency=\"true\" scrolling=\"no\"></iframe>");
+          
+            } else {
+            	{
+            	document.open()
+            	document.write("<iframe name=\"netseer_ads_frame\" width=" + check(netseer_ad_width) + " height=" + check(netseer_ad_height) + " src=" + check(d) + " frameborder=\"0\" marginwidth=\"0\" marginheight=\"0\" vspace=\"0\" hspace=\"0\" allowtransparency=\"true\" scrolling=\"no\"></iframe>")
+            	document.close()
+            	}
+            }
+        } else if (netseer_task == 'px') {
+            document.write("<img border=0 width=1px height=1px src=" + check(d) + ">");
+        }
+
+    }
+
+    function Main() {
+        var b = null,
+            a = window,
+            d = document,
+            g = new Date,
+            e = g.getTime(),
+            j = a.netseer_ad_format,
+            src = d.location;
+        a.netseer_page_params = "";
+
+        if (a.netseer_task == "lp") {
+
+            a.netseer_ad_url = getServerEndPoint(a) + "/contextlinks2/servlet/search?";
+            // this part is done to make sure many to one mapping of tag to
+            // landing page counts toward the referral tag
+            var queryString = a.location.search.substring(1);
+            if (queryString) {
+                queryString = queryString.replace("tlid=", "tlidr=");
+            }
+            var TagLinkIdRef = getQuerystring("tlid", queryString, null, null);
+            addToUrl("tlid", a.netseer_taglink_id);
+            addToUrlNoKey(queryString);
+        } else if (a.netseer_task == "ad") {
+            // these parameters are used for ads
+            a.netseer_ad_url = getServerEndPoint(a) + "/dsatserving2/servlet/BannerServer?";
+            addToUrl("tagid", a.netseer_tag_id);
+            if (a.netseer_iframe_buster == null || a.netseer_iframe_buster == "") {
+                addEncodedUrl("url", a.netseer_page_url);
+            }
+            addToUrl("q", a.netseer_query);
+            // addToUrl("cookie", a.netseer_user_id);
+        } else if (a.netseer_task == "px") {
+
+            a.netseer_ad_url = getServerEndPoint(a) + "/dsatserving2/servlet/log?";
+
+            if (getQuerystring("cid", a.netseer_page_url, "") == "") {
+                addToUrl("tagid", a.netseer_tag_id);
+            }
+
+            addToUrl("pxid", a.netseer_pixel_id);
+            addToUrl("nlt", a.netseer_log_type);
+            // addToUrl("cookie", a.netseer_user_id);
+            addToUrl("cid", a.netseer_creative_id);
+
+            addToUrl("q", a.netseer_query);
+            addEncodedUrl("url", a.netseer_page_url);
+            addEncodedUrl("pxp1", a.netseer_pixel_param1);
+            addEncodedUrl("pxp2", a.netseer_pixel_param2);
+            addEncodedUrl("pxp3", a.netseer_pixel_param3);
+            addToUrlNoKey(a.location.search.substring(1));
+        }
+
+        if (a.netseer_segment) {
+            addParam('segment', a.netseer_segment);
+        }
+
+        if (a.netseer_recirculation_sites) {
+            addParam('sites', a.netseer_recirculation_sites);
+        }
+
+        addEncodedUrl("params", a.netseer_page_params);
+        addToUrl("adgid", a.netseer_adgroup_id);
+        addToUrl("cmpid", a.netseer_campaign_id);
+        addToUrl("srcid", a.netseer_source_id);
+        addToUrl("pp", a.netseer_pcpm);
+        addToUrl("bp", a.netseer_bcpm);
+        addToUrl("auid", a.netseer_auction_id);
+        addToUrl("sidx", a.netseer_slot_index);
+        addToUrl("evid", a.netseer_adx_guserid);
+        addToUrl("impt", a.netseer_imp_type);
+        addToUrl("region", a.netseer_region);
+        addToUrl("metro", a.netseer_metro);
+        addToUrl("advs", a.netseer_advs);
+        addToUrl("sep", a.netseer_search_param);
+        addEncodedUrl("trurl", decodeUrl(a.netseer_tracking_url));
+
+        // while(isDOMLoaded == false){}
+        if (d.body == null) {
+            a.onload = function (e) {
+                var netseer_task = a.netseer_task;
+                var netseer_ad_height = a.netseer_ad_height;
+                var netseer_ad_width = a.netseer_ad_width;
+                var netseer_iframe_buster = a.netseer_iframe_buster;
+                var netseer_ad_url = a.netseer_ad_url;                
+                makeOutput(netseer_task, netseer_ad_height, netseer_ad_width, netseer_iframe_buster, netseer_ad_url);                
+                setToNull(window);
+            };
+
+        } else {
+            makeOutput(a.netseer_task, a.netseer_ad_height, a.netseer_ad_width, a.netseer_iframe_buster, a.netseer_ad_url);
+            setToNull(a);
+        }
+
+    }
+
+    function onLoadCallBack() {
+        makeOutput(window, document, window.netseer_ad_url);
+        setToNull(window);
+    }
+
+    function getLocation(a, b) {
+
+        var url_key = b.netseer_page_url_key;
+
+        if (url_key == null) {
+            return b.location;
+        } else {
+
+            var parts = url_key.split(",");
+            var seperator = null;
+
+            if (parts.length > 3) {
+                seperator = parts[3];
+            }
+            var url = decodeUrl(getQuerystring(parts[0], b.location, null, seperator));
+            if (parts.length > 1) {
+                url = parts[1] + url;
+            }
+            if (parts.length > 2) {
+                url = url + parts[2];
+            }
+            return url;
+        }
+    }
+
+    function markLoaded(){
+		isDOMLoaded = true;
+	}
+    
+    function Init() {
+        var b = window,
+            a = document,
+            d = a.location,
+            g = a.referrer,
+            e = null;
+        
+        
+      //Keep track of when the document has been loaded
+    	
+    	
+    	if(a.addEventListener)
+    		a.addEventListener('DOMContentLoaded', markLoaded, false);
+    	if(b.addEventListener)
+    		b.addEventListener('load', markLoaded, false);
+    	if(b.attachEvent)
+    		b.attachEvent('onload', markLoaded);
+
+    	
+        // b.netseer_org_error_handler = b.onerror;
+        // b.onerror = callMain;
+        b.netseer_search_current_url = d;
+
+        if (b.netseer_user_id == e || b.netseer_user_id == undefined || b.netseer_user_id == "undefined") {
+            var optout = readCookie("netseer_optout");
+            if (optout) {
+                b.netseer_user_id = '0';
+            } else {
+
+                b.netseer_user_id = readCookie("netseer_usr");
+                b.netseer_imp_id = readCookie("netseer_imp");
+                b.netseer_click_id = readCookie("netseer_clk");
+                b.netseer_ad_click_id = readCookie("netseer_adclk");
+                b.netseer_click_url = readCookie("netseer_clkurl");
+
+            }
+/*
+			 * if (b.netseer_user_id == null || b.netseer_user_id === undefined ||
+			 * b.netseer_user_id == "undefined") { b.netseer_user_id =
+			 * Math.floor(Math.random() * 1000000000);
+			 * createCookie("netseer_usr", b.netseer_user_id, 1000); }
+			 */
+        }
+
+        if (b.netseer_ad_width == e || b.netseer_ad_width == undefined || b.netseer_ad_width == "undefined") {
+            b.netseer_ad_width = "100%";
+        }
+
+        if (b.netseer_page_url_base64 == e) {
+            if (b.netseer_page_url == e) {
+                b.netseer_page_url = getLocation(a, b);
+                b.netseer_last_modified_time = Date.parse(a.lastModified) / 1000;
+                b.netseer_referrer_url = g;
+            } else {
+                b.netseer_page_location = d;
+                b.netseer_page_url = decodeUrl(b.netseer_page_url);
+            }
+        } else {
+            b.netseer_page_url_base64 = b.netseer_page_url_base64.replace("-", "+");
+            b.netseer_page_url_base64 = b.netseer_page_url_base64.replace("_", "/");
+            b.netseer_page_url = decode64(b.netseer_page_url_base64).replace(/\0/g, "");
+        }
+    }
+    Init();
+    Main();
+})();

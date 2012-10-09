@@ -1,0 +1,39 @@
+#!/usr/bin/env python
+#import fileinput
+from bitk import *
+import os
+from os import listdir
+from os import getcwd
+import sys
+
+arg = sys.argv
+
+if '-ng' in sys.argv:
+	ng = 1
+else:
+	ng = 0
+
+files = []
+if 'all' in sys.argv:
+	files = listdir(getcwd())
+else:
+	files.append(sys.argv[1]) 
+
+print files
+
+for seq in files:
+	print seq[:-2] + 'pir'
+	if '-name' in sys.argv:
+		output = fastareader(seq,'Yes')
+	else:
+		output = fastareader(seq)
+	if ng == 1:
+		output = nogaps(output)
+	outfile = open( seq[:-2] + 'pir' ,'w')
+	dataout = pirwriter(output)
+#	dataout = ''
+#	for k, v in output.iteritems():
+#		dataout = dataout + k[0:] + '\n' + v + '\n'
+	outfile.write(dataout)
+	outfile.close()
+

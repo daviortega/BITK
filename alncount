@@ -1,0 +1,9 @@
+#!/usr/bin/env python
+import fileinput
+from bitk import *
+import sys
+
+sequences = sys.argv[1]
+output = alnreader(sequences)
+print len(output.keys())
+
