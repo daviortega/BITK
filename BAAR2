@@ -1,0 +1,72 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 8/16/2012 
+###################################
+#version 2 graduated on 08/23/2012
+###################################
+
+import sys
+import bitk
+import os
+if '-h' in sys.argv:
+	print 'Builds blast database from alignment, run blastp against it, produce a similarity matrix based on bit-score and input it to heatmap clustering algorithm on R. It outputs: blast output and PDF with clustering'
+	sys.exit()
+
+#np = sys.argv[2]
+filename = sys.argv[1]
+dbname = 'temp.' + filename[:-2] + 'db'
+blastname = 'output_blastp.' + filename[:-2] + 'dat'
+outfile = filename[:-2] + 'blastpall.dat'
+
+os.system('rm ' + blastname)
+os.system('rm ' + dbname + '*')
+os.system('rm ' + outfile)
+
+seq_dic, seq_list = bitk.fastareader(filename)
+
+print 'Building Database'
+os.system('formatdb -i ' + filename + ' -n ' + dbname )
+
+print 'Running blastp'
+#os.system('blastp -db ' + dbname + ' -query ' + filename + ' -out ' + blastname + ' -evalue 1000000 -max_target_seqs 10000 -num_alignments 10000 -outfmt "6 qseqid sseqid bitscore" -comp_based_stats no -seg no -num_threads 10')
+
+os.system('blastp -db ' + dbname + ' -query ' + filename + ' -out ' + blastname + ' -outfmt "6 qseqid sseqid bitscore evalue" -evalue 10000000000 -max_target_seqs 100000 -num_alignments 100000 -num_descriptions 100000 -comp_based_stats 0' )
+
+#os.system('blastall -p blastp -d ' + dbname + ' -i test.fa -o ' + blastname + ' -e 100000000000 -b 100000000 -m 8')
+
+print 'Parsing blast results'
+
+data_dic = {}
+data_list = []
+
+datafile = open(blastname,'r')
+for line in datafile:
+	field = line.replace('\n','').split('\t')
+#	while '' in field:
+#		field.remove('')
+	if field[0] not in data_dic:
+		data_dic[field[0]] = {}
+		data_list.append(field[0])
+	if field[1] not in data_dic[field[0]].keys():
+		data_dic[field[0]][field[1]] = float(field[2])
+	elif float(field[2]) > data_dic[field[0]][field[1]]:
+		data_dic[field[0]][field[1]] = float(field[2])
+
+datafile.close()
+
+output = ''
+for name1 in data_list:
+	for name2 in data_dic[name1].keys():
+		output += name1 + '\t' + name2 + '\t' + str(data_dic[name1][name2]) + '\n'
+
+dataout = open(outfile,'w')
+dataout.write(output)
+dataout.close()
+
+os.system('data.frame2matrix ' + outfile + ' -sep ";" -D -fd0')
+
+
+
+print 'Done'
+	
+
