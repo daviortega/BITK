@@ -1,0 +1,24 @@
+###################################################
+1.0v - OCT 2012
+Davi Ortega
+###################################################
+
+This is my personal bioinformatics toolkit.
+It is mainly written in python, tcl (vmd) and maybe in bash.
+If you want to use you should include in your .bashrc something like this:
+
+export PYTHONPATH=${PYTHONPATH}:/home/ortega/bitk/bitk_lib/
+export PATH="${PATH}:$(find /home/ortega/bitk -name '.*' -prune -o -type d -printf ':%p')"
+
+where /home/ortega/ is the path to where bitk files were copied.
+
+Also you may also want to install the following python packages:
+
+numpy
+scipy
+multiprocessing
+MDAnalysis
+rpy2
+
+Enjoy!
+
