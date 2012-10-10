@@ -119,7 +119,7 @@ pool = multip.Pool(processes=Np)
 pool.map(_rmsf, res_list)
 
 print "Grouping and cleaning"
-if ave == 0:
+if ave_flag == 0:
 	os.system('cat ' + name_file_dcd + 'rmsf.LA' + cutoff + '.*.' + chain + '.txt > ' + name_file_dcd + 'all.rmsf.ref_ini.LA' + cutoff + '.' + chain + '.txt')
 	os.system('rm ' + name_file_dcd + 'rmsf.LA' + cutoff + '.*.' + chain + '.txt')
 else:
