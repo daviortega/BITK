@@ -22,3 +22,26 @@ rpy2
 
 Enjoy!
 Ps.: Before I started to use git repo I made a backup copy of everything on god
+
+##################################################
+About the Repository
+##################################################
+There are two main branches: master and experimental.
+
+The master branch has bitk_lib and stable subdirectories
+The experimental has both and labs.
+
+The way I am working on this is the following:
+
+1) pull the repository
+2) switch to experimental and in the directory labs do the work.
+3) Multiple commits later, when the work is ready, copy the graduated script to stable and commit one more time.
+4) switch to master
+5) merge to experimental
+6) remove labs
+7) comit master
+8) tag it if necessary
+9) push upstream.
+
+There is probably a more elegant way to do this, but this is only my 2nd day.
+
