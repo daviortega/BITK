@@ -39,7 +39,7 @@ The way I am working on this is the following:
 4) switch to master
 5) merge to experimental
 6) remove labs
-7) comit master
+7) commit master
 8) tag it if necessary
 9) push upstream.
 
