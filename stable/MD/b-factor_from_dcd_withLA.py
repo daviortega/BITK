@@ -66,7 +66,7 @@ def _bfactor(res):
 		filenamedcd = "LA" + cutoff + "bf.R" + str(res) + '.' + chain + '.dcd'
 		MDA.rms_fit_trj(mol, ref, select=ref_sel_str, filename = filenamedcd ) #'name N and type N and resname MET resid 1 and segid P1')
 		output = ''
-		print "["+str(res)+"] Calculating C(t) for residue " + str(res) + " of " + str(res_num)
+		print "["+str(res)+"] Calculating B-Factor for residue " + str(res) + " of " + str(res_num)
 		mol = MD.Universe(pdb_file, filenamedcd)
 	cf_timer = time.time()
 	atoms_mol = mol.selectAtoms("resid " + str(res) + " and name CA and segid " +str(chain))
@@ -84,8 +84,8 @@ def _bfactor(res):
 		var = numpy.array(var)
 		rmsf = numpy.average(var)
 		err_rmsf = numpy.std(var)
-		bf = (8*numpy.pi*numpy.pi/3)*rmsf
-		err_bf = (8*numpy.pi**2/3)*err_rmsf
+		bf = (8*numpy.pi*numpy.pi/3)*rmsf*rmsf
+		err_bf = (8*numpy.pi**2/3)*err_rmsf*2*rmsf # error propagation of quadractic function
 
 	filename = name_file_dcd + "b-factor.LA" + cutoff +".%03d." % res + chain + ".txt"
 	dataout = open(filename, 'w')
