@@ -6,11 +6,21 @@ import bitk
 import os
 import sys
 if '-h' in sys.argv:
-	print 'trim sequences by hmmer hit: trimbyhmm pfam_model.hmm fastafile.fa \n Options -m for multiple domains. It will split the sequence in new entries for each domain and add numbers at the end of the tag'
+	print 'Trim sequences by hmmer hit coordinates: trimbyhmm pfam_model.hmm fastafile.fa [options]\n \
+	Options\n \t -m N for protein with multiple hits. N is the number of domains the protein needs to have to be selected. \n\t\t 0 allows for multiple domains. It will split the sequence in new entries for each domain and add numbers at the end of the tag\n \t -all (to be used with -m N where N != 0 or 1) brings all domains separately only from proteins with N hits '
 	sys.exit()
 
 hmm_model = sys.argv[1]
 fasta_file = sys.argv[2]
+
+if '-m' in sys.argv:
+	try:
+		N = int(sys.argv[sys.argv.index('-m') +1])
+	except:
+		print " option -m needs the number of domains to be selected \n\n"
+		os.system('trimbyhmm2 -h')
+		sys.exit()
+
 
 
 os.system('hmmsearch --noali --cut_tc ' + hmm_model + ' ' + fasta_file + ' > output_' + fasta_file[:-3] + '.dat')
@@ -19,7 +29,12 @@ seq_dic, seq_list = bitk.fastareader(fasta_file)
 datafile = open('output_' + fasta_file[:-3] + '.dat','r')
 
 new_seq_dic = {}
+new_seq_list = []
+
+new_seq_allopt = []
+
 output = ''
+
 for line in datafile:
 	if '>>' in line:
         	name = line.split(' ')[1]
@@ -28,18 +43,36 @@ for line in datafile:
                        	if line[60:66].replace(' ','').isdigit():
                                	start = int(line[60:66])
                                	end = int(line[68:74])
-                               	new_seq_dic[name] = seq_dic[name][start:end]
                                	#print name + '\t' + str(start) + '\t' + str(end)
                         	if '-m' in sys.argv:
-					output += '>' + name + '-' + str(DN) + '\n' + seq_dic[name][start:end] + '\n'
-					DN += 1
+					if N == 0:
+						output += '>' + name + '-' + str(DN) + '\n' + seq_dic[name][start:end] + '\n'
+						DN += 1
+					else:
+						if DN == N and '-all' in sys.argv:
+							new_seq_allopt.append(name)
+						new_seq_dic[name + '-' + str(DN)] =  seq_dic[name][start:end]
+						new_seq_list.append(name + '-' + str(DN))
+						DN += 1
 				else:
 					output += '>' + name + '\n' + seq_dic[name][start:end] + '\n'
+					#new_seq_dic[name] = seq_dic[name][start:end]
+					#new_seq_list.append(name)
 					break
 			else:
 				if line == '\n' :
 					break
 datafile.close()
+
+if '-m' in sys.argv and N != 0:
+	for seq in new_seq_list:
+		seq_N = seq.split('-')[-1]
+		if '-all' in sys.argv and '-'.join(seq.split('-')[:-1]) in new_seq_allopt:
+			output += '>' + seq + '\n' + new_seq_dic[seq] + '\n'
+		else:
+			if int(seq_N) == N:
+				output += '>' + seq + '\n' + new_seq_dic[seq] + '\n'
+
 
 outfile = open(fasta_file[:-3] + '.hmmtrim.fa', 'w')
 outfile.write(output)
