@@ -46,7 +46,7 @@ for seq1 in seq_list:
 
 output = ''
 for seq in seq_list:
-        if seq not in xcluded:
+        if seq not in xclud:
                 output += '>' + seq + '\n' + seq_dic[seq]
 
 outfile = open(sys.argv[2][:-2] + sys.argv[1] + '.fa','w')
