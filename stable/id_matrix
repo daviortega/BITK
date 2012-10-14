@@ -1,0 +1,18 @@
+#! /usr/bin/env python
+###################################
+#    Davi Ortega 10/14/2012
+###################################
+import sys
+import bitk
+if '-h' in sys.argv:
+        print 'Build a identity matrix from the fasta alignment'
+        sys.exit()
+
+seq_dic, seq_list = bitk.fastareader(sys.argv[1])
+
+ID_matrix = bitk.buildIDmatrix(seq_dic, seq_list, True)
+
+outfile = open(sys.argv[1][:-3] + '.id_trisup.dat', 'w')
+outfile.write(ID_matrix)
+outfile.close()
+

@@ -547,26 +547,40 @@ def Identity(seq1='', seq2=''):
 			errors += 1
 	return (float(total - errors)/float(total))
 
-def buildIDmatrix(seq_dic={}):
+def buildIDmatrix(seq_dic={}, seq_list = [], formatliketrisup = False):
 	""" Build the identity matrix between the sequences in the dictionary """
-	IDMatrix = {}
+	if seq_dic != {} and seq_list == []:
+		seq_list = seq_dic.keys()
+	
 	namelist = []
 	count = 0
-
-
-	for name1, seq1 in seq_dic.iteritems():
-		count += 1
-		namelist.append(name1)
-		IDMatrix[name1] = {}
-		for name2, seq2 in seq_dic.iteritems():
-			if name2 != name1:
-				IDMatrix[name1][name2] = Identity(seq1,seq2)
-			#else:
-			#	IDMatrix[name1][name2] = Identity(seq1,seq2)
-
-		print 'Done with ' + name1[:-1] + '\t\t' + str(count) + '/' + str(len(seq_dic))
 	
-	return IDMatrix
+	if formatliketrisup:
+		output = ''
+		for i in range(len(seq_list)):
+			output += seq_list[i] + ';'*i
+	                for j in range(i,len(seq_list)):
+				output += ';%03f' % Identity(seq_dic[seq_list[i]],seq_dic[seq_list[j]])
+			output += '\n'
+			print 'Done with ' + seq_list[i] + '\t\t' + str(i+1) + '/' + str(len(seq_list))
+		return output
+	else:
+		IDMatrix = {}
+		for name1, seq1 in seq_dic.iteritems():
+                	count += 1
+	                namelist.append(name1)
+        	        if name1 not in IDMatrix.keys():
+                	        IDMatrix[name1] = {}
+	                for name2, seq2 in seq_dic.iteritems():
+        	                if name2 not in namelist:
+                	                ID = Identity(seq1,seq2)
+                        	        IDMatrix[name1][name2] = ID
+                                	if name2 not in IDMatrix.keys():
+        	                                IDMatrix[name2] = {}
+	                                IDMatrix[name2][name1] = ID	
+			print 'Done with ' + name1[:-1] + '\t\t' + str(count) + '/' + str(len(seq_dic))
+		return IDMatrix
+
 
 def MatrixPathAnt(IDMatrix={},name1='',name2='', Nants = 100, cutoff = 0.3):
 	import random as rand
