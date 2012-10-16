@@ -1,0 +1,157 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 3/25/2012 
+###################################
+
+##################################################
+#TODO: options for exclude diagonal from histogram
+##################################################
+
+import sys
+if '-h' in sys.argv:
+	print 'Read a triangular superior matrix and writes a full symmetric matrix\nOptions:\n\t-hist N \texport data for histogram grouping entries by XXX-... entry name. N is the bin size\n\t-histall histogram of all numbers.\n -norm for normalized counts \
+	Example of matrix format:\n \
+	entry1;a11;a12;a13;a14 \n \
+	entry2;;a22;a23;a24 \n \
+	entry3;;;a33;a34 \n \
+	entry4;;;a44'
+	sys.exit()
+
+datafile = open(sys.argv[1],'r')
+
+output = ''
+matrix = {}
+tags = []
+
+line = 0
+for line in datafile:
+	line = line.replace('\n','')
+	fields = line.split(';')
+#	print '\n' + str(fields[1:] )
+	matrix[fields[0]] = fields[1:]
+	empty = fields[1:].count('')
+#	print empty
+	output += fields[0]
+	for tag in tags:
+		output += ';' + str(round(float(matrix[tag][empty]),4))
+	for value in fields[1:]:
+		if value != '':
+			output += ';' + str(round(float(value),4))
+	output += '\n'
+	tags.append(fields[0])
+
+print 
+
+datafile.close()
+
+outfile = open(sys.argv[1][:-3] + 'full.txt' , 'w')
+outfile.write(output)
+outfile.close()
+
+types = []
+old_type = ''
+hist_data = {}
+
+if '-histall' in sys.argv:
+	hist_data['all'] = []
+	types = ['all']
+
+
+#print tags
+
+if '-hist' in sys.argv or '-histall' in sys.argv:
+	try:
+		BS = float(sys.argv[sys.argv.index('-hist')+1])
+	except:
+		BS = 0.25
+	for i in range(len(tags)):
+		for j in range(len(matrix[tags[i]])):
+			#if matrix[tags[i]][j] != '' and float(matrix[tags[i]][j]) != 0:
+			if matrix[tags[i]][j] != '':
+				#print tags[i]
+				#print tags[i][:3] 
+				#print tags[i][9:12]
+				#print tags[i][:3] + tags[i][9:12] + 'vs' + tags[j][:3] + tags[j][9:12]
+				if '-histall' in sys.argv:
+					hist_data['all'].append(float(matrix[tags[i]][j]))
+				else:
+					if tags[i][:3] + tags[i][9:12] + 'vs' + tags[j][:3] + tags[j][9:12] in hist_data.keys():
+						hist_data[tags[i][:3] + tags[i][9:12] + 'vs' + tags[j][:3] + tags[j][9:12]].append(float(matrix[tags[i]][j]))
+					else:
+						hist_data[tags[i][:3] + tags[i][9:12] + 'vs' + tags[j][:3] + tags[j][9:12]] = [float(matrix[tags[i]][j])]
+						types.append(tags[i][:3] + tags[i][9:12] + 'vs' + tags[j][:3] + tags[j][9:12])
+		
+	len_list = []
+	max_from_set = []
+	min_from_set = []
+	for tp in types:
+		len_list.append(len(hist_data[tp]))
+		max_from_set.append(max(hist_data[tp]))
+		min_from_set.append(min(hist_data[tp]))
+	max_len = max(len_list)
+	out1 = 'rank'
+
+	for i in types:
+		out1 += '\t' + str(i)
+	out1 += '\n'
+	for i in range(max_len):
+		out1 += str(i)
+		for tp in range(len(types)):
+			try:
+				out1 += '\t' + str(hist_data[types[tp]][i])
+			except IndexError:
+				out1 += '\t'
+		out1 += '\n'
+	if '-histall' in sys.argv:
+		outfile = open(sys.argv[1][:-3] + 'datahistall.txt' , 'w')
+	       	outfile.write(out1)
+        	outfile.close()
+	else:
+		outfile = open(sys.argv[1][:-3] + 'datahist.txt' , 'w')
+		outfile.write(out1)
+		outfile.close()
+	#build histogram
+	bin_size = BS
+	max_range = max(max_from_set)
+	print 'Minimum = ' + str(min(min_from_set))
+	
+	bins = [i*bin_size for i in range(0, int(max_range+4*bin_size)*int(1/bin_size)+1)]
+	print bins
+	histograms = {}
+	for tp in types:
+		histograms[tp] = []
+		for i in range(0,len(bins)-1):
+			histograms[tp].append(0)
+			for value in hist_data[tp]:
+				if i == 0:
+					if value >= bins[i] and value <= bins[i+1]:
+						histograms[tp][i] += 1
+				else:
+					if value > bins[i] and value <= bins[i+1]:
+						histograms[tp][i] += 1
+			if '-norm' in sys.argv:
+				histograms[tp][i] /= float(len(hist_data[tp])) #normalize the counts
+	
+	outhist = ''
+	for i in types:
+                outhist += '\t' + str(i)
+        outhist += '\n'
+	
+	for i in range(0,len(bins)-1):
+		outhist += str(bins[i])
+		for tp in types:
+			outhist += '\t' + str(histograms[tp][i])
+		outhist += '\n'
+	if '-histall' in sys.argv:
+		outfile = open(sys.argv[1][:-3] + 'histall.txt' , 'w')
+	       	outfile.write(outhist)
+        	outfile.close()
+	else:
+		outfile = open(sys.argv[1][:-3] + 'hist.txt' , 'w')
+	        outfile.write(outhist)
+        	outfile.close()
+
+		
+	
+
+

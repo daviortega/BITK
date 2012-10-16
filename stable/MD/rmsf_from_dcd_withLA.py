@@ -15,7 +15,7 @@ import time
 from numpy.core.umath_tests import inner1d
 
 if len(sys.argv) != 11:
-	print "Spits out the B-factor of Calpha for each residue.\nScript takes exactly 10 arguments: pdb_file dcd_file Np res_beg res_end chain time_step skip cutoff ave\n \
+	print "Spits out the RMSF of Calpha for each residue.\nScript takes exactly 10 arguments: pdb_file dcd_file Np res_beg res_end chain time_step skip cutoff ave\n \
 	With ave = 0 the script will use x(0) to calculate < x(t) - x(0) > ^ 2. With ave = 1 it will compute <x(t) - <x(t)>>^2.\n \
 	Unnecessary to say that it will take double the time with ave = 1"
 	sys.exit()
@@ -48,9 +48,9 @@ while "/" in name_file_dcd:
 
 list_Ct = {}
 
-output = 'residue\tb-factor\terr_b-factor'
+output = 'residue\trmsf\terr_rmsf'
 
-def _bfactor(res):
+def _rmsf(res):
 	global ave_flag
 	
 	#mol is an md universe
@@ -70,7 +70,7 @@ def _bfactor(res):
 		#ref_sel_str += "(" + useful.replace('>',' ').replace("'",'') + ') or '
 	ref_sel_str = ref_sel_str[:-4] 
 	#print ref_sel_str
-	filenamedcd = "LA" + cutoff + "b-factor.R" + str(res) + '.' + chain + '.dcd'
+	filenamedcd = "LA" + cutoff + "rmsf.R" + str(res) + '.' + chain + '.dcd'
 	MDA.rms_fit_trj(mol, ref, select=ref_sel_str, filename = filenamedcd ) #'name N and type N and resname MET resid 1 and segid P1')
 	output = ''
 
@@ -100,10 +100,8 @@ def _bfactor(res):
 	var = numpy.array(var)
 	rmsf = numpy.average(var)
 	err_rmsf = numpy.std(var)
-	bf = (8*numpy.pi*numpy.pi/3)*rmsf*rmsf
-        err_bf = (8*numpy.pi**2/3)*err_rmsf*2*rmsf # error propagation of quadractic function
 
-	filename = name_file_dcd + "b-factor.LA" + cutoff +".%03d." % res + chain + ".txt"
+	filename = name_file_dcd + "rmsf.LA" + cutoff +".%03d." % res + chain + ".txt"
 	dataout = open(filename, 'w')
 	dataout.write(str(res) + "\t%.5f" % rmsf + "\t%.5f" % err_rmsf + '\n')
 	dataout.close()
@@ -112,21 +110,21 @@ def _bfactor(res):
 arg_list = []
 #for resid in range(3,res_num):
 #	arg_list.append([resid,name_file_dcd,mol])
-#_bfactor(263)
+#_rmsf(263)
 #sys.exit()
 
 
 res_list = range(res_beg,res_end)
 pool = multip.Pool(processes=Np)
-pool.map(_bfactor, res_list)
+pool.map(_rmsf, res_list)
 
 print "Grouping and cleaning"
 if ave_flag == 0:
-	os.system('cat ' + name_file_dcd + 'b-factor.LA' + cutoff + '.*.' + chain + '.txt > ' + name_file_dcd + 'all.b-factor.ref_ini.LA' + cutoff + '.' + chain + '.txt')
-	os.system('rm ' + name_file_dcd + 'b-factor.LA' + cutoff + '.*.' + chain + '.txt')
+	os.system('cat ' + name_file_dcd + 'rmsf.LA' + cutoff + '.*.' + chain + '.txt > ' + name_file_dcd + 'all.rmsf.ref_ini.LA' + cutoff + '.' + chain + '.txt')
+	os.system('rm ' + name_file_dcd + 'rmsf.LA' + cutoff + '.*.' + chain + '.txt')
 else:
-	os.system('cat ' + name_file_dcd + 'b-factor.LA' + cutoff + '.*.' + chain + '.txt > ' + name_file_dcd + 'all.b-factor.ref_ave.LA' + cutoff + '.' + chain + '.txt')
-        os.system('rm ' + name_file_dcd + 'b-factor.LA' + cutoff + '.*.' + chain + '.txt')
+	os.system('cat ' + name_file_dcd + 'rmsf.LA' + cutoff + '.*.' + chain + '.txt > ' + name_file_dcd + 'all.rmsf.ref_ave.LA' + cutoff + '.' + chain + '.txt')
+        os.system('rm ' + name_file_dcd + 'rmsf.LA' + cutoff + '.*.' + chain + '.txt')
 
 print "Done... with capital D"
 
