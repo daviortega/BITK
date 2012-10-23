@@ -12,6 +12,7 @@ import numpy
 import scipy.optimize
 import matplotlib.pylab as mp
 import time
+import glob
 from numpy.core.umath_tests import inner1d
 
 if len(sys.argv) != 12:
@@ -78,7 +79,7 @@ def _rmsf(res):
 	MDA.rms_fit_trj(mol, ref, select=ref_sel_str, filename = filenamedcd ) #'name N and type N and resname MET resid 1 and segid P1')
 	output = ''
 
-	print "["+str(res)+"] Calculating RMSF for residue " + str(res) + "..." + str( 1 + range(res_beg,res_end).index(res) )" of " + str(res_num)
+	print "["+str(res)+"] Calculating RMSF for residue " + str(res) + "..." + str( 1 + range(res_beg,res_end).index(res) ) + " of " + str(res_num)
 	mol = MD.Universe(pdb_file, filenamedcd)
 	cf_timer = time.time()
 	atoms_mol = mol.selectAtoms("resid " + str(res) + " and name CA and segid " +str(chain))
@@ -127,20 +128,41 @@ arg_list = []
 #sys.exit()
 
 
-res_list = range(res_beg,res_end+1)
+res_list = range(res_beg,res_end)
 pool = multip.Pool(processes=Np)
 pool.map(_rmsf, res_list)
 
 print "Grouping and cleaning"
-if ave_flag == 0:
-	os.system('cat ' + name_file_dcd + 'rmsf.LA' + cutoff + '.*.' + chain + '.txt > ' + name_file_dcd + 'all.rmsf.ref_ini.LA' + cutoff + '.' + chain + '.txt')
-	if fop_flag == 1:
-		os.system('paste `ls *.fulldata` > '+ name_file_dcd + 'all.rmsf.ref_ini.LA' + cutoff + '.' + chain + '.fulldata' )
-		
+#if ave_flag == 0:
+#	os.system('cat ' + name_file_dcd + 'rmsf.LA' + cutoff + '.*.' + chain + '.txt > ' + name_file_dcd + 'all.rmsf.ref_ini.LA' + cutoff + '.' + chain + '.txt')
+#	if fop_flag == 1:
+#		os.system('touch '  + name_file_dcd + 'all.rmsf.ref_ini.LA' + cutoff + '.' + chain + '.fulldata')
+#		files = glob.glob( name_file_dcd + "rmsf.LA" + cutoff + ".*." + ".fulldata" )
+#		files.sort()
+#		for f in files:
+#			print f
+#			os.system('mv ' + name_file_dcd + 'all.rmsf.ref_ini.LA' + cutoff + '.' + chain + '.fulldata temp.dat')
+#			os.system('paste temp.dat ' + f + ' > ' + name_file_dcd + 'all.rmsf.ref_ini.LA' + cutoff + '.' + chain + '.fulldata' )
+#else:
+
+if ave_flag == 1:
+	ave_str = 'ave'
 else:
-	os.system('cat ' + name_file_dcd + 'rmsf.LA' + cutoff + '.*.' + chain + '.txt > ' + name_file_dcd + 'all.rmsf.ref_ave.LA' + cutoff + '.' + chain + '.txt')
-	if fop_flag == 1:
-                os.system('paste `ls *.fulldata` > '+ name_file_dcd + 'all.rmsf.ref_ave.LA' + cutoff + '.' + chain + '.fulldata' )
+	ave_str = 'ini'
+
+os.system('cat ' + name_file_dcd + 'rmsf.LA' + cutoff + '.*.' + chain + '.txt > ' + name_file_dcd + 'all.rmsf.ref_' + ave_str + '.LA' + cutoff + '.' + chain + '.txt')
+if fop_flag == 1:
+#	os.system('touch '  + name_file_dcd + 'all.rmsf.ref_ave.LA' + cutoff + '.' + chain + '.fulldata')
+	files = glob.glob(name_file_dcd + "rmsf.LA" + cutoff + ".*." + ".fulldata")
+	files.sort()
+	for f in range(len(files)-1):
+		if f == 0:
+			print 'Pasting ' + files[f] + ' and ' + files[f+1] 
+			os.system('paste ' + files[f] + ' ' + files[f+1] + ' > ' + name_file_dcd + 'all.rmsf.ref_' + ave_str + '.LA' + cutoff + '.' + chain + '.fulldata' )
+		else:
+			print 'Pasting pasted and ' + files[f+1]
+			os.system('mv ' + name_file_dcd + 'all.rmsf.ref_' + ave_str + '.LA' + cutoff + '.' + chain + '.fulldata temp.dat')
+			os.system('paste temp.dat ' + files[f+1] + ' > ' + name_file_dcd + 'all.rmsf.ref_' + ave_str + '.LA' + cutoff + '.' + chain + '.fulldata' )
 
 os.system('rm ' + name_file_dcd + 'rmsf.LA' + cutoff + '.*.' + chain + '.txt')
 os.system('rm ' + name_file_dcd + 'rmsf.LA' + cutoff + '.*.' + chain + '.fulldata')
