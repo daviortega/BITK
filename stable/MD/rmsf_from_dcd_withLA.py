@@ -16,7 +16,7 @@ import glob
 from numpy.core.umath_tests import inner1d
 
 if len(sys.argv) != 12:
-	print "Spits out the RMSF of Calpha for each residue.\nScript takes exactly 10 arguments: pdb_file dcd_file Np res_beg res_end chain time_step skip cutoff ave full_output\n \
+	print "Spits out the RMSF of Calpha for each residue.\nScript takes exactly 11 arguments: pdb_file dcd_file Np res_beg res_end chain time_step skip cutoff ave full_output\n \
 	With ave = 0 the script will use x(0) to calculate < x(t) - x(0) > ^ 2. With ave = 1 it will compute <x(t) - <x(t)>>^2.\n \
 	Unnecessary to say that it will take double the time with ave = 1\n \
 	With full_output = 1 produces extra file with the time series of the value for each residue. Filename is the same but with .fulldata extension"
@@ -149,11 +149,14 @@ if ave_flag == 1:
 	ave_str = 'ave'
 else:
 	ave_str = 'ini'
-
+print "cat all rmsf.LA data together"
 os.system('cat ' + name_file_dcd + 'rmsf.LA' + cutoff + '.*.' + chain + '.txt > ' + name_file_dcd + 'all.rmsf.ref_' + ave_str + '.LA' + cutoff + '.' + chain + '.txt')
+
+print "About to group fulldata"
 if fop_flag == 1:
 #	os.system('touch '  + name_file_dcd + 'all.rmsf.ref_ave.LA' + cutoff + '.' + chain + '.fulldata')
-	files = glob.glob(name_file_dcd + "rmsf.LA" + cutoff + ".*." + ".fulldata")
+	files = glob.glob(name_file_dcd + "rmsf.LA" + cutoff + ".*." + chain + ".fulldata")
+	print files	
 	files.sort()
 	for f in range(len(files)-1):
 		if f == 0:
@@ -163,9 +166,12 @@ if fop_flag == 1:
 			print 'Pasting pasted and ' + files[f+1]
 			os.system('mv ' + name_file_dcd + 'all.rmsf.ref_' + ave_str + '.LA' + cutoff + '.' + chain + '.fulldata temp.dat')
 			os.system('paste temp.dat ' + files[f+1] + ' > ' + name_file_dcd + 'all.rmsf.ref_' + ave_str + '.LA' + cutoff + '.' + chain + '.fulldata' )
+	os.system('rm temp.dat')
+	os.system('rm ' + name_file_dcd + 'rmsf.LA' + cutoff + '.*.' + chain + '.fulldata')
+else:
+	print "not grouping full data... bleh!!!"
 
 os.system('rm ' + name_file_dcd + 'rmsf.LA' + cutoff + '.*.' + chain + '.txt')
-os.system('rm ' + name_file_dcd + 'rmsf.LA' + cutoff + '.*.' + chain + '.fulldata')
 
 
 print "Done... with capital D"

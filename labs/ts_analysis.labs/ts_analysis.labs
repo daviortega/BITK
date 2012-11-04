@@ -7,12 +7,19 @@ import numpy as np
 import scipy.stats as sps
 import bitk
 if '-h' in sys.argv:
-	print 'It takes files and perform analysis flaged by the codes below\n\nOptions:\n\n \
-	-jack N \tCalculate the average and standard deviation using jackknife with N windows, recommended N = 10\n\n\n \
+	print '\n\nIt takes files and perform analysis flaged by the codes below\n\nOptions:\n\n \
+	-jack N \tCalculate the average and standard deviation using jackknife with N windows, recommended N = 10 \n\
+	-p N    \tset N algarisms displayed for p-value in tests of significance. Default N = 5\n \
+	-ks2s   \tPairwise test Kolmogorov-Smirnoff for significance \n\
+	-mw2s	\tPairwise test Mann-Whitney for significance (one-tailed. Multiply p for 2 to have the significance for two-tailed) \n\
+	-tt2s   \tPairwise test T for significance\n\n\n \
 	For multiple files: ts_analysis `ls *` [options]'
 	sys.exit()
 
-
+if '-p' in sys.argv:
+	P = sys.argv[sys.argv.index('-p')+1]
+else:
+	P = '5'
 
 for i in range(len(sys.argv)):
 	if sys.argv[i][0] == '-':
@@ -106,7 +113,7 @@ if '-ks2s' in sys.argv:
 			data_out_header += ['ks2s_' + str(i) + '_vs_' + str(j) ]
 			for head in headers:
 				if head in data_table[files[i]].keys() and head in data_table[files[j]].keys():
-					data_out[head] += [ '%.5f' % sps.ks_2samp(data_table[files[i]][head], data_table[files[j]][head])[1]]
+					data_out[head] += [ str('%.'+P+'f') % sps.ks_2samp(data_table[files[i]][head], data_table[files[j]][head])[1]]
 				else:
 					data_out[head] += [ '-' ]
 
@@ -119,7 +126,7 @@ if '-mw2s' in sys.argv:
                         data_out_header += ['mw2s_' + str(i) + '_vs_' + str(j) ]
                         for head in headers:
                                 if head in data_table[files[i]].keys() and head in data_table[files[j]].keys():
-                                        data_out[head] += [ '%.5f' % sps.mannwhitneyu(data_table[files[i]][head], data_table[files[j]][head])[1]]
+                                        data_out[head] += [ str('%.'+P+'f') % sps.mannwhitneyu(data_table[files[i]][head], data_table[files[j]][head])[1]]
                                 else:
                                         data_out[head] += [ '-' ]
 
@@ -132,7 +139,7 @@ if '-tt2s' in sys.argv:
                         data_out_header += ['tt2s_' + str(i) + '_vs_' + str(j) ]
                         for head in headers:
                                 if head in data_table[files[i]].keys() and head in data_table[files[j]].keys():
-                                        data_out[head] += [ '%.5f' % sps.ttest_ind(data_table[files[i]][head], data_table[files[j]][head])[1]]
+                                        data_out[head] += [ str('%.'+P+'f') % sps.ttest_ind(data_table[files[i]][head], data_table[files[j]][head])[1]]
                                 else:
                                         data_out[head] += [ '-' ]
 
