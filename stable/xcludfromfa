@@ -1,0 +1,45 @@
+#!/usr/bin/env python
+import fileinput
+from bitk import *
+import sys
+
+if '-h' in sys.argv or len(sys.argv) == 1:
+	print 'Sequences in fasta format. \n \
+	Delete from the second alignment any sequence with the same name in first one\n' 
+	sys.exit()
+
+seq_dic1, seq1_list = fastareader(sys.argv[1])
+seq_dic2, seq2_list = fastareader(sys.argv[2])
+
+
+#print seq_dic
+
+output = ''
+seq_count = 0
+tot_count = len(seq_dic2.keys())
+
+for name2 in seq_dic2.keys():
+	for name1 in seq_dic1.keys():
+		if name2 == name1:
+			seq_count = seq_count + 1
+			del seq_dic2[name2]
+			print 'Deleted: ' + name2
+
+print '\nTotal sequences on the second alignment: ' + str(tot_count)
+print 'Sequences deleted: ' + str(seq_count)
+print 'Remain sequences: ' + str(tot_count - seq_count)
+
+output = ''
+for tag, seq in seq_dic2.iteritems():
+	output += '>' + tag + '\n' + seq + '\n'
+
+#output = output.replace('_', '')
+
+
+outfile = open(sys.argv[2][:-3] + '.x.fa', 'w')
+outfile.write(output)
+outfile.close()
+
+print 'Done'
+
+
