@@ -552,6 +552,10 @@ def coord(names, Dmatrix, datafile):
 		L , G = la.eigenvectors(Bnp)
 		print "-->Done\t" + str(time.time() - eigentime) + "\n\nEigenvalues:"
 		del Bnp
+		print "This step needs work! Do not use this program for PCA. The eigenvectors are not aligned with the eigenvalues after sorting"
+		sys.exit()
+		
+
 		L.sort()
 		L = L[::-1]
 		print L[:10]

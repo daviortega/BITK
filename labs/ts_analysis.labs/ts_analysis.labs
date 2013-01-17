@@ -77,7 +77,11 @@ if '-jack' in sys.argv:
 				data_out[head] += [ '-', '-' ]
 			else:
 		
-			#This is a correct implementation. I checked a million times. N = sample size makes the results converge to regular mean and sdt/sqrt(L). The choice for SE instead of std is the significance of se. Error bars close means not statistically significant. Error bars away means statistically significant. This leads to cleaner data. 
+			#This is a correct implementation. I checked a million times. N = sample size makes the results converge to regular mean and sdt/sqrt(N). The choice for SE instead of std is the significance of SE. Error bars close means not statistically significant. Error bars away means statistically significant. This leads to cleaner data. 
+			#Also the reference :) 
+#Philippopoulos, M. and C. Lim, Molecular Dynamics Simulation ofE. coliRibonuclease H1in Solution: Correlation with NMR and X-ray Data and Insights into Biological Function. Journal of Molecular Biology, 1995. 254(4): p. 771-792. 
+#QUENOUILLE, M.H., NOTES ON BIAS IN ESTIMATION. Biometrika, 1956. 43(3-4): p. 353-360.
+
 		
 				all_sample = np.array(data_table[f][head])
 				samples = np.array_split(np.array(data_table[f][head]), N)
