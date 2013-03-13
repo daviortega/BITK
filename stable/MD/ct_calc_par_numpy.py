@@ -13,14 +13,20 @@ import time
 import os
 from numpy.core.umath_tests import inner1d
 
+if len(sys.argv) != 9:
+	print "script takes exactly 8 arguments: pdb_file dcd_file Np res_beg res_end chain time_step skip"
+	sys.exit()
 
 pdb_file = sys.argv[1]
 dcd_file = sys.argv[2]
 Np = int(sys.argv[3])
-res_num = int(sys.argv[4])
-step = float(sys.argv[5])
-skip = int(sys.argv[6])
+res_beg = int(sys.argv[4])
+res_end = int(sys.argv[5])
+chain = sys.argv[6]
+step = float(sys.argv[7])
+skip = int(sys.argv[8])
 
+res_num = res_end - res_beg
 print "Loading trajectory"
 mol = MD.Universe(pdb_file, dcd_file)
 
@@ -40,9 +46,9 @@ def _ct_part(res):
 #	res,name_file_dcd,mol=args
 	mol = MD.Universe(pdb_file, dcd_file)
 	output = ''
-	print "["+str(res)+"] Done... Calculating C(t) for residue " + str(res) + " of " + str(res_num)
+	print "["+str(res)+"] Calculating C(t) for residue " + str(res) + " of " + str(res_num)
 	cf_timer = time.time()
-	N_atoms = mol.selectAtoms("resid " + str(res) + " and (name N or name HN)")
+	N_atoms = mol.selectAtoms("resid " + str(res) + " and (name N or name HN) and segid " + str(chain))
 	if len(N_atoms.coordinates()) == 2:
 		bond_vec = []
 		ct_numpy = []
@@ -53,7 +59,7 @@ def _ct_part(res):
         		coords = N_atoms.coordinates()
 	        	coords = numpy.subtract(coords[1], coords[0])
 	       		bond_vec.append(coords/numpy.linalg.norm(coords))
-		print "["+str(res)+"] Done... Calculating Correlation function as Chen 2004"
+		print "["+str(res)+"] Calculating Correlation function as Chen 2004"
 		
 		for t in range(len(bond_vec)/2):
 			T = t*step
@@ -83,7 +89,7 @@ def _ct_part(res):
 #			time.sleep(5)
 		ct_numpy = numpy.around(ct_numpy, 5)
 	print "["+str(res)+"] Done in " + str(time.time()-cf_timer) + " seconds.\n"
-	filename = name_file_dcd + "ct_numpy.%03d.txt" % res
+	filename = name_file_dcd + "ct_numpy.%03d." % res + chain + ".txt"
 	outfile = open(filename, 'w')
 	outfile.write(output)
 	outfile.close()
@@ -93,12 +99,12 @@ arg_list = []
 #	arg_list.append([resid,name_file_dcd,mol])
 #_ct_part(79)
 #sys.exit()
-res_list = range(2,res_num)
+res_list = range(res_beg, res_end + 1)
 pool = multip.Pool(processes=Np)
 pool.map(_ct_part, res_list)
 
 print "Grouping and cleaning"
-os.system('cat ' + name_file_dcd + 'ct_numpy.*txt > ' + name_file_dcd + 'all.ct.txt')
+os.system('cat ' + name_file_dcd + 'ct_numpy.*txt > ' + name_file_dcd + 'all.' + chain + '.txt')
 os.system('rm ' + name_file_dcd + 'ct_numpy.*txt')
 print "Done... with capital D"
 
