@@ -104,7 +104,7 @@ pool = multip.Pool(processes=Np)
 pool.map(_ct_part, res_list)
 
 print "Grouping and cleaning"
-os.system('cat ' + name_file_dcd + 'ct_numpy.*txt > ' + name_file_dcd + 'all.' + chain + '.ct.txt')
+os.system('cat ' + name_file_dcd + 'ct_numpy.*txt > ' + name_file_dcd + 'all.ct.' + chain + '.txt')
 os.system('rm ' + name_file_dcd + 'ct_numpy.*txt')
 print "Done... with capital D"
 

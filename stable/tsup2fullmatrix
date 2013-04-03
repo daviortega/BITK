@@ -24,6 +24,8 @@ matrix = {}
 tags = []
 
 line = 0
+
+print "Working with " + sys.argv[1]
 for line in datafile:
 	line = line.replace('\n','')
 	fields = line.split(';')
@@ -31,9 +33,17 @@ for line in datafile:
 	matrix[fields[0]] = fields[1:]
 	empty = fields[1:].count('')
 #	print empty
+#	print fields[0] + '\t' + str(len(matrix[fields[0]]))
 	output += fields[0]
 	for tag in tags:
-		output += ';' + str(round(float(matrix[tag][empty]),4))
+		try:
+			output += ';' + str(round(float(matrix[tag][empty]),4))
+		except IndexError:
+			print line
+			print tags
+			print tag
+			print empty
+			sys.exit()
 	for value in fields[1:]:
 		if value != '':
 			output += ';' + str(round(float(value),4))
