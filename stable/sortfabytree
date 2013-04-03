@@ -15,10 +15,10 @@ tree = sys.argv[2]
 
 if '-name' in sys.argv:
 	seq_dic, seq_list = bitk.fastareader(seq,just_name = 'Yes')
-	tree_list = bitk.nwkreader2(tree, 'Yes')
+	tree_list = bitk.nwkreader(tree, 'Yes')
 else:
 	seq_dic, seq_list = bitk.fastareader(seq)
-	tree_list = bitkreader2(tree)
+	tree_list = bitkreader(tree)
 
 
 output = ''
