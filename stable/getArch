@@ -1,0 +1,29 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 4/8/2013 
+###################################
+import sys
+import os
+if '-h' in sys.argv:
+	print 'Get domain arch pictures from md5 list using seqdepot \n \
+	Sintax getArch filewithtagnameandmd5.list [options]\n \
+	options -svg for svg format'
+	sys.exit()
+
+datafile = open(sys.argv[1],'r')
+
+for line in datafile:
+	line = line.replace('\n','')
+#	print line
+	tag, md5 = line.split(';')
+#	print tag + '***' + md5 + '***'
+	if '-svg' in sys.argv:
+		os.system("wget http://seqdepot.net/api/v1/aseqs/" + md5 + ".png -O " + tag + ".svg")
+	else:
+		os.system("wget http://seqdepot.net/api/v1/aseqs/" + md5 + ".png -O " + tag + ".png")
+		os.system("convert " + tag + ".png " + tag + ".bmp")
+		os.system("rm " + tag + ".png")
+
+print("Done")
+
+

@@ -18,7 +18,7 @@ if '-name' in sys.argv:
 	tree_list = bitk.nwkreader(tree, 'Yes')
 else:
 	seq_dic, seq_list = bitk.fastareader(seq)
-	tree_list = bitkreader(tree)
+	tree_list = bitk.nwkreader(tree)
 
 
 output = ''
@@ -30,6 +30,6 @@ for name in tree_list:
 
 #print seq_dic.keys()
 
-outfile = open( seq[:-3] + 'sorted.fa', 'w')
+outfile = open( seq[:-3] + '.sorted.fa', 'w')
 outfile.write(output)
 outfile.close()

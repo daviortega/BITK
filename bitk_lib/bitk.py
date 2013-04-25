@@ -103,7 +103,7 @@ def nwkreader(datafile,just_name='no'):
 					seq_list.append(name.split('/')[0])
 				else:
 					seq_list.append(name)
-				print name
+#				print name
 	data.close()
 	return seq_list
 
