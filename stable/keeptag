@@ -6,10 +6,17 @@ import bitk
 import sys
 
 if '-h' in sys.argv:
-	print 'Reads tags from one alignment and keeps only those from the second alignment\n\n\tSintaxe: python keeplocus.py list_align.fa alignment.fa'
+	print 'Reads tags from one alignment (or list) and keeps only those from the second alignment\n\n\tSintaxe: python keeptag list_align.fa (or .list) alignment.fa'
 	sys.exit()
 
-filel_dic, filel_list = bitk.fastareader(sys.argv[1])
+try:
+	filel_dic, filel_list = bitk.fastareader(sys.argv[1])
+except:
+	filel_list = []
+	dataopen = open(sys.argv[1],'r')
+	for tag in dataopen:
+		filel_list.append(tag.replace('\n','').replace('>',''))
+
 orign_dic, orign_list = bitk.fastareader(sys.argv[2])
 
 output = ''

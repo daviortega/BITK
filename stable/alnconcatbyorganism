@@ -1,0 +1,70 @@
+#!/usr/bin/env python
+import fileinput
+from bitk import *
+import sys
+
+if '-h' in sys.argv:
+	print "Concatenates sequences in fa format:\n\n\tSintaxe:\n\n\talnconcatbyorganism left_seq.fa right_seq.fa (same organism)"#\n\talnconcat left_seq.aln right_seq.aln seq_seq.dat \
+#	\n\n\t seq_seq.dat is a ANSI file with information about which sequence from the first file should be concatenated with the second file in the following format\n\n \
+#	locileft1;lociright1\n\tlocileft2;lociright2\n\tlocileft3;lociright3\n\t     .       .\n\t     .       .\n\t     .       .\n"
+	sys.exit()
+
+
+sequences1 = sys.argv[1]
+sequences2 = sys.argv[2]
+
+# deprecated 
+#if len(sys.argv) > 3:
+#	seq = open(sys.argv[3],'r')
+#	seq_seq = {}
+#	for line in seq:
+#		line = line.replace('\n','')
+#		seq1 = line.split(';')[0]
+#		if '/' in seq1:
+#			seq1 = seq1[:seq1.find('/')]
+#		seq2 = line.split(';')[1]
+#		if '/' in seq2:
+#			seq2 = seq2[:seq2.find('/')]
+#		seq_seq[seq1] = seq2
+#end of deprecated	
+
+#print seq_seq
+seq1_dic, seq1_list = fastareader(sequences1)
+seq2_dic, seq2_list = fastareader(sequences2)
+
+output = ''
+tags = []
+
+for seq1 in seq1_list:
+	for seq2 in seq2_list:
+		if seq1.split('-')[0] == seq2.split('-')[0]:
+			seq = seq1.split('-')[0] + '.1'
+			while seq in tags:
+				N = int(seq.split('.')[-1])
+				seq = '.'.join(seq.split('.')[:-1]) + '.' + str(N+1)
+			tags.append(seq)				
+			output += '>' + seq + '\n' + seq1_dic[seq1] + seq2_dic[seq2] + '\n'
+
+
+
+
+#list = check_loci(seq1.keys(),seq2.keys())
+
+#for loci in list:
+#	if loci in seq1.keys():
+#		del seq1[loci]
+#	if loci in seq2.keys():
+#		del seq2[loci]
+
+
+
+#if len(sys.argv) > 3:
+#	final = concat(seq1,seq2,seq_seq)
+#else:
+#	final = concat(seq1,seq2)
+
+outfile = open('alnconcatbyorganism.fa','w')
+outfile.write(output)
+outfile.close()
+print 'Done'
+

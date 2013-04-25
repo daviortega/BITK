@@ -51,9 +51,9 @@ def _ct_part(res):
 	mol = MD.Universe(pdb_file, dcd_file)
 	print "["+str(res)+"] Aligning Trajectory"
 	ref_sel = ref.selectAtoms('backbone and resid ' + str(res),'backbone and around ' + cutoff + ' (backbone and resid ' + str(res) + ')')
-	print ref_sel.atoms
-	for i in list(ref_sel):
-		print i
+#	print ref_sel.atoms
+#	for i in list(ref_sel):
+#		print i
 #	print ref_sel.indices
 	ref_sel_str = ''
 	for i in list(ref_sel):
@@ -124,12 +124,12 @@ arg_list = []
 
 
 
-res_list = range(res_beg,res_end)
+res_list = range(res_beg,res_end+1)
 pool = multip.Pool(processes=Np)
 pool.map(_ct_part, res_list)
 
 print "Grouping and cleaning"
-os.system('cat ' + name_file_dcd + 'ct_numpy.LA' + cutoff +'.*.' + chain + '.txt > ' + name_file_dcd + 'all.ct.LA' + cutoff +'.' + chain + '.txt')
+os.system('cat ' + name_file_dcd + 'ct_numpy.LA' + cutoff +'.*.' + chain + '.txt > ' + name_file_dcd + 'all.ct.' + chain +'.LA' + cutoff + '.txt')
 os.system('rm ' + name_file_dcd + 'ct_numpy.LA' + cutoff + '.*.' + chain + '.txt')
 print "Done... with capital D"
 

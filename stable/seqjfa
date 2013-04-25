@@ -1,0 +1,143 @@
+#!/usr/bin/env python
+from os import system
+import os
+import sys
+import time
+from bitk import *
+
+if '-h' in sys.argv:
+	print 'first file the profile and the second the file with sequences in clustal format\n \
+		-quiet  quiet t-coffee\n'
+	sys.exit()
+
+profile_file = open(sys.argv[1],'r')
+seq_dic = alnreader(sys.argv[2],just_name = 'Yes')
+log = ''
+
+profile_dic = alnreader(sys.argv[1], just_name = 'Yes')
+
+if '-quiet' in sys.argv:
+	quiet = '-quiet > '
+else:
+	quiet = '>'
+
+
+print 'Checking for duplicate sequences:\n'
+prof_num = 0
+for k, v in profile_dic.iteritems():
+	prof_num = prof_num + 1
+	if k in seq_dic.keys():
+		print k
+		del seq_dic[k]
+
+if prof_num > 100:
+	print 'WARNING: Profile is too large, trimmed to 99 most informative sequences!!!'
+	os.system('t_coffee -other_pg seq_reformat -in ' + sys.argv[1] + ' -action +trim _seq_n99 > Shrinkedprof.aln')
+	profile_name = 'Shrinkedprof.aln'
+else:
+	profile_name = sys.argv[1]
+
+
+#work_seq_dic = {}
+print 'Control'
+flag = 0
+num_seq = 0
+for k, v in seq_dic.iteritems():
+	num_seq = num_seq + 1
+	if k == '':
+		flag = 1
+
+if flag == 1:
+	del seq_dic['']
+		
+work_seq_num = 0
+for k, v in seq_dic.iteritems():
+	work_seq_num = work_seq_num + 1
+	work_seq_dic = {}
+	work_seq_dic[k] = v
+	seq = alnwriter(work_seq_dic)
+	temp_file = open ('tempfile.aln','w')
+	temp_file.write(seq)
+	temp_file.close()
+#	print 'File saved sucessfuly\n Closing temp file...\n'
+#	print seq + '\n'
+	print 'Processing ' + str(work_seq_num) +' of '+ str(num_seq) + '   ' +  k 
+#	tempo = open('tempfile.aln','r')
+#	tempo.close()
+#	time.sleep(10)
+	os.system('t_coffee tempfile.aln -profile ' + profile_name + ' -outfile profiletemp.aln ' + '-special_mode mcoffee ' + quiet + ' tcoffeelog.dat')
+	os.system('t_coffee -infile profiletemp.aln -special_mode evaluate -outfile score.dat ' + quiet + ' tcoffeelog.dat')
+	os.system('rm *html')
+	#os.system('rm *temp*')
+#	print 't_coffee tempfile.aln -profile ' + sys.argv[1] + ' -outfile profiletemp.aln'
+	score_file = open('score.dat','r')
+	for line in score_file:
+		if 'SCORE' in line:
+			score_aln = int(line[-3:])
+		if k in line and ':' in line:
+			score_seq = int(line[-3:])
+#	print str(score_aln) + ' - ' + str(score_seq)
+#	time.sleep(2)
+	if score_seq >= score_aln:
+		try:
+			better_seq = open('betterscore.fa','a')
+#			print 'first try \n'
+		except IOError:
+			better_seq = open('betterscore.fa','w')
+#			print 'second try\n'
+		newdata = '>' + k + '\n' + v + '\n'
+		better_seq.write(newdata)
+		better_seq.close
+	else:
+		if float(score_seq)/float(score_aln) > 0.9:
+			 try:
+	                        seq_90 = open('90score.fa','a')
+			 except IOError:
+			        seq_90 = open('90score.fa','w')
+			 newdata = '>' + k + '\n' + v + '\n'
+			 seq_90.write(newdata)
+			 seq_90.close
+		else:
+			if float(score_seq)/float(score_aln) > 0.8:
+				try:
+					seq_80 = open('80score.fa','a')
+				except IOError:
+				        seq_80 = open('80score.fa','w')
+				newdata = '>' + k + '\n' + v + '\n'
+				seq_80.write(newdata)
+				seq_80.close
+			else:
+				if float(score_seq)/float(score_aln) > 0.7:
+					try:
+						seq_70 = open('70score.fa','a')
+					except IOError:
+					        seq_70 = open('70score.fa','w')
+					newdata = '>' + k + '\n' + v + '\n'
+					seq_70.write(newdata)
+					seq_70.close
+				else:
+					if float(score_seq)/float(score_aln) > 0.6:
+						try:
+							seq_60 = open('60score.fa','a')
+						except IOError:
+						        seq_60 = open('60score.fa','w')
+						newdata = '>' + k + '\n' + v + '\n'
+						seq_60.write(newdata)
+						seq_60.close
+					else:
+						try:
+							worse_seq = open('worsescore.fa','a')
+						except IOError:
+						        worse_seq = open('worsescore.fa','w')
+						newdata = '>' + k + '\n' + v + '\n'
+						worse_seq.write(newdata)
+						worse_seq.close
+
+	log = log + k + '\t\t' + str(score_seq) + ' - ' + str(score_aln) + '\n'
+	print '  ' + str(score_seq) + ' - ' + str(score_aln) + '\n'
+
+log_file = open('log.dat','w')
+log_file.write(log)
+log_file.close()
+profile_file.close()
+print 'Done'

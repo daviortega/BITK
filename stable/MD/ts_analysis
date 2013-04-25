@@ -1,0 +1,196 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 10/21/2012 
+###################################
+import sys
+import numpy as np
+import scipy.stats as sps
+import bitk
+if '-h' in sys.argv:
+	print '\n\nIt takes files and perform analysis flagged by the codes below\n\nOptions:\n\n \
+	-SD	\tCalculate the average and standard deviation \n\
+	-jackse N \tCalculate the average and standard error using jackknife with N windows, recommended N = 10 \n\
+	-jacksd N \tCalculate the average and standard deviation using jackknife with N windows, recommended N = 10 \n\
+	-p N    \tset N algorisms displayed for p-value in tests of significance. Default N = 5\n \
+	-ks2s   \tPairwise test Kolmogorov-Smirnoff for significance \n\
+	-mw2s	\tPairwise test Mann-Whitney for significance (one-tailed. Multiply p for 2 to have the significance for two-tailed) \n\
+	-tt2s   \tPairwise test T for significance\n\n\n \
+	For multiple files: ts_analysis `ls *` [options]'
+	sys.exit()
+
+if '-p' in sys.argv:
+	P = sys.argv[sys.argv.index('-p')+1]
+else:
+	P = '5'
+
+for i in range(len(sys.argv)):
+	if sys.argv[i][0] == '-':
+		break
+
+files = sys.argv[1:i]
+#print files
+
+data_table = {}
+data_out = {}
+
+data_out_header = []
+
+for f in files:
+	data_table[f] = {}
+	print "Reading file " + f 
+	df = open(f,'r')
+	data = df.readlines()
+	data = [x.replace('\n','') for x in data]
+	headers = data[0].split('\t')
+	if '' in headers:	
+		headers.remove('')
+	for i in range(len(headers)):
+#		data_table[f][data[0].split('\t')[i]] = [ np.float(line.split('\t')[i]) for line in data[1:] ]
+		try :
+			data_table[f][data[0].split('\t')[i]] = [ np.float(line.split('\t')[i]) for line in data[1:]  if line.split('\t')[i] != '' ]
+		except ValueError:
+			print i
+			print line.split('\t')[i]
+			sys.exit()
+		
+
+	
+	for head in headers:
+		if head not in data_out.keys():
+			data_out[head] = []
+	
+
+if '-jackse' in sys.argv or '-jacksd' in sys.argv:
+	for f in files:
+	
+	#	for head in headers:
+	#		if head not in data_out.keys():
+			#	try:
+			#		data_out[head] = ['-']*len(data_out[data_out.keys()[0]])
+
+		headers = data_table[f].keys()
+		headers.sort()
+		if '-jackse' in sys.argv:
+			data_out_header += [ f + '_Jmean' , f + '_JSE' ]
+			N = int(sys.argv[sys.argv.index('-jackse')+1])
+			print "Calculating mean and SE via delete-a-group jackknife for file " + f
+		else:
+			data_out_header += [ f + '_Jmean' , f + '_JSD' ]
+                        N = int(sys.argv[sys.argv.index('-jacksd')+1])
+                        print "Calculating mean and SD via delete-a-group jackknife for file " + f
+
+		for head in data_out.keys():
+			if head not in headers:
+				data_out[head] += [ '-', '-' ]
+			else:
+		
+			#This is a correct implementation. I checked a million times. N = sample size makes the results converge to regular mean and sdt/sqrt(N). The choice for SE instead of std is the significance of SE. Error bars close means not statistically significant. Error bars away means statistically significant. This leads to cleaner data. 
+			#EDIT MAR 2013 : let the user decide between SD or SE
+			#Also the reference :) 
+#Philippopoulos, M. and C. Lim, Molecular Dynamics Simulation ofE. coliRibonuclease H1in Solution: Correlation with NMR and X-ray Data and Insights into Biological Function. Journal of Molecular Biology, 1995. 254(4): p. 771-792. 
+#QUENOUILLE, M.H., NOTES ON BIAS IN ESTIMATION. Biometrika, 1956. 43(3-4): p. 353-360.
+
+		
+				all_sample = np.array(data_table[f][head])
+				samples = np.array_split(np.array(data_table[f][head]), N)
+				xs = []
+			
+				fmean = all_sample.mean()
+ 				L = len(all_sample)
+	
+				xs = [ N*fmean - (N-1)*np.hstack((all_sample[:i*int(L/N)],all_sample[(i+1)*int(L/N):])).mean() for i in range(N) ]
+				
+				xs = np.array(xs)
+	
+				sej = 0
+				for i in range(N):
+					sej += (xs[i] - xs.mean())*(xs[i] - xs.mean())
+
+				if '-jackse' in sys.argv:	
+					sej = sej/(N*(N-1))
+					sej = np.sqrt(sej)
+				else:
+					sej = sej/N
+                                        sej = np.sqrt(sej)
+
+				
+				data_out[head] += [ '%.3f' % xs.mean(), '%.3f' % sej]
+			
+	#			print head + '\t' + str(xs.mean()) + '\t' + str(sej) + '\t' + str(fmean) + '\t' + str(all_sample.std()) + '\t' + str(all_sample.std()/np.sqrt(L))			
+elif "-SD" in sys.argv:
+	
+	for f in files:
+                headers = data_table[f].keys()
+                headers.sort()
+                data_out_header += [ f + '_mean' , f + '_SD' ]
+                print "Calculating mean and SD for file " + f
+                for head in data_out.keys():
+                        if head not in headers:
+                                data_out[head] += [ '-', '-' ]
+			else:
+				all_sample = np.array(data_table[f][head])
+				data_out[head] += [ '%.3f' % all_sample.mean(), '%.3f' % all_sample.std()]
+				
+
+
+
+
+if '-ks2s' in sys.argv:
+	headers = data_out.keys()
+	headers.sort()
+	for i in range(len(files)-1):
+		for j in range(i+1,len(files)):
+			print "Calculating Kolmogoroff-Simirnoff two sample test for all combinations of input files " + files[i] + " vs. " + files[j] 
+			data_out_header += ['ks2s_' + str(i) + '_vs_' + str(j) ]
+			for head in headers:
+				if head in data_table[files[i]].keys() and head in data_table[files[j]].keys():
+					data_out[head] += [ str('%.'+P+'f') % sps.ks_2samp(data_table[files[i]][head], data_table[files[j]][head])[1]]
+				else:
+					data_out[head] += [ '-' ]
+
+if '-mw2s' in sys.argv:
+        headers = data_out.keys()
+        headers.sort()
+        for i in range(len(files)-1):
+                for j in range(i+1,len(files)):
+                        print "Calculating Mann-Whitney two sample test for all combinations of input files " + files[i] + " vs. " + files[j]
+                        data_out_header += ['mw2s_' + str(i) + '_vs_' + str(j) ]
+                        for head in headers:
+                                if head in data_table[files[i]].keys() and head in data_table[files[j]].keys():
+                                        data_out[head] += [ str('%.'+P+'f') % sps.mannwhitneyu(data_table[files[i]][head], data_table[files[j]][head])[1]]
+                                else:
+                                        data_out[head] += [ '-' ]
+
+if '-tt2s' in sys.argv:
+        headers = data_out.keys()
+        headers.sort()
+        for i in range(len(files)-1):
+                for j in range(i+1,len(files)):
+                        print "Calculating T test for two independent samples for all combinations of input files " + files[i] + " vs. " + files[j]
+                        data_out_header += ['tt2s_' + str(i) + '_vs_' + str(j) ]
+                        for head in headers:
+                                if head in data_table[files[i]].keys() and head in data_table[files[j]].keys():
+                                        data_out[head] += [ str('%.'+P+'f') % sps.ttest_ind(data_table[files[i]][head], data_table[files[j]][head])[1]]
+                                else:
+                                        data_out[head] += [ '-' ]
+
+
+
+
+if "-SD" in sys.argv:
+	output = '\t' + '\t'.join(data_out_header) + '\n'
+else:
+	output = 'N=' + str(N) + '\t' + '\t'.join(data_out_header) + '\n'
+
+headers = data_out.keys()
+headers.sort()
+print headers
+for head in headers:
+	output += str(head) + '\t' + '\t'.join(data_out[head]) + '\n'
+
+print output
+
+datafile = open('ts_analysis.dat','w')
+datafile.write(output)
+datafile.close()
+

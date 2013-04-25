@@ -18,7 +18,9 @@ msa_dic, name_list = bitk.fastareader(sys.argv[1])
 len_dic = []
 
 for name in name_list:
-	len_dic.append([name, len(msa_dic[name])])
+	seq = msa_dic[name].replace('-','')
+#	print len(seq)
+	len_dic.append([name, len(seq)])
 
 
 len_dic.sort(key= lambda len_dic: len_dic[1])

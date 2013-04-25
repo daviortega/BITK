@@ -23,7 +23,7 @@ datafile = open(sys.argv[1],'r')
 list_bugs = []
 
 for line in datafile:
-	if 'bug' not in line:
+	if 'bug' not in line and 'taxonomic_group' not in line:
 		fields = line.split('\t')
 		#rule checker:
 		test = True

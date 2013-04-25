@@ -11,7 +11,7 @@ import matplotlib.pylab as mp
 import time
 
 if '-h' in sys.argv:
-	print 'Glue all *.all.ct.txt together for easy use in R and with op_calc_2.* (R or py)... you are welcome... simulations should be out of jobmaker.sh. If not, then please add -c (common) for single trajectory'
+	print 'Glue all *.all.ct.txt together for easy use in R and with op_calc_2.* (R or py)... you are welcome... simulations should be out of jobmaker.sh. If not, then please add -nj (non jobmaker) for independent trajectories'
 	sys.exit()
 
 #sim_num = len(sys.argv[1:])
@@ -21,37 +21,44 @@ sim_list = []
 res_list = []
 time_list = []
 
-output = 'simulation\tresidue\tt\tct\tErr(ct)\n'
+output = 'simulation\tresidue\tt\tct\tErr(ct)\torigin\n'
 ct_values = []
 first = True
 
-if '-c' in sys.argv:
-	file_list = [sys.argv[1]]
-else:
-	file_list = sys.argv[1:]
+
+file_list = sys.argv[1:]
+if '-nj' in file_list:
+	file_list.remove('-nj')
+
+#else:
+#	file_list = sys.argv[1:]
 
 print file_list
 
 for filename in file_list:
+	print filename
 	print "reading " + filename
+	data_file = open(filename,'r')
 	
-	if len(file_list) == 1:
+	if '-nj' in sys.argv:
 		sim_num = str(1)
+		while "/" in filename:
+		        filename = filename[filename.index("/")+1:]
+		filename = filename[:-4]
 	else:
 		sim_num = filename.split('-')[2]
 #	if sim_num.isdigit():
 #		sim_num = filename0]
 #	else:
 #		sim_num = filename[8]
-		
+
 		
 	sim_list.append(sim_num)
-	data_file = open(filename,'r')
 	old_time = time.time()
 	i = 0
 	for line in data_file:
 		if line != '':
-			output += sim_num + '\t' + line
+			output += sim_num + '\t' + line.replace('\n','') + '\t' + filename + '\n'
 			fields = line.split('\t')
 			if float(fields[1])*1000 % 45000 == 0:
                                 print "Dealing with simulation " + sim_num + " residue " + fields[0] + " and t = " + fields[1] + ' in ' + str(time.time() - old_time)
@@ -98,15 +105,19 @@ print len(ct_data)
 print len(res_list)
 print len(time_list)
 
-if '-c' not in sys.argv:
+if '-nj' not in sys.argv:
 	print "Including Average C(t)"
 	for res in range(len(res_list)):
 		for t in range(len(time_list)):
 			output += 'AVERAGE\t' + str(res_list[res]) + '\t' + str(time_list[t]) + '\t%.5f' % ct_data[res*len(time_list) + t].mean() + '\t%.5f' % ct_data[res*len(time_list) + t].std() + '\n'
+	dataout = open('glued_data.txt','w')
+	dataout.write(output)
+	dataout.close()
+else:
+	dataout = open('glued.txt','w')
+        dataout.write(output)
+        dataout.close()
 
-dataout = open('glued_data.txt','w')
-dataout.write(output)
-dataout.close()
 
 sys.exit()
 

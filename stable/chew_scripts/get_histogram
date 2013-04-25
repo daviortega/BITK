@@ -36,7 +36,7 @@ def find_mcp(genome_list='', fasta=''):
 		outfile.write(output)
 		outfile.close()
 		results.append(seq_dic_sel)
-		if len(seq_dic_sel.keys()) == 0:
+		if len(seq_dic_sel.keys()) <= 3 :
 			wrong_list.append(genome + '_mcp.fa')
 		else:
 			file_list.append(genome + '_mcp.fa')
@@ -133,7 +133,8 @@ for Dm in Dmatrix_file_list:
 
 output = ''
 for value in Dm_all:
-	if value != '0':
+#	if value != '0':
+	if float(value) > 0.5:
 		output += value + '\n'
 
 final_file = open('final.dat','w')

@@ -1,0 +1,21 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 4/24/2013 
+###################################
+import bitk
+import sys
+if '-h' in sys.argv:
+	print 'Delete gaps of alignment'
+	sys.exit()
+
+seq_dic, seq_list = bitk.fastareader(sys.argv[1])
+
+new_seq_dic = bitk.nogaps(seq_dic)
+
+output = ''
+for tag in seq_list:
+	output += '>' + tag + '\n' + new_seq_dic[tag] + '\n'
+
+outfile = open(sys.argv[1][:-3] + '.nogaps.fa', 'w')
+outfile.write(output)
+outfile.close()

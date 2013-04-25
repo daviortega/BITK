@@ -1,0 +1,36 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 4/20/2013 
+###################################
+import sys
+if '-h' in sys.argv:
+	print 'simple parser for the table output of pfam (VERY SIMPLE)'
+	sys.exit()
+
+datain = open(sys.argv[1],'r')
+
+seq_list = []
+res_dic = {}
+
+for line in datain:
+	if line[0] != "#":
+		fields = line.split(' ')
+		while '' in fields:
+	                fields.remove('')
+
+		model, code, seq = fields[:3]
+		if seq not in seq_list:
+			seq_list.append(seq)
+			res_dic[seq] = [model]
+		else:
+			res_dic[seq].append(model)
+datain.close()
+
+output = ''
+for seq in seq_list:
+	#print res_dic[seq]
+	output += seq + '\t' + '\t'.join(res_dic[seq]) + '\n'
+
+dataout = open(sys.argv[1][:-3] + 'parsed.dat','w')
+dataout.write(output)
+dataout.close()
