@@ -1,0 +1,48 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 4/26/2013 
+###################################
+import bitk
+import sys
+if '-h' in sys.argv:
+	print 'outputs table of counts of mcps per cog per organism. \n \
+	Sintax: COGperorgid organism.tag.list some.cog.dat'
+	sys.exit()
+
+datafile = open(sys.argv[1],'r')
+
+#org_dic = {}
+orglist = []
+
+output = ''
+
+for line in datafile:
+	tag = line.replace('\n','')
+	output += '\t' + tag
+	tag = tag.split('-')[0]
+	orglist.append(tag)
+#	org_dic[tag] = []
+output += '\n'
+
+datafile.close()
+
+datafile = open(sys.argv[2],'r')
+
+
+cog = 1
+for line in datafile:
+	output += "COG %d" % cog
+	tags = [ i.split('-')[0] for i in line.replace('\n','').split(';') ]
+	for tag in orglist:
+		output += '\t' + str(tags.count(tag)) 
+	output += '\n'
+	cog += 1
+
+datafile.close()
+
+datafile = open('.'.join(sys.argv[1].split('.')[:-1]) + '.cogperorg.dat' , 'w')
+datafile.write(output)
+datafile.close()
+
+	
+
