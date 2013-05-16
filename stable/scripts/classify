@@ -29,7 +29,7 @@ for name in seq_list:
 	elif '-mcp_s' in sys.argv:
 		class_name = name.split('-')[2]
 	else:
-		class_name = name.split('-')[3]
+		class_name = name.split('-')[2]
 	if class_name not in class_ls:
 		class_ls.append(class_name)
 
@@ -54,7 +54,7 @@ for class_name in class_ls:
 				else:
 					output += '>' + name.replace('-'+class_name,'') + '\n' + seq + '\n'
 		else:
-			if name.split('-')[3] == class_name:
+			if name.split('-')[2] == class_name:
 				if '-kc' in sys.argv:
                                         output += '>' + name + '\n' + seq + '\n'
 				else:

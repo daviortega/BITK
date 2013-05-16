@@ -184,12 +184,14 @@ def pirwriter(seq_dic):
 	
 		
 
-def nogaps(seq_dic):
-	for name, line in seq_dic.iteritems():
-		while line.find('-') != -1:
-			line = line[0:line.find('-')] + line[line.find('-')+1:]
-		seq_dic[name] = line
-	return seq_dic
+def nogaps(seq):
+	if seq.__class__ == dict:
+		for name, line in seq.iteritems():
+			seq[name] = line.replace('-','')
+		return seq
+	else:
+		print("No deal. bitk.nogaps only accepts dict")
+		return -1
 
 def selectseq(seq_dic, seq_list):
 	# select the sequences with names on seq_list from seq_dic and return a new dictionary
@@ -970,10 +972,57 @@ def readDm(datafile):
         Dmat_str.close()
         return Dmatrix, names
 
+def alnpos_dic(seq1, seq2, bias1 = 0, bias2 = 0):
+	"""Must input two aligned sequences. It return a dictionary with coordinates of position in seq2 aligned to certain position in seq1. It also accepts bias for seq1 and seq2"""
+	if len(seq1) !=  len(seq2):
+		print("Sequences must have the same length (aligned)")
+		return -1
+	pos1 = 1 + bias1
+	pos2 = 1 + bias2
+	dic = {}
+	lis = []
+	for i in range(len(seq1)):
+		if seq1[i] != '-' and seq2[i] != '-':
+			dic[pos1] = pos2
+			lis.append(pos1)
+			pos1 += 1
+                        pos2 += 1
 
+		elif seq1[i] != '-' and seq2[i] == '-':
+			pos1 += 1
+		elif seq1[i] == '-' and seq2[i] != '-':
+			pos2 += 1
+	return dic, lis
 
-
-
+def threeLetter2oneLetter(seq):
+	dic = { 'ALA':'A',
+                'ARG':'R',
+                'ASN':'N',
+                'ASP':'D',
+                'ASX':'B',
+                'CYS':'C',
+                'GLU':'E',
+                'GLN':'Q',
+                'GLX':'Z',
+                'GLY':'G',
+                'HIS':'H',
+		'HSD':'H',
+                'ILE':'I',
+                'LEU':'L',
+                'LYS':'K',
+                'MET':'M',
+                'PHE':'F',
+                'PRO':'P',
+                'SER':'S',
+                'THR':'T',
+                'TRP':'W',
+                'TYR':'Y',
+                'VAL':'V'}
+        if seq.__class__ != list:
+		print "Incorrect input!!!\nInput must be three letter code list"
+		return -1
+	else:
+		return ''.join([ dic[i] for i in seq])
 
 
 
