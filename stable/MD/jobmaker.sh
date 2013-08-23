@@ -1,4 +1,9 @@
 #!/bin/bash
+#########################
+#  by Davi Ortega 2010  #
+# davi.ortega@gmail.com #
+#########################
+
 
 if [ ! -f ./$2.pdb ] || [ ! -f ./$2.psf ]  || [ ! -f ./par_all27_prot_lipid_na.inp ]
 	then
@@ -11,6 +16,8 @@ echo $2 $1 $3 > ./.input.dat
 NUM_TRY=$1
 JOB_NAME=$2
 NUM_JOBS=$3
+
+NP=256 #Number of processors
 
 echo $NUM_TRY
 for i in $(seq 1 1 $NUM_TRY)
@@ -190,9 +197,9 @@ mpirun -np \$NSLOTS -mca btl_openib_ib_timeout 30 /data/apps/NAMD/2.6-intel-open
 DELIM
 
 	if [ $j -eq 1 ]; then
-		qsub -pe openmpi* 512 ././$i/$2-$i-$j.sge
+		qsub -pe openmpi* $NP ././$i/$2-$i-$j.sge
 	else
-		qsub -pe openmpi* 512 -hold_jid ${2:1:5}-$i-$(($j-1)) ././$i/$2-$i-$j.sge
+		qsub -pe openmpi* $NP -hold_jid ${2:1:5}-$i-$(($j-1)) ././$i/$2-$i-$j.sge
 	fi
 
 	done

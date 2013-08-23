@@ -56,7 +56,9 @@ for line in datafile:
 						#if DN == N and '-all' in sys.argv:
 						#	new_seq_allopt.append(name)
 						if '--fullsequence' in sys.argv:
-							new_seq_dic[name + '-' + str(DN)] =  seq_dic[name]			
+							if name in new_seq_list:
+								del(new_seq_dic[name + '-' + str(DN - 1)])
+							new_seq_dic[name + '-' + str(DN)] =  seq_dic[name]
 						else:
 							new_seq_dic[name + '-' + str(DN)] =  seq_dic[name][start:end]
 						new_seq_list.append(name + '-' + str(DN))

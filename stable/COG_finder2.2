@@ -24,6 +24,7 @@ if '-h' in sys.argv:
 		 -skip for skipping calculations\n \
 		 -qcov_cutoff N		Query coverage cutoff to be considered for grouping.\n \
 		 -html outputs html with \n \
+		 -intercluster Meaningful intercluster distances\n \
 		 -pic outputs a pic of the clustering\n \
 		 -cog_output outputs a txt version of grouping. One line per cog and tags separated by ";" \n \
 		 -d to print degree in screen\n \
@@ -36,7 +37,7 @@ EvP = 10E-100
 Qth = 0.0
 
 if '-qcov_cutoff' in sys.argv:
-	Qth = int(sys.argv[sys.argv.index('-qcov_cutoff') + 1])
+	Qth = float(sys.argv[sys.argv.index('-qcov_cutoff') + 1])
 
 
 if '-EvT' in sys.argv:
@@ -100,8 +101,7 @@ for line in datafile:
 #		field.remove('')
 	qry = field[0]
 	hit = field[1]
-	qcov = int(field[4])/float(field[5])
-		
+	qcov = int(field[5])/float(field[4])
 	if hit != qry and qcov > Qth:
 		if qry not in data_dic:
 			data_dic[qry] = {}
@@ -285,10 +285,15 @@ for group in groups:
 	UU = nx.disjoint_union(UU,g)
 
 if '-plot' in sys.argv:
-	pos = nx.circular_layout(UU)
+	if 'intercluster' in sys.argv:
+		pos = nx.circular_layout(H)
+	else:
+		pos = nx.circular_layout(UU)
 	nx.draw_networkx_nodes(UU,pos, node_size = 2)
 	nx.draw_networkx_edges(UU,pos, width = 1, alpha = 0.3, edge_color = 'r')
-	plt.show()	
+	plt.show()
+
+
 
 
 #print G.degree()
@@ -335,7 +340,10 @@ if '-plot_ind' in sys.argv:
 
 if '-pic' in sys.argv or '-plot' in sys.argv:
 	plt.figure(figsize=(13,10))
-	pos = nx.graphviz_layout(G, prog = 'neato')
+	if '-intercluster' in sys.argv:
+		pos = nx.graphviz_layout(H, prog = 'neato')
+	else:
+		pos = nx.graphviz_layout(G, prog = 'neato')
         new_labels = {}
         new_label_pos = {}
         for group in groups:
@@ -350,6 +358,7 @@ if '-pic' in sys.argv or '-plot' in sys.argv:
 	plt.axis('off')
 	if '-pic' in sys.argv:
 	        plt.savefig("cluster.png")
+		plt.savefig("cluster.pdf")
 		os.system("convert cluster.png cluster.bmp")
 	if '-plot' in sys.argv:
 		plt.show()

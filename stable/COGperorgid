@@ -31,12 +31,20 @@ datafile = open(sys.argv[2],'r')
 
 cog = 1
 for line in datafile:
-	output += "COG %d" % cog
-	tags = [ i.split('-')[0] for i in line.replace('\n','').split(';') ]
-	for tag in orglist:
-		output += '\t' + str(tags.count(tag)) 
-	output += '\n'
-	cog += 1
+	if "COG" in line:
+		output += line.replace('\n','\t')
+		tags = []
+	else:
+		for line in datafile:
+			if "COG" not in line:
+				tags.append(line.split('-')[0])
+			else:
+				for tag in orglist:
+					output += '\t' + str(tags.count(tag))
+	                        output += '\n' +  line.replace('\n','\t')
+                		tags = []
+for tag in orglist:
+	output += '\t' + str(tags.count(tag))
 
 datafile.close()
 

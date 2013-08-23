@@ -36,7 +36,7 @@ EvP = 10E-100
 Qth = 0.0
 
 if '-qcov_cutoff' in sys.argv:
-	Qth = int(sys.argv[sys.argv.index('-qcov_cutoff') + 1])
+	Qth = float(sys.argv[sys.argv.index('-qcov_cutoff') + 1])
 
 
 if '-EvT' in sys.argv:
@@ -100,8 +100,7 @@ for line in datafile:
 #		field.remove('')
 	qry = field[0]
 	hit = field[1]
-	qcov = int(field[4])/float(field[5])
-		
+	qcov = int(field[5])/float(field[4])
 	if hit != qry and qcov > Qth:
 		if qry not in data_dic:
 			data_dic[qry] = {}
