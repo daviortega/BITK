@@ -1,0 +1,486 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 8/16/2012 
+###################################
+#version 2 graduated on 08/23/2012
+###################################
+#version 3 started on 08/23/2013
+###################################
+
+import sys
+import bitk
+import os
+import matplotlib as mplt
+import time
+import numpy as np
+
+if '-plot' not in sys.argv and '-plot_ind' not in sys.argv:
+	mplt.use('Agg')
+
+import networkx as nx
+import matplotlib.pyplot as plt
+
+if '-h' in sys.argv:
+	print 'COG-finder3 with BLAST. It takes (in order) one alignment as the database and two others as queries. Then optional flags (as decribed bellow).  \n \
+	 Option: -plot for plot on display \n \
+		 -skip for skipping calculations\n \
+		 -qcov_cutoff N		Query coverage cutoff to be considered for grouping.\n \
+		 -html outputs html with \n \
+		 -intercluster Meaningful intercluster distances\n \
+		 -pic outputs a pic of the clustering\n  -cog_output outputs a txt version of grouping. One line per cog and tags separated by " ; "  \n -EvT N    Threshould for picking up distant paralogs in other species. N must be a number: default 10E-50\n \
+		 -EvP N    Threshould for picking up distant paralog in the same species. N must eb a number: default 10E-100'
+	sys.exit()
+
+EvT = 10E-50
+EvP = 10E-100
+Qth = 0.0
+
+if '-qcov_cutoff' in sys.argv:
+	Qth = float(sys.argv[sys.argv.index('-qcov_cutoff') + 1])
+
+
+if '-EvT' in sys.argv:
+        try:
+                EvT = float(sys.argv[sys.argv.index('-EvT')+1])
+        except:
+                print('Number must be passed after -EvT flag. Ex: 10E-50')
+		sys.exit()
+
+if '-EvP' in sys.argv:
+        try:
+                EvP = float(sys.argv[sys.argv.index('-EvP')+1])
+        except:
+                print('Number must be passed after -EvP flag. Ex: 10E-100')
+                sys.exit()
+
+
+
+
+
+#np = sys.argv[2]
+filename = sys.argv[1]
+dbname = 'temp.' + filename[:-2] + 'db'
+blastname = 'output_blastp.' + filename[:-2] + 'dat'
+outfile = filename[:-2] + 'blastpall.dat'
+
+query_array = []
+
+list_of_files = []
+
+for files in sys.argv[2:]:
+	try:
+		seq_dic, seq_list = bitk.fastareader(files)
+		list_of_files.append(files)
+		query_array.append([seq_dic,seq_list])
+	except IOError:
+		pass
+
+for seq_info1 in query_array:
+	for seq_info2 in query_array[query_array.index(seq_info1)+1:]:
+		common = list(set(seq_info1[1]) & set(seq_info2[1]))
+		if len(common) != 0:
+			print "\n\nSame tag sequences in two supplied alignments. Unacceptable because I won't know which to where it trully belongs: " + sys.argv[2 + query_array.index(seq_info1)] + " or " + sys.argv[2 + query_array.index(seq_info2)] + ".\nCould you fix it for me before resubmit?\nThe common sequences is(are):\n" + "\n".join(common) 
+			sys.exit()
+
+#merging sequences for the sake of calculations.
+
+seq_list = []
+seq_dic = {}
+for seq_info in query_array:
+	seq_list = seq_list + seq_info[1]
+	print len(seq_info[1])
+	seq_dic = dict(seq_dic.items() + seq_info[0].items())
+
+print len(seq_list)
+
+if "-skip" not in sys.argv:
+
+	os.system('rm ' + blastname)
+	os.system('rm ' + dbname + '*')
+	os.system('rm ' + outfile)
+
+
+	print 'Building Database'
+	os.system('formatdb -i ' + filename + ' -n ' + dbname )
+	
+	print 'Running blastp'
+	#os.system('blastp -db ' + dbname + ' -query ' + filename + ' -out ' + blastname + ' -evalue 1000000 -max_target_seqs 10000 -num_alignments 10000 -outfmt "6 qseqid sseqid bitscore" -comp_based_stats no -seg no -num_threads 10')
+
+	out_tmp = ""
+	for seq in seq_list:
+		out_tmp += ">" + seq + "\n" + seq_dic[seq] + "\n"
+	outfiletmp = open('align.tmp.fa','w')
+	outfiletmp.write(out_tmp)
+	outfiletmp.close()
+	os.system('blastp -db ' + dbname + ' -query align.tmp.fa -out ' + blastname + ' -num_threads 10 -outfmt "6 qseqid sseqid bitscore evalue qlen length" -evalue 0.001 -max_target_seqs 100000' )
+	os.system('rm align.tmp.fa')
+
+
+#os.system('blastall -p blastp -d ' + dbname + ' -i test.fa -o ' + blastname + ' -e 100000000000 -b 100000000 -m 8')
+
+print 'Parsing blast results'
+
+data_dic = {}
+data_list = []
+
+datafile = open(blastname,'r')
+output = ''
+
+for line in datafile:
+	field = line.replace('\n','').split('\t')
+#	while '' in field:
+#		field.remove('')
+	qry = field[0]
+	hit = field[1]
+	qcov = int(field[5])/float(field[4])
+	if hit != qry:
+		if qcov > Qth:
+			if qry not in data_dic:
+				data_dic[qry] = {}
+				data_list.append(qry)
+			try:
+				hit_orgid = hit.split('-')[0]
+				qry_orgid = qry.split('-')[0]
+			except IndexError:
+				print hit.split('-')[0]
+				sys.exit()
+			if float(field[3]) < EvP:
+				data_dic[qry][hit] = [ float(i) for i in field[2:] ]
+                	        output += qry + '\t' + hit + '\t' + field[2] + '\t' + str(qcov) + '\n' 
+
+			if hit_orgid not in [ i.split('-')[0] for i in data_dic[qry].keys()] or hit_orgid == qry_orgid:
+				if hit_orgid == qry_orgid:
+					if float(field[3]) < EvT: 
+						data_dic[qry][hit] = [ float(i) for i in field[2:] ]
+		                	        output += qry + '\t' + hit + '\t' + field[2] + '\t' + str(qcov) +'\n'
+				else:
+	
+					data_dic[qry][hit] = [ float(i) for i in field[2:] ]
+        		                output += qry + '\t' + hit + '\t' + field[2] + '\t' + str(qcov) + '\n'
+			else:
+				for i in data_dic[qry].keys():
+					if hit_orgid == i.split('-')[0]:
+#						print field
+#						print data_dic[qry][i]
+						if data_dic[qry][i][1] > float(field[3]):
+							del data_dic[qry][i]
+							data_dic[qry][hit] = [ float(i) for i in field[2:] ]
+datafile.close()
+
+#check for unique clans made out of qcov factors and add them:
+
+
+print "Sequences that are now made its own COG because of domain coverage cutoff"
+for seq in seq_list:
+	if seq not in data_dic.keys():
+		data_dic[seq]={}
+		data_list.append(seq)
+		print seq
+
+
+
+#for tag in data_list:
+#	for key in data_dic[tag].keys():
+#		if key in data_list:
+#			if tag in data_dic[key].keys():
+#				print "one pair"
+#				print tag
+#	                	print key
+#				print data_dic[key][tag]
+
+
+
+# Making the COGs and building edges
+
+G = nx.Graph()
+H = nx.Graph()
+#G.add_nodes_from(data_list)
+recip_hit = []
+uni_hit = []
+
+groups = []
+
+for qry in data_list:
+	new = 0
+	print qry
+#	print groups
+	grp = -1
+	for group in groups:
+		if qry in group:
+			grp = groups.index(group)
+			break
+		for hit in group:
+			if hit in data_dic[qry].keys() and qry in data_dic[hit].keys():
+				grp = groups.index(group)
+				# The new qry should be added to the group grp right now!
+				groups[grp].append(qry)
+				break 
+	
+	if grp == -1:
+		groups.append([qry])
+		grp = groups.index([qry])
+		new = 1
+#	print "keys from " + qry
+#	print data_dic[qry].keys()
+#	print data_list[:10]
+#	print [ i for hit in data_dic[qry].keys() if hit in data_list ]
+	for hit in data_dic[qry].keys():		
+#		time.sleep(5)
+		if hit in data_list:
+			if qry in data_dic[hit].keys():
+				score = max(data_dic[hit][qry][0],data_dic[qry][hit][0])
+#				print qry + '\t' + hit
+#				print groups
+				G.add_edge(qry,hit, weigth = score)
+				recip_hit.append((qry,hit))
+				if hit not in groups[grp]:
+					groups[grp].append(hit)
+#				print groups
+			elif data_dic[qry][hit][1] < EvP:
+				G.add_edge(qry,hit, weigth = score)
+				H.add_edge(qry,hit, weigth = data_dic[qry][hit][0]/10)
+                                recip_hit.append((qry,hit))
+                                if hit not in groups[grp]:
+                                        groups[grp].append(hit)
+			else:
+				H.add_edge(qry,hit, weigth = data_dic[qry][hit][0]/10)
+				uni_hit.append((qry,hit))
+
+	for group in groups[:grp] + groups[grp+1:]:
+#		print group
+		merge = 0
+		for i in group:
+			if i in groups[grp]:
+#				print i
+				grp_i = groups.index(group)				
+				groups[grp_i] = list(set(groups[grp] + groups[grp_i]))
+				del groups[grp]
+				merge = 1
+				break
+		if merge == 1:
+			break
+#	print groups
+
+#ordering groups from large to smallest
+
+nodes = []
+
+for group in groups:
+#       nodes += [ i.split('-')[1] for i in group ]
+        nodes += group
+print len(nodes)
+#print [ i for i in data_dic.keys() if data_list[1] in data_dic[i].keys()]
+
+
+G.add_nodes_from(nodes)
+H.add_nodes_from(nodes)
+
+
+
+
+grp_size = [ len(i) for i in groups ]
+grp_size = list(set(grp_size))
+grp_size.sort()
+grp_size.reverse()
+
+
+print len(groups)
+#print groups
+print "sorting..."
+groups_order = []
+for i in grp_size:
+        for group in groups:
+                if len(group) == i:
+			grp_deg = [ G.degree(k) for k in group]
+			grp_deg = list(set(grp_deg))
+			grp_deg.sort()
+			grp_deg.reverse()
+			group_sorted = []
+			for j in grp_deg:
+				for tag in group:
+					if j == G.degree(tag):
+						group_sorted.append(tag)
+                        groups_order.append(group_sorted)
+#			groups_order.append(group)
+
+
+
+
+#print [ g for g in groups if g.sort() not in [ h.sort() for h in groups_order] ]
+print "Printing information about groups:"
+print len(groups)
+
+print len(groups_order)
+
+groups = groups_order
+print(len(groups))
+
+
+UU = nx.Graph()
+
+for group in groups:
+	g = G.subgraph(group)
+	pos = nx.circular_layout(g)
+#	nx.draw(g,pos)
+#	nx.draw_networkx_nodes(g,pos, node_size = 2)
+#	nx.draw_networkx_edges(g,pos, width = 0.5)
+	UU = nx.disjoint_union(UU,g)
+
+if '-plot' in sys.argv:
+	if 'intercluster' in sys.argv:
+		pos = nx.circular_layout(H)
+	else:
+		pos = nx.circular_layout(UU)
+	nx.draw_networkx_nodes(UU,pos, node_size = 2)
+	nx.draw_networkx_edges(UU,pos, width = 1, alpha = 0.3, edge_color = 'r')
+	plt.show()
+
+
+
+
+#print G.degree()
+
+if '-plot_ind' in sys.argv:
+	for group in groups[:2]:	
+		if len(group) > 1:
+			plt.figure(figsize=(8,8))
+			Gpg = nx.Graph()
+			for node in nodes:
+				if node in group:
+					Gpg.add_node(node)
+			for edge in recip_hit:
+				if edge[0] in group and edge[1] in group:
+					Gpg.add_edge(edge[0],edge[1])
+#			pos = nx.circular_layout(Gpg)
+			
+			
+			labels = dict((n,n.split('-')[1]) for n in Gpg.nodes())
+			print labels
+			print nx.center(Gpg)
+			pos = nx.graphviz_layout(Gpg, prog = 'neato')
+			#pos = nx.circular_layout(Gpg)
+			print pos
+			center = [0,0]
+			for k in pos.values():
+				center[0] += k[0]/float(len(pos))
+				center[1] += k[1]/float(len(pos))
+			print center
+			nx.draw_networkx_nodes(Gpg,pos, alpha = 0.3, node_size = 100, node_color = [float(Gpg.degree(v)) for v in Gpg])
+			nx.draw_networkx_edges(Gpg,pos, alpha = 0.3 , width = 2, edge_color = 'r' )
+			r = max(center)*0.1
+			label_pos = dict((n,(x+r*(x-center[0])/np.sqrt(np.power(x-center[0],2) + np.power(y - center[1],2)), y + r*(y-center[1])/np.sqrt(np.power(x-center[0],2) + np.power(y - center[1],2)))) for n,(x,y) in pos.items())
+			nx.draw_networkx_labels(Gpg, label_pos, labels=labels, rotate = True)
+#			plt.xlim(0,1)
+#			plt.ylim(0,1)
+			plt.title('COG ' + str(groups.index(group)) )
+			plt.show()
+
+
+
+node_list = []
+for seq_info in query_array:
+	node_list_tmp = []
+	for seq in seq_info[1]:
+		print seq
+		try:
+			node_list_tmp.append(seq_list.index(seq))
+		except ValueError:
+			print seq
+			pass
+	node_list.append(node_list_tmp)
+
+#print node_list
+#print nodes
+
+colors_array = ['red','blue','green','cyan','magenta','yellow','black','white']
+
+if '-pic' in sys.argv or '-plot' in sys.argv:
+	plt.figure(figsize=(13,10))
+	if '-intercluster' in sys.argv:
+		pos = nx.graphviz_layout(H, prog = 'neato')
+	else:
+		pos = nx.graphviz_layout(G, prog = 'neato')
+        new_labels = {}
+        new_label_pos = {}
+        for group in groups:
+                new_labels[group[0]] = 'COG ' + str(groups.index(group)+1)
+                #center = [np.mean([x for n,(x,y) in pos.items() if n in group]), np.mean([y for n,(x,y) in pos.items() if n in group])]
+                lab_pos = [np.mean([x for n,(x,y) in pos.items() if n in group]), 50 + max([y for n,(x,y) in pos.items() if n in group])]
+                new_label_pos[group[0]] = tuple(lab_pos)
+
+	print "There are " + str(len(query_array)) + " files"
+	for i in range(len(query_array)):
+		nx.draw_networkx_nodes(G,pos, node_size = 20, node_color = colors_array[i], nodelist=query_array[i][1] )
+        nx.draw_networkx_edges(G,pos, width = 1, alpha = 0.3, edge_color = 'black')
+        nx.draw_networkx_labels(G, new_label_pos, labels = new_labels)
+	plt.axis('off')
+	if '-pic' in sys.argv:
+	        plt.savefig("cluster.png")
+		plt.savefig("cluster.pdf")
+		os.system("convert cluster.png cluster.bmp")
+	if '-plot' in sys.argv:
+		plt.show()
+#	pos = nx.graphviz_layout(G, prog = 'neato')
+#	new_labels = {}
+#	new_label_pos = {}
+#	for group in groups:
+#		new_labels[group[0]] = 'COG ' + str(groups.index(group))
+		#center = [np.mean([x for n,(x,y) in pos.items() if n in group]), np.mean([y for n,(x,y) in pos.items() if n in group])] 
+#		lab_pos = [np.mean([x for n,(x,y) in pos.items() if n in group]), 50 + max([y for n,(x,y) in pos.items() if n in group])]
+#		new_label_pos[group[0]] = tuple(lab_pos)
+		
+#       nx.draw_networkx_nodes(G,pos, node_size = 20, )
+#       nx.draw_networkx_edges(G,pos, width = 1, alpha = 0.3, edge_color = 'black')
+#	nx.draw_networkx_labels(G, new_label_pos, labels = new_labels)
+#	plt.show()
+
+dataout = open(outfile,'w')
+dataout.write(output)
+dataout.close()
+
+#os.system('data.frame2matrix ' + outfile + ' -sep ";" -D -fd0')
+
+#print groups
+
+
+if '-html' in sys.argv:
+	print "Working on the index.html file"
+	hout = '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"\n"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">\n<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">\n<head>\n<title>COGs</title>\n</head>\n'
+
+	if '-pic' in sys.argv:
+		hout += '<body>\n<div>\n<table cellspacing="0" cellpadding="0">\n<tr>\n<td>\n<img id="cluster" src=cluster.bmp />\n</td>\n</tr>\n</table>\n</div>\n'
+		hout += '<style>\nbody, html {margin:0; padding:0; height:100%; width:100%;}\n#cluster { left:0; top:0; z-index:1; height:100%; width:100%; }\n</style>\n'
+	for i in range(len(groups)):
+		hout += '<table width="1000" border="0">\n'
+		hout += '<tr>\n<td colspan="3">\n<h1>COG ' + str(i+1) + ' </h1>\n</td>\n</tr>'
+		for tag in groups[i]:
+			for j in range(len(query_array)):
+				if tag in query_array[j][1]:
+					break
+			hout += '<tr> <td style="width:100px;"> <font color="' + colors_array[j] +'"><b>'+ str(G.degree(tag)) + '</b></font> <a  href="http://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE=Proteins&amp;PROGRAM=blastp&amp;BLAST_PROGRAMS=blastp&amp;QUERY=' + seq_dic[tag] + '&amp;LINK_LOC=protein&amp;PAGE_TYPE=BlastSearch"> ' + tag + '</a></td>\n<td style="width:200px;"> <img align="right"title="'+ str(G.degree(tag)) + ' ' + tag + '" src="http://seqdepot.net/api/v1/aseqs/' + bitk.getmd5(seq_dic[tag]) + '.png" ></td></tr>\n'
+		hout += '</table>'
+	hout += '</body>\n</html>'
+	dataout = open('index.html','w')
+	dataout.write(hout)
+	dataout.close()
+
+if '-cog_output' in sys.argv:
+	for files in list_of_files:
+		query = files
+		output = ''
+		cog = 1
+		for g in groups:
+			output += 'COG ' + str(cog) + '\n'
+			output += '\n'.join(g) + '\n'
+			output += '\n'
+			cog += 1
+		dataout = open(query[:-3] + '.cog.dat', 'w')
+		dataout.write(output)
+		dataout.close()
+
+
+
+
+print 'Done'
+	
+
