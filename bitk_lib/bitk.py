@@ -2,6 +2,9 @@ import fileinput
 from math import *
 import sys
 import numpy
+import md5
+import base64
+
 def alnreader(datafile, list = 'no', just_name = 'no'):
 #	"""Reads a clustalw format file and returns the information in a dictionary name:sequences"""
 	data = open(datafile, 'r')
@@ -1024,7 +1027,8 @@ def threeLetter2oneLetter(seq):
 	else:
 		return ''.join([ dic[i] for i in seq])
 
-
+def getmd5(seq):
+	return base64.encodestring(md5.new(seq.replace('-','')).digest()).replace('/','_').replace('=','').replace('+','-').replace('\n','')
 
 
 
