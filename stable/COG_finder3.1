@@ -132,8 +132,9 @@ for line in datafile:
 #		field.remove('')
 	qry = field[0]
 	hit = field[1]
+	
 	qcov = int(field[5])/float(field[4])
-	if hit != qry:
+	if hit != qry and qry in seq_list:
 		if qcov > Qth:
 			if qry not in data_dic:
 				data_dic[qry] = {}
@@ -202,7 +203,7 @@ groups = []
 
 for qry in data_list:
 	new = 0
-	print qry
+#	print qry
 #	print groups
 	grp = -1
 	for group in groups:
@@ -381,7 +382,7 @@ node_list = []
 for seq_info in query_array:
 	node_list_tmp = []
 	for seq in seq_info[1]:
-		print seq
+#		print seq
 		try:
 			node_list_tmp.append(seq_list.index(seq))
 		except ValueError:
@@ -446,10 +447,13 @@ dataout.close()
 if '-html' in sys.argv:
 	print "Working on the index.html file"
 	hout = '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"\n"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">\n<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">\n<head>\n<title>COGs</title>\n</head>\n'
-
+	hout += 'Job command: ' + ' '.join(sys.argv)	
 	if '-pic' in sys.argv:
 		hout += '<body>\n<div>\n<table cellspacing="0" cellpadding="0">\n<tr>\n<td>\n<img id="cluster" src=cluster.bmp />\n</td>\n</tr>\n</table>\n</div>\n'
 		hout += '<style>\nbody, html {margin:0; padding:0; height:100%; width:100%;}\n#cluster { left:0; top:0; z-index:1; height:100%; width:100%; }\n</style>\n'
+	for i in range(len(query_array)):
+		hout += '<font color="' + colors_array[i] + '"><b>' + list_of_files[i] + '<b></font>\n'
+		
 	for i in range(len(groups)):
 		hout += '<table width="1000" border="0">\n'
 		hout += '<tr>\n<td colspan="3">\n<h1>COG ' + str(i+1) + ' </h1>\n</td>\n</tr>'

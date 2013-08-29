@@ -1,0 +1,129 @@
+#! /usr/bin/env python 
+###################################
+##    Davi Ortega                ##
+###################################
+## This version is made to work in the future with json formated data coming from mist2.2
+
+import json
+import sys
+
+if '-h' in sys.argv:
+	print "Make the tag as the following: XX.YYY-LOCUS, XX Specie and YYY subspecie \n Sintax: pyhton seqtagtest.py datafile.dat (genome_id\tname\tlocus\tsequence\tcomplete(optional)\ttaxonomic_group(optional)\taseq_id(optional)\tgene_id(optional)\tposition(optional)\trank2(optional))\n\tFlags: \n\t-c\tonly complete genomes\n\t-t taxonomic_group \t Selects only sequences from the taxonomic_group\n\t-g only exports a list of sequence_tag;gene_id;position\n"
+	sys.exit()
+
+#data = open(sys.argv[1],'r')
+
+#datafile = json.load(data)
+
+datafile = json.load(open(sys.argv[1]))
+
+if '-t' in sys.argv:
+	taxo_group = sys.argv[sys.argv.index('-t')+1]
+
+
+seqtag_dic = {}
+#seqtag[XX.YYY-locus] = [NAME, locus]
+seq_dic = {}
+
+for seq in datafile:
+	#makeing the tag:
+	genome_id = str(seq["genome_id"])
+#update for Anabaena 'Nostoc azollae' 0708 ######################
+        #full_name = fields[1]
+        full_name = seq["name"]
+#################################################################
+	full_locus = seq["locus"]
+	if seq["draft_version"]:
+		complete = 0
+	else:
+		complete = 1
+
+	try:
+		if ('NULL' not in full_locus) and ( 'name' not in seq['name']) and ( '-c' in sys.argv and complete == 1 or '-c' not in sys.argv) and ( '-t' in sys.argv and taxo_group in seq['taxonomy'] or '-t' not in sys.argv):
+			pass
+	except TypeError:
+		print seq
+		sys.exit()
+
+	if ('NULL' not in full_locus) and ( 'name' not in seq['name']) and ( '-c' in sys.argv and complete == 1 or '-c' not in sys.argv) and ( '-t' in sys.argv and taxo_group in seq['taxonomy'] or '-t' not in sys.argv):
+#update for Anabaena 'Nostoc azollae' 0708 ######################
+#               name = fields[1].split(' ')
+                name = seq["name"].replace("'","").split(' ')
+#################################################################
+		while '' in name:
+			name.remove('')
+		while 'sp.' in name:
+			name.remove('sp.')
+		if len(name) < 2 or name[1].isupper() or ('-' in name[1]): 
+			tag = name[0][:6]
+		else:
+			tag = name[0][:2] + '.' + name[1][:3]
+		locus = seq["locus"].replace(' ','')
+		tag += '.' + genome_id + '-' + locus
+		#print tag
+		if tag not in seqtag_dic.keys():
+			seqtag_dic[tag] = [ full_name , full_locus]
+			if '-g' not in sys.argv:
+				seq_dic[tag] = seq["sequence"]
+			else:
+				seq_dic[tag] = seq["gene_id"] + ';' + seq["position"]
+		elif full_name != seqtag_dic[tag][0] or full_locus != seqtag_dic[tag][1]:
+			print "Found a duplicate"
+			print "Tag: " + tag
+			print "Organism names: " + full_name + '\t' + seqtag_dic[tag][0]
+			print "Locus names: " + full_locus + '\t' + seqtag_dic[tag][1]
+			datafile.close()
+			sys.exit()
+		else:
+			print "Something weird happened: " + tag
+			print full_name
+			print full_locus
+			print genome_id
+			print seqtag_dic[tag]
+			print "\n\nPay attention to this entry:"
+			print seq	
+	elif 'NULL' in full_locus:
+		print seq
+					
+		
+
+#data.close()
+
+filename = sys.argv[1][:-5]
+
+
+if '-c' in sys.argv:
+	filename += '.only_complete'
+if '-t' in sys.argv:
+	filename += '.' + taxo_group
+if '-g' not in sys.argv:
+	filename += '.fa'
+else:
+	filename += '.gene.list'
+outfile = open(filename,'w')
+
+output = ''
+for tag, seq in seq_dic.iteritems():
+	if '-g' not in sys.argv:
+		try:
+			output += '>' + tag + '\n' + seq + '\n'
+		except TypeError:
+			print tag
+			print seq
+			pass
+	else:
+		output += tag + ';' + seq + '\n'
+
+outfile.write(output)
+outfile.close()
+
+
+
+#for tag, list in seqtag_dic.iteritems():
+#	print tag + '\t' + str(list)
+
+print "There are " + str(len(seqtag_dic.keys())) + " proteins"
+print "Done"
+
+	
+
