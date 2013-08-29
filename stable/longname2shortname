@@ -1,0 +1,36 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 8/29/2013 
+###################################
+import sys
+import bitk
+if '-h' in sys.argv:
+	print 'If a program complains your sequence is too long, use this to make it shorter. Option -rec to replace names after using the program (only fasta)'
+	sys.exit()
+
+
+if "-rec" not in sys.argv:
+	seq_dic, seq_list = bitk.fastareader(sys.argv[1])
+	i = 0
+	outfa = ''
+	outlist = ''
+	for tag in seq_list:
+		outfa += '>XX' + str(i) + 'XX\n' + seq_dic[tag].upper() + '\n'
+		outlist += 'XX' + str(i) + 'XX|' + tag + '\n'
+		i += 1
+	fastaout = open(sys.argv[1][:-3] + '.longname2shortname.fa' ,'w')
+	fastaout.write(outfa)
+	fastaout.close()
+	listout = open(sys.argv[1][:-3] + '.longname2shortname.list', 'w')
+	listout.write(outlist)
+	listout.close()
+else:
+	seq_dic, seq_list = bitk.fastareader(sys.argv[1])
+	listout = open(sys.argv[3],'r')
+	output = ''
+	for line in listout:
+		code, tag = line.replace('\n','').split('|')
+		output += '>' + tag + '\n' + seq_dic[code] + '\n'
+	fastaout = open(sys.argv[1][:-3] + '.rec.fa' ,'w')
+        fastaout.write(output)
+        fastaout.close()
