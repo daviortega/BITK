@@ -35,6 +35,8 @@ new_seq_allopt = []
 domain_seq = {}
 output = ''
 
+seq_list_count_domain = [] # this is a patch... This script needs to be redone. 
+
 for line in datafile:
 	if '>>' in line:
         	name = line.split(' ')[1]
@@ -44,6 +46,7 @@ for line in datafile:
 				domain_seq[name] = DN
                                	start = int(line[60:66])
                                	end = int(line[68:74])
+				seq_list_count_domain.append(name)
                                	#print name + '\t' + str(start) + '\t' + str(end)
                         	if '-m' in sys.argv:
 					if N == 0:
@@ -79,11 +82,10 @@ print new_seq_allopt[:10]
 
 if '-m' in sys.argv and N != 0:
 	for seq in new_seq_list:
-		seq_N = seq.split('-')[-1]
 		if '-all' in sys.argv and '-'.join(seq.split('-')[:-1]) in new_seq_allopt:
 			output += '>' + seq + '\n' + new_seq_dic[seq] + '\n'
 		elif '-all' not in sys.argv:
-			if int(seq_N) == N:
+			if seq_list_count_domain.count('-'.join(seq.split('-')[0:2])) == N:
 				output += '>' + seq + '\n' + new_seq_dic[seq] + '\n'
 
 
