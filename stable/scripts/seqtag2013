@@ -26,6 +26,7 @@ seqtag_dic = {}
 seq_dic = {}
 
 for seq in datafile:
+	not_here = 0
 	#makeing the tag:
 	genome_id = str(seq["genome_id"])
 #update for Anabaena 'Nostoc azollae' 0708 ######################
@@ -42,48 +43,50 @@ for seq in datafile:
 		if ('NULL' not in full_locus) and ( 'name' not in seq['name']) and ( '-c' in sys.argv and complete == 1 or '-c' not in sys.argv) and ( '-t' in sys.argv and taxo_group in seq['taxonomy'] or '-t' not in sys.argv):
 			pass
 	except TypeError:
+		print '\n\n\nWARNING =========================== WARNING ============================== WARNING\n Weird json format cannot be interpreted (it will be ignored):\n'
 		print seq
-		sys.exit()
-
-	if ('NULL' not in full_locus) and ( 'name' not in seq['name']) and ( '-c' in sys.argv and complete == 1 or '-c' not in sys.argv) and ( '-t' in sys.argv and taxo_group in seq['taxonomy'] or '-t' not in sys.argv):
-#update for Anabaena 'Nostoc azollae' 0708 ######################
-#               name = fields[1].split(' ')
-                name = seq["name"].replace("'","").split(' ')
-#################################################################
-		while '' in name:
-			name.remove('')
-		while 'sp.' in name:
-			name.remove('sp.')
-		if len(name) < 2 or name[1].isupper() or ('-' in name[1]): 
-			tag = name[0][:6]
-		else:
-			tag = name[0][:2] + '.' + name[1][:3]
-		locus = seq["locus"].replace(' ','')
-		tag += '.' + genome_id + '-' + locus
-		#print tag
-		if tag not in seqtag_dic.keys():
-			seqtag_dic[tag] = [ full_name , full_locus]
-			if '-g' not in sys.argv:
-				seq_dic[tag] = seq["sequence"]
+		not_here = 1
+		pass
+	if not_here == 0 :
+		if ('NULL' not in full_locus) and ( 'name' not in seq['name']) and ( '-c' in sys.argv and complete == 1 or '-c' not in sys.argv) and ( '-t' in sys.argv and taxo_group in seq['taxonomy'] or '-t' not in sys.argv):
+	#update for Anabaena 'Nostoc azollae' 0708 ######################
+	#               name = fields[1].split(' ')
+	                name = seq["name"].replace("'","").split(' ')
+	#################################################################
+			while '' in name:
+				name.remove('')
+			while 'sp.' in name:
+				name.remove('sp.')
+			if len(name) < 2 or name[1].isupper() or ('-' in name[1]): 
+				tag = name[0][:6]
 			else:
-				seq_dic[tag] = seq["gene_id"] + ';' + seq["position"]
-		elif full_name != seqtag_dic[tag][0] or full_locus != seqtag_dic[tag][1]:
-			print "Found a duplicate"
-			print "Tag: " + tag
-			print "Organism names: " + full_name + '\t' + seqtag_dic[tag][0]
-			print "Locus names: " + full_locus + '\t' + seqtag_dic[tag][1]
-			datafile.close()
-			sys.exit()
-		else:
-			print "Something weird happened: " + tag
-			print full_name
-			print full_locus
-			print genome_id
-			print seqtag_dic[tag]
-			print "\n\nPay attention to this entry:"
-			print seq	
-	elif 'NULL' in full_locus:
-		print seq
+				tag = name[0][:2] + '.' + name[1][:3]
+			locus = seq["locus"].replace(' ','')
+			tag += '.' + genome_id + '-' + locus
+			#print tag
+			if tag not in seqtag_dic.keys():
+				seqtag_dic[tag] = [ full_name , full_locus]
+				if '-g' not in sys.argv:
+					seq_dic[tag] = seq["sequence"]
+				else:
+					seq_dic[tag] = seq["gene_id"] + ';' + seq["position"]
+			elif full_name != seqtag_dic[tag][0] or full_locus != seqtag_dic[tag][1]:
+				print "Found a duplicate"
+				print "Tag: " + tag
+				print "Organism names: " + full_name + '\t' + seqtag_dic[tag][0]
+				print "Locus names: " + full_locus + '\t' + seqtag_dic[tag][1]
+				datafile.close()
+				sys.exit()
+			else:	
+				print "\n\nSomething weird happened: " + tag
+				print full_name
+				print full_locus
+				print genome_id
+				print seqtag_dic[tag]
+				print "\Pay attention to this entry:"
+				print seq	
+		elif 'NULL' in full_locus:
+			print seq
 					
 		
 

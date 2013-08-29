@@ -54,9 +54,6 @@ if '-EvP' in sys.argv:
                 sys.exit()
 
 
-
-
-
 #np = sys.argv[2]
 filename = sys.argv[1]
 dbname = 'temp.' + filename[:-2] + 'db'
@@ -68,12 +65,18 @@ query_array = []
 list_of_files = []
 
 for files in sys.argv[2:]:
+	if files[0] == '-':
+		break
 	try:
 		seq_dic, seq_list = bitk.fastareader(files)
 		list_of_files.append(files)
 		query_array.append([seq_dic,seq_list])
 	except IOError:
 		pass
+
+if '-fullseq' in sys.argv:
+        seqf_dic, seqf_list = bitk.fastareader(sys.argv[sys.argv.index('-fullseq')+1])
+
 
 for seq_info1 in query_array:
 	for seq_info2 in query_array[query_array.index(seq_info1)+1:]:
@@ -393,7 +396,11 @@ for seq_info in query_array:
 #print node_list
 #print nodes
 
-colors_array = ['red','blue','green','cyan','magenta','yellow','black','white']
+colors_array = ['red','blue','green','cyan','magenta','#ff6600', 'yellow','black']
+colors_array = [ '#D73027', '#F46D43', '#FDAE61' , '#FEE090', '#E0F3F8', '#ABD9E9' , '#74ADD1', '#4575B4' ]
+colors_array = [ '#2D5088', '#2D7D88', '#2D8837' , '#7D882D', '#88652D', '#872D7D' , '#74ADD1', '#4575B4' ]
+colors_array = [ '#E41A1C' , '#377EB8' , '#4DAF4A' , '#984EA3' , '#FF7F00' , '#999999' , '#A65628' , '#F781BF' ]
+#colors_array = [ '#1B9E77' , '#D95F02' , '#7570B3' , '#E7298A' , '#66A61E' , '#E6AB02' , '#A6761D' , '#666666' ]
 
 if '-pic' in sys.argv or '-plot' in sys.argv:
 	plt.figure(figsize=(13,10))
@@ -411,8 +418,8 @@ if '-pic' in sys.argv or '-plot' in sys.argv:
 
 	print "There are " + str(len(query_array)) + " files"
 	for i in range(len(query_array)):
-		nx.draw_networkx_nodes(G,pos, node_size = 20, node_color = colors_array[i], nodelist=query_array[i][1] )
-        nx.draw_networkx_edges(G,pos, width = 1, alpha = 0.3, edge_color = 'black')
+		nx.draw_networkx_nodes(G,pos, node_size = 30, linewidths = 0.5, node_color = colors_array[i], nodelist=query_array[i][1] )
+        nx.draw_networkx_edges(G,pos, width = 1, alpha = 0.2, edge_color = 'black')
         nx.draw_networkx_labels(G, new_label_pos, labels = new_labels)
 	plt.axis('off')
 	if '-pic' in sys.argv:
@@ -447,13 +454,12 @@ dataout.close()
 if '-html' in sys.argv:
 	print "Working on the index.html file"
 	hout = '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"\n"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">\n<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">\n<head>\n<title>COGs</title>\n</head>\n'
-	hout += 'Job command: ' + ' '.join(sys.argv)	
 	if '-pic' in sys.argv:
 		hout += '<body>\n<div>\n<table cellspacing="0" cellpadding="0">\n<tr>\n<td>\n<img id="cluster" src=cluster.bmp />\n</td>\n</tr>\n</table>\n</div>\n'
-		hout += '<style>\nbody, html {margin:0; padding:0; height:100%; width:100%;}\n#cluster { left:0; top:0; z-index:1; height:100%; width:100%; }\n</style>\n'
+		hout += '<style>\nbody, html {margin:0; padding:0; height:100%; width:100%;}\n#cluster { left:0; top:0; z-index:1; height:100%; width:100%; }\n</style>\n<p>'
 	for i in range(len(query_array)):
-		hout += '<font color="' + colors_array[i] + '"><b>' + list_of_files[i] + '<b></font>\n'
-		
+		hout += '<font color="' + colors_array[i] + '"><b>' + list_of_files[i] + '<b></font><br>'
+	hout += '</p>\n'	
 	for i in range(len(groups)):
 		hout += '<table width="1000" border="0">\n'
 		hout += '<tr>\n<td colspan="3">\n<h1>COG ' + str(i+1) + ' </h1>\n</td>\n</tr>'
@@ -461,8 +467,18 @@ if '-html' in sys.argv:
 			for j in range(len(query_array)):
 				if tag in query_array[j][1]:
 					break
-			hout += '<tr> <td style="width:100px;"> <font color="' + colors_array[j] +'"><b>'+ str(G.degree(tag)) + '</b></font> <a  href="http://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE=Proteins&amp;PROGRAM=blastp&amp;BLAST_PROGRAMS=blastp&amp;QUERY=' + seq_dic[tag] + '&amp;LINK_LOC=protein&amp;PAGE_TYPE=BlastSearch"> ' + tag + '</a></td>\n<td style="width:200px;"> <img align="right"title="'+ str(G.degree(tag)) + ' ' + tag + '" src="http://seqdepot.net/api/v1/aseqs/' + bitk.getmd5(seq_dic[tag]) + '.png" ></td></tr>\n'
+			if '-fullseq' in sys.argv:
+				simple_tag = '-'.join(tag.split('-')[0:2])
+				if simple_tag in seqf_list:
+					hout += '<tr> <td style="width:200px;"> <font color="' + colors_array[j] +'"><b>'+ str(G.degree(tag)) + '</b></font> <a  href="http://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE=Proteins&amp;PROGRAM=blastp&amp;BLAST_PROGRAMS=blastp&amp;QUERY=' + seq_dic[tag] + '&amp;LINK_LOC=protein&amp;PAGE_TYPE=BlastSearch"> ' + tag + '</a></td>\n<td style="width:200px;"> <img align="right"title="'+ str(G.degree(tag)) + ' ' + tag + '" src="http://seqdepot.net/api/v1/aseqs/' + bitk.getmd5(seqf_dic[simple_tag]) + '.png" ></td></tr>\n'
+				else:
+					print "Your fullseq file is not up to snuff, please fix it or give up on domain architecture"
+					print "Defective tag is: " + simple_tag
+					sys.exit()
+			else:
+				hout += '<tr> <td style="width:100px;"> <font color="' + colors_array[j] +'"><b>'+ str(G.degree(tag)) + '</b></font> <a  href="http://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE=Proteins&amp;PROGRAM=blastp&amp;BLAST_PROGRAMS=blastp&amp;QUERY=' + seq_dic[tag] + '&amp;LINK_LOC=protein&amp;PAGE_TYPE=BlastSearch"> ' + tag + '</a></td>\n<td style="width:200px;"> <img align="right"title="'+ str(G.degree(tag)) + ' ' + tag + '" src="http://seqdepot.net/api/v1/aseqs/' + bitk.getmd5(seq_dic[tag]) + '.png" ></td></tr>\n'
 		hout += '</table>'
+	hout += 'Job command: ' + ' '.join(sys.argv)
 	hout += '</body>\n</html>'
 	dataout = open('index.html','w')
 	dataout.write(hout)

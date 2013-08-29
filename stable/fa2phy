@@ -18,6 +18,7 @@ seq_count = 0
 dic = ''
 
 for k, v in seq_dic.iteritems():
+	v = v.replace(' ','')
 	if k != '':
 		#print k
 		if '/' in k:
