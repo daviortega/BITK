@@ -425,7 +425,7 @@ if '-pic' in sys.argv or '-plot' in sys.argv:
 	if '-pic' in sys.argv:
 	        plt.savefig("cluster.png")
 		plt.savefig("cluster.pdf")
-		os.system("convert cluster.png cluster.bmp")
+#		os.system("convert cluster.png cluster.bmp")
 	if '-plot' in sys.argv:
 		plt.show()
 #	pos = nx.graphviz_layout(G, prog = 'neato')
@@ -455,7 +455,7 @@ if '-html' in sys.argv:
 	print "Working on the index.html file"
 	hout = '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"\n"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">\n<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">\n<head>\n<title>COGs</title>\n</head>\n'
 	if '-pic' in sys.argv:
-		hout += '<body>\n<div>\n<table cellspacing="0" cellpadding="0">\n<tr>\n<td>\n<img id="cluster" src=cluster.bmp />\n</td>\n</tr>\n</table>\n</div>\n'
+		hout += '<body>\n<div>\n<table cellspacing="0" cellpadding="0">\n<tr>\n<td>\n<img id="cluster" src=cluster.png />\n</td>\n</tr>\n</table>\n</div>\n'
 		hout += '<style>\nbody, html {margin:0; padding:0; height:100%; width:100%;}\n#cluster { left:0; top:0; z-index:1; height:100%; width:100%; }\n</style>\n<p>'
 	for i in range(len(query_array)):
 		hout += '<font color="' + colors_array[i] + '"><b>' + list_of_files[i] + '<b></font><br>'
@@ -470,13 +470,24 @@ if '-html' in sys.argv:
 			if '-fullseq' in sys.argv:
 				simple_tag = '-'.join(tag.split('-')[0:2])
 				if simple_tag in seqf_list:
-					hout += '<tr> <td style="width:200px;"> <font color="' + colors_array[j] +'"><b>'+ str(G.degree(tag)) + '</b></font> <a  href="http://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE=Proteins&amp;PROGRAM=blastp&amp;BLAST_PROGRAMS=blastp&amp;QUERY=' + seq_dic[tag] + '&amp;LINK_LOC=protein&amp;PAGE_TYPE=BlastSearch"> ' + tag + '</a></td>\n<td style="width:200px;"> <img align="right"title="'+ str(G.degree(tag)) + ' ' + tag + '" src="http://seqdepot.net/api/v1/aseqs/' + bitk.getmd5(seqf_dic[simple_tag]) + '.png" ></td></tr>\n'
+					conn = G.neighbors(tag)
+					htmp = '<font color="'+ colors_array[j] +'">(</font>'
+					for k in range(len(query_array)):
+						htmp += '<font color="'+ colors_array[k] +'"><a title="' + str(list(set(query_array[k][1]).intersection(conn))) +'">' + str(len(list(set(query_array[k][1]).intersection(conn)))) + '</a></font><font color="'+ colors_array[j] +'">/</font>'
+					htmp += '<font color="'+ colors_array[j] +'">)</font>'
+					hout += '<tr> <td style="width:400px;"> <font color="' + colors_array[j] +'"><b>'+ str(G.degree(tag)) + '</b></font> ' + htmp + ' <a  href="http://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE=Proteins&amp;PROGRAM=blastp&amp;BLAST_PROGRAMS=blastp&amp;QUERY=' + seq_dic[tag] + '&amp;LINK_LOC=protein&amp;PAGE_TYPE=BlastSearch"> ' + tag + '</a></td>\n<td style="width:200px;"> <img align="right"title="'+ str(G.degree(tag)) + ' ' + tag + '" src="http://seqdepot.net/api/v1/aseqs/' + bitk.getmd5(seqf_dic[simple_tag]) + '.png" ></td></tr>\n'
 				else:
 					print "Your fullseq file is not up to snuff, please fix it or give up on domain architecture"
 					print "Defective tag is: " + simple_tag
 					sys.exit()
 			else:
-				hout += '<tr> <td style="width:100px;"> <font color="' + colors_array[j] +'"><b>'+ str(G.degree(tag)) + '</b></font> <a  href="http://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE=Proteins&amp;PROGRAM=blastp&amp;BLAST_PROGRAMS=blastp&amp;QUERY=' + seq_dic[tag] + '&amp;LINK_LOC=protein&amp;PAGE_TYPE=BlastSearch"> ' + tag + '</a></td>\n<td style="width:200px;"> <img align="right"title="'+ str(G.degree(tag)) + ' ' + tag + '" src="http://seqdepot.net/api/v1/aseqs/' + bitk.getmd5(seq_dic[tag]) + '.png" ></td></tr>\n'
+				conn = G.neighbors(tag)
+                                htmp = '<font color="'+ colors_array[j] +'">(</font>'
+                                for k in range(len(query_array)):
+                                	htmp += '<font color="'+ colors_array[k] +'"><a title="' + str(list(set(query_array[k][1]).intersection(conn))) +'">' + str(len(list(set(query_array[k][1]).intersection(conn)))) + '</a></font><font color="'+ colors_array[j] +'">/</font>'
+                                htmp += '<font color="'+ colors_array[j] +'">)</font>'
+                                hout += '<tr> <td style="width:400px;"> <font color="' + colors_array[j] +'"><b>'+ str(G.degree(tag)) + '</b></font> ' + htmp + ' <a  href="http://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE=Proteins&amp;PROGRAM=blastp&amp;BLAST_PROGRAMS=blastp&amp;QUERY=' + seq_dic[tag] + '&amp;LINK_LOC=protein&amp;PAGE_TYPE=BlastSearch"> ' + tag + '</a></td>\n<td style="width:200px;"> <img align="right"title="'+ str(G.degree(tag)) + ' ' + tag + '" src="http://seqdepot.net/api/v1/aseqs/' + bitk.getmd5(seq_dic[tag]) + '.png" ></td></tr>\n'
+
 		hout += '</table>'
 	hout += 'Job command: ' + ' '.join(sys.argv)
 	hout += '</body>\n</html>'

@@ -34,13 +34,11 @@ for seq in datafile:
         full_name = seq["name"]
 #################################################################
 	full_locus = seq["locus"]
-	if seq["draft_version"]:
-		complete = 0
-	else:
-		complete = 1
+	complete = seq["complete"]
+	accession = seq["accession"]
 
 	try:
-		if ('NULL' not in full_locus) and ( 'name' not in seq['name']) and ( '-c' in sys.argv and complete == 1 or '-c' not in sys.argv) and ( '-t' in sys.argv and taxo_group in seq['taxonomy'] or '-t' not in sys.argv):
+		if ( '-c' in sys.argv and complete == 1 or '-c' not in sys.argv) and ( '-t' in sys.argv and taxo_group in seq['taxonomy'] or '-t' not in sys.argv):
 			pass
 	except TypeError:
 		print '\n\n\nWARNING =========================== WARNING ============================== WARNING\n Weird json format cannot be interpreted (it will be ignored):\n'

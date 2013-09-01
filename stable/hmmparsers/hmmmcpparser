@@ -15,11 +15,22 @@ DIFF_THRES = 50
 MIN_SCORE = 100
 
 
-seq_dic, seq_list = bitk.fastareader(sys.argv[1])
-
+print "Loading hmm info"
 hmmfile = open(sys.argv[2],'r')
+print "Done"
+
+
+print "Loading fasta...."
+seq_dic, seq_list = bitk.fastareader(sys.argv[1])
+print "Done"
+
+seqn_dic = {}
+
+errout = ''
 
 new_seq = 1
+
+print "Parsing........"
 for line in hmmfile:
 	if "Query sequence" in line:
 		tag = line.split(':')[1].replace(' ','').replace('\n','')
@@ -31,25 +42,43 @@ for line in hmmfile:
 			line_info = line2.split(' ')
 			while '' in line_info:
 				line_info.remove('')
-			mcp_class.append([line_info[0],float(line_info[1])])
+			try:
+				mcp_class.append([line_info[0],float(line_info[1])])
+			except IndexError:
+				mcp_class.append(['Uncat',1])
 			if len(mcp_class) == 2:
 				break
 		if (mcp_class[0][1] >= MIN_SCORE) and (mcp_class[0][1] - DIFF_THRES >= mcp_class[1][1]):
-			seq_dic[tag + '--' + mcp_class[0][0]] = seq_dic[tag]
-			del seq_dic[tag]
+			try:
+				seqn_dic[tag + '--' + mcp_class[0][0]] = seq_dic[tag]
+				del seq_dic[tag]
+				print tag + '--' + mcp_class[0][0]
+			except KeyError:
+				errout += tag + '\n'
+				pass
 		else:
-			seq_dic[tag + '--' + 'Uncat'] = seq_dic[tag]
-			del seq_dic[tag]
+			try:
+				seqn_dic[tag + '--Uncat'] = seq_dic[tag]
+				print tag + '--Uncat'
+				del seq_dic[tag]
+			except KeyError:
+				errout += tag + '\n'
+				pass
 
 hmmfile.close()
 
+print "saving it"
 outfile = open(sys.argv[1][:-2] + 'class.fa', 'w')
 output = ''
-for tag, seq in seq_dic.iteritems():
+for tag, seq in seqn_dic.iteritems():
 	output += '>' + tag + '\n' + seq + '\n'
 
 outfile.write(output)
 outfile.close()
 
+if errout != '':
+	errfile = open('hmmmcpparser.err.log', 'w')
+	errfile.write(errout)
+	errfile.close()
 
 

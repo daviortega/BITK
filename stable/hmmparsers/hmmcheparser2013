@@ -1,0 +1,45 @@
+#! /usr/bin/env python 
+###################################
+##    Davi Ortega                ##
+###################################
+import sys
+import bitk
+import copy
+
+if '-h' in sys.argv:
+	print "Update fasta file with class information retrived from chea-class-library.hmm output file"
+	print "Sintax: hmmcheaparser.py fasta_file.fa output_hmm.dat"
+	print "outfile = fasta_file.class.fa"
+	sys.exit()
+
+DIFF_THRES = 150
+MIN_SCORE = 200
+
+
+seq_dic, seq_list = bitk.fastareader(sys.argv[1])
+
+hmmfile = open(sys.argv[2],'r')
+
+model_dic = {}
+
+output = ''
+old_tag = ''
+
+for line in hmmfile:
+	if line[0] != "#":
+		newline = [ i for i in line.split(' ') if (i != '' and i != '-')]
+		tag = newline[1]
+		if tag != old_tag:
+			model = newline[0].split('-')[1]
+			score = newline[3]
+			output += '>' + tag + '-' + model + '\n' + seq_dic[tag] + '\n'
+			old_tag = copy.deepcopy(tag)
+
+hmmfile.close()
+
+outfile = open(sys.argv[1][:-2] + 'class.fa', 'w')
+outfile.write(output)
+outfile.close()
+
+
+
