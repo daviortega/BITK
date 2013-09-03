@@ -48,6 +48,7 @@ for seq in datafile:
 		name.remove('')
 	while 'sp.' in name:
 		name.remove('sp.')
+	name.replace('[','x').replace(']','x')
 	if len(name) < 2 or name[1].isupper() or ('-' in name[1]): 
 		tag = name[0][:6]
 	else:

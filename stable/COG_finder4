@@ -6,6 +6,8 @@
 ###################################
 #version 3 started on 08/23/2013
 ###################################
+#Version 4 started on 09/02/2013
+##################################
 
 import sys
 import bitk
@@ -13,6 +15,8 @@ import os
 import matplotlib as mplt
 import time
 import numpy as np
+import json
+from networkx.readwrite import json_graph
 
 if '-plot' not in sys.argv and '-plot_ind' not in sys.argv:
 	mplt.use('Agg')
@@ -27,13 +31,27 @@ if '-h' in sys.argv:
 		 -qcov_cutoff N		Query coverage cutoff to be considered for grouping.\n \
 		 -html outputs html with \n \
 		 -intercluster Meaningful intercluster distances\n \
-		 -pic outputs a pic of the clustering\n  -cog_output outputs a txt version of grouping. One line per cog and tags separated by " ; "  \n -EvT N    Threshould for picking up distant paralogs in other species. N must be a number: default 10E-50\n \
-		 -EvP N    Threshould for picking up distant paralog in the same species. N must eb a number: default 10E-100'
+		 -pic outputs a pic of the clustering\n \
+		 -cog_output outputs a txt version of grouping. One line per cog and tags separated by " ; "  \n \
+		 -EvT N    Threshould for picking up distant paralogs in other species. N must be a number: default 10E-50\n \
+		 -EvP N    Threshould for picking up distant paralog in the same species. N must eb a number: default 10E-100\n \
+		 -Ec  N    Maximum Evalue to consider hit: default 1\n \
+		 -fullseq seq.fa Fasta format file with full sequences to be used to fetch domain arch from SeqSepot\n \
+		 -js	   Export json formated nodes and edges to be used in javascripts\n'
 	sys.exit()
 
 EvT = 10E-50
 EvP = 10E-100
 Qth = 0.0
+Ec = 1
+
+if '-Ec' in sys.argv:
+        try:
+                Ec = float(sys.argv[sys.argv.index('-Ec')+1])
+        except:
+                print('Number must be passed after -Ecutoff flag. Ex: 10E-50')
+                sys.exit()
+print Ec
 
 if '-qcov_cutoff' in sys.argv:
 	Qth = float(sys.argv[sys.argv.index('-qcov_cutoff') + 1])
@@ -138,7 +156,7 @@ for line in datafile:
 	
 	qcov = int(field[5])/float(field[4])
 	if hit != qry and qry in seq_list:
-		if qcov > Qth:
+		if qcov > Qth and float(field[3]) < Ec:
 			if qry not in data_dic:
 				data_dic[qry] = {}
 				data_list.append(qry)
@@ -277,11 +295,15 @@ print len(nodes)
 #print [ i for i in data_dic.keys() if data_list[1] in data_dic[i].keys()]
 
 
-G.add_nodes_from(nodes)
-H.add_nodes_from(nodes)
 
 
-
+for i in range(len(groups)):
+	for node in groups[i]:
+	        for j in range(len(query_array)):
+        	        if node in query_array[j][1]:
+                	        break
+	        G.add_node(node, aln = j, url = "#" + node)
+        	H.add_node(node, aln = j, url = "#" + node)
 
 grp_size = [ len(i) for i in groups ]
 grp_size = list(set(grp_size))
@@ -307,18 +329,17 @@ for i in grp_size:
 						group_sorted.append(tag)
                         groups_order.append(group_sorted)
 #			groups_order.append(group)
-
-
-
-
 #print [ g for g in groups if g.sort() not in [ h.sort() for h in groups_order] ]
 print "Printing information about groups:"
 print len(groups)
-
 print len(groups_order)
-
 groups = groups_order
 print(len(groups))
+
+for i in range(len(groups)):
+        for node in groups[i]:
+		G.node[node]['group'] = i
+
 
 
 UU = nx.Graph()
@@ -409,6 +430,7 @@ if '-pic' in sys.argv or '-plot' in sys.argv:
 		pos = nx.graphviz_layout(H, prog = 'neato')
 	else:
 		pos = nx.graphviz_layout(G, prog = 'neato')
+		nx.set_node_attributes(G,'pos',pos)
         new_labels = {}
         new_label_pos = {}
         for group in groups:
@@ -451,13 +473,99 @@ dataout.close()
 
 #print groups
 
+if '-js' in sys.argv:
+#	pos = nx.graphviz_layout(G, prog = 'neato')
+	G_js = json_graph.node_link_data(G)
+	json.dump(G_js, open('cog_finder4v2.json','w'), indent=2)
+	
+houtjs = """<style>
+
+.node {
+  stroke: #000000;
+  stroke-width: 0.5px;
+
+}
+
+.link {
+  fill: none;
+  stroke: #999;
+  stroke-opacity: .3;
+}
+
+</style>
+<body>
+<script src="http://d3js.org/d3.v3.min.js"></script>
+<script>
+
+var width = 1000,
+    height = 750,
+    scalex = 0.5,
+    scaley = 0.4,
+    color = d3.scale.ordinal().domain(d3.range(8)).range([ "#E41A1C" , "#377EB8" , "#4DAF4A" , "#984EA3" , "#FF7F00" , "#999999" , "#A65628" , "#F781BF" ]);
+
+var svg = d3.select("body").append("svg")
+    .attr("width", width)
+    .attr("height", height);
+
+d3.json("cog_finder4v2.json", function(error, graph) {
+
+  graph.links.forEach(function(d) {
+    d.source = graph.nodes[d.source];
+    d.target = graph.nodes[d.target];
+  });
+
+  var link = svg.append("g")
+      .attr("class", "link")
+    .selectAll("line")
+      .data(graph.links)
+    .enter().append("line")
+      .attr("x1", function(d) { return d.source.pos[0] *scalex; })
+      .attr("y1", function(d) { return height - d.source.pos[1] * scaley; })
+      .attr("x2", function(d) { return d.target.pos[0] *scalex; })
+      .attr("y2", function(d) { return height - d.target.pos[1] * scaley; });
+
+
+  var node = svg.append("g")
+      .attr("class", "node")
+    .selectAll("circle")
+      .data(graph.nodes)
+    .enter().append("circle")
+      .attr("r", 4)
+      .attr("cx", function(d) { return d.pos[0] * scalex; })
+      .attr("cy", function(d) { return height - (d.pos[1] * scaley); })
+      .style("fill", function(d) { return color(d.aln); })
+      .on("click", daviclick);
+
+
+
+   node.append("title")
+       .text(function(d) { return "COG " + ( 1 + d.group ) + " - " + d.id;  });
+
+   function daviclick(d) {
+        d3.select(this)
+        .style("stroke","red")
+        .style("stroke-width", "1px")
+        .attr("r",6);
+        window.location = d.url;
+        d3.select(this).transition()
+        .delay(3)
+        .style("stroke","black")
+        .style("stroke-width", "0.5px")
+        .attr("r",4);};
+});
+</script>
+"""
+
 
 if '-html' in sys.argv:
 	print "Working on the index.html file"
-	hout = '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"\n"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">\n<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">\n<head>\n<title>COGs</title>\n</head>\n'
-	if '-pic' in sys.argv:
-		hout += '<body>\n<div>\n<table cellspacing="0" cellpadding="0">\n<tr>\n<td>\n<img id="cluster" src=cluster.png />\n</td>\n</tr>\n</table>\n</div>\n'
-		hout += '<style>\nbody, html {margin:0; padding:0; height:100%; width:100%;}\n#cluster { left:0; top:0; z-index:1; height:100%; width:100%; }\n</style>\n<p>'
+	hout = '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"\n"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">\n<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">\n<meta charset="utf-8">\n<head>\n<title>COGs</title>\n</head>\n'
+	if '-js' in sys.argv:
+		hout += houtjs
+#	if '-pic' in sys.argv:
+#	hout += '<body>\n<div>\n<table cellspacing="0" cellpadding="0">\n<tr>\n<td>\n<img id="cluster" src=cluster.png />\n</td>\n</tr>\n</table>\n</div>\n'
+#	hout += '<style>\nbody, html {margin:0; padding:0; height:100%; width:100%;}\n#cluster { left:0; top:0; z-index:1; height:100%; width:100%; }\n</style>\n<p>'
+	hout += "<p> <br></br> <p>"
 	for i in range(len(query_array)):
 		hout += '<font color="' + colors_array[i] + '"><b>' + list_of_files[i] + '<b></font><br>'
 	hout += '</p>\n'	
@@ -465,9 +573,7 @@ if '-html' in sys.argv:
 		hout += '<table width="1500" border="0">\n'
 		hout += '<tr>\n<td colspan="3">\n<h1>COG ' + str(i+1) + ' </h1>\n</td>\n</tr>'
 		for tag in groups[i]:
-			for j in range(len(query_array)):
-				if tag in query_array[j][1]:
-					break
+			j = G.node[tag]['aln']
 			if '-fullseq' in sys.argv:
 				simple_tag = '-'.join(tag.split('-')[0:-1])
 				if simple_tag in seqf_list:
@@ -476,7 +582,7 @@ if '-html' in sys.argv:
 					for k in range(len(query_array)):
 						htmp += '<font color="'+ colors_array[k] +'"><a title="' + str(list(set(query_array[k][1]).intersection(conn))) +'">' + str(len(list(set(query_array[k][1]).intersection(conn)))) + '</a></font><font color="'+ colors_array[j] +'">/</font>'
 					htmp += '<font color="'+ colors_array[j] +'">)</font>'
-					hout += '<tr> <td style="width:800px;"> <font color="' + colors_array[j] +'"><b>'+ str(G.degree(tag)) + '</b></font> ' + htmp + ' <a  href="http://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE=Proteins&amp;PROGRAM=blastp&amp;BLAST_PROGRAMS=blastp&amp;QUERY=' + seq_dic[tag] + '&amp;LINK_LOC=protein&amp;PAGE_TYPE=BlastSearch"> ' + tag + '</a></td>\n<td style="width:200px;"> <img align="right"title="'+ str(G.degree(tag)) + ' ' + tag + '" src="http://seqdepot.net/api/v1/aseqs/' + bitk.getmd5(seqf_dic[simple_tag]) + '.png" ></td></tr>\n'
+					hout += '<tr> <td style="width:800px;"> <font color="' + colors_array[j] +'"><b>'+ str(G.degree(tag)) + '</b></font> ' + htmp + ' <a name="' + tag + '" href="http://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE=Proteins&amp;PROGRAM=blastp&amp;BLAST_PROGRAMS=blastp&amp;QUERY=' + seq_dic[tag] + '&amp;LINK_LOC=protein&amp;PAGE_TYPE=BlastSearch">' + tag + '</a></td>\n<td style="width:200px;"> <img align="right" title="'+ str(G.degree(tag)) + ' ' + tag + '" src="http://seqdepot.net/api/v1/aseqs/' + bitk.getmd5(seqf_dic[simple_tag]) + '.png" ></td></tr>\n'
 				else:
 					print "Your fullseq file is not up to snuff, please fix it or give up on domain architecture"
 					print "Defective tag is: " + simple_tag
@@ -485,10 +591,9 @@ if '-html' in sys.argv:
 				conn = G.neighbors(tag)
                                 htmp = '<font color="'+ colors_array[j] +'">(</font>'
                                 for k in range(len(query_array)):
-                                	htmp += '<font color="'+ colors_array[k] +'"><a title="' + str(list(set(query_array[k][1]).intersection(conn))) +'">' + str(len(list(set(query_array[k][1]).intersection(conn)))) + '</a></font><font color="'+ colors_array[j] +'">/</font>'
+	                                htmp += '<font color="'+ colors_array[k] +'"><a title="' + str(list(set(query_array[k][1]).intersection(conn))) +'">' + str(len(list(set(query_array[k][1]).intersection(conn)))) + '</a></font><font color="'+ colors_array[j] +'">/</font>'
                                 htmp += '<font color="'+ colors_array[j] +'">)</font>'
-                                hout += '<tr> <td style="width:800px;"> <font color="' + colors_array[j] +'"><b>'+ str(G.degree(tag)) + '</b></font> ' + htmp + ' <a  href="http://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE=Proteins&amp;PROGRAM=blastp&amp;BLAST_PROGRAMS=blastp&amp;QUERY=' + seq_dic[tag] + '&amp;LINK_LOC=protein&amp;PAGE_TYPE=BlastSearch"> ' + tag + '</a></td>\n<td style="width:200px;"> <img align="right"title="'+ str(G.degree(tag)) + ' ' + tag + '" src="http://seqdepot.net/api/v1/aseqs/' + bitk.getmd5(seq_dic[tag]) + '.png" ></td></tr>\n'
-
+                                hout += '<tr> <td style="width:800px;"> <font color="' + colors_array[j] +'"><b>'+ str(G.degree(tag)) + '</b></font> ' + htmp + ' <a name="' + tag + '" href="http://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE=Proteins&amp;PROGRAM=blastp&amp;BLAST_PROGRAMS=blastp&amp;QUERY=' + seq_dic[tag] + '&amp;LINK_LOC=protein&amp;PAGE_TYPE=BlastSearch">' + tag + '</a></td>\n<td style="width:200px;"> <img align="right" title="'+ str(G.degree(tag)) + ' ' + tag + '" src="http://seqdepot.net/api/v1/aseqs/' + bitk.getmd5(seq_dic[tag]) + '.png" ></td></tr>\n'
 		hout += '</table>'
 	hout += 'Job command: ' + ' '.join(sys.argv)
 	hout += '</body>\n</html>'

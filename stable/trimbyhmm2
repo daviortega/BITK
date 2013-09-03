@@ -85,7 +85,7 @@ if '-m' in sys.argv and N != 0:
 		if '-all' in sys.argv and '-'.join(seq.split('-')[:-1]) in new_seq_allopt:
 			output += '>' + seq + '\n' + new_seq_dic[seq] + '\n'
 		elif '-all' not in sys.argv:
-			if seq_list_count_domain.count('-'.join(seq.split('-')[0:2])) == N:
+			if seq_list_count_domain.count('-'.join(seq.split('-')[0:-1])) == N:
 				output += '>' + seq + '\n' + new_seq_dic[seq] + '\n'
 
 

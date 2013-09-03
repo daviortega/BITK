@@ -1,0 +1,44 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 8/30/2013 
+###################################
+import sys
+import bitk
+import json
+
+if '-h' in sys.argv:
+	print 'read che_count.json from mist into something R can read'
+	sys.exit()
+
+datafile = json.load(open(sys.argv[1]))
+
+output = 'Kingdom\tPhyla\tClass\tOrder\tFamily\trefSeqID\tMiST22id\tgenus\tspecies\tstrain\tcomplete\tmcps\tchea\tcheb\tchecx\tched\tcher\tchev\tchez\tchew\n'
+
+che_prot = [ 'mcp', 'chea', 'cheb', 'checx', 'ched' , 'cher', 'chev', 'chez', 'chew'] 
+
+
+for genome in datafile:
+	prots = []
+	for prot in che_prot:
+		try:
+			prots.append(str(genome["stats"][prot]))
+		except KeyError:
+			prots.append(str(0))
+#	print genome["n"] + '\t' + '\t'.join(prots) + '\n'
+	try:
+		strain = genome["str"]
+	except KeyError:
+		strain = ''
+	try:
+		species = genome['sp']
+	except KeyError:
+		species = ''
+	while len(genome["ta"]) <  5:
+		genome["ta"].append('unknown')
+	output += '\t'.join(genome["ta"][0:5]) + '\t' + '\t'.join([ str(genome["uid"]), str(genome["_id"]),genome["g"], species,  strain, str(genome["co"]) ]) + '\t' + '\t'.join(prots) + '\n'
+
+dataout = open(sys.argv[1][:-3] + '.tab', 'w')
+dataout.write(output)
+dataout.close()
+
+
