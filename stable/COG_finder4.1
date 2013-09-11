@@ -130,11 +130,11 @@ if "-skip" not in sys.argv:
 	out_tmp = ""
 	for seq in seq_list:
 		out_tmp += ">" + seq + "\n" + seq_dic[seq] + "\n"
-	outfiletmp = open('align.tmp.fa','w')
+	outfiletmp = open(sys.argv[1][:-3] + '.align.tmp.fa','w')
 	outfiletmp.write(out_tmp)
 	outfiletmp.close()
-	os.system('blastp -db ' + dbname + ' -query align.tmp.fa -out ' + blastname + ' -num_threads 10 -outfmt "6 qseqid sseqid bitscore evalue qlen length" -evalue 0.001 -max_target_seqs 100000' )
-	os.system('rm align.tmp.fa')
+	os.system('blastp -db ' + dbname + ' -query ' + sys.argv[1][:-3] + '.align.tmp.fa -out ' + blastname + ' -num_threads 10 -outfmt "6 qseqid sseqid bitscore evalue qlen length" -evalue 0.001 -max_target_seqs 100000' )
+	os.system('rm ' + sys.argv[1][:-3] + '.align.tmp.fa')
 
 
 #os.system('blastall -p blastp -d ' + dbname + ' -i test.fa -o ' + blastname + ' -e 100000000000 -b 100000000 -m 8')
@@ -421,7 +421,7 @@ for seq_info in query_array:
 colors_array = ['red','blue','green','cyan','magenta','#ff6600', 'yellow','black']
 colors_array = [ '#D73027', '#F46D43', '#FDAE61' , '#FEE090', '#E0F3F8', '#ABD9E9' , '#74ADD1', '#4575B4' ]
 colors_array = [ '#2D5088', '#2D7D88', '#2D8837' , '#7D882D', '#88652D', '#872D7D' , '#74ADD1', '#4575B4' ]
-colors_array = [ '#E41A1C' , '#377EB8' , '#4DAF4A' , '#984EA3' , '#FF7F00' , '#999999' , '#A65628' , '#F781BF' ]
+colors_array = [ '#E41A1C' , '#377EB8' , '#4DAF4A' , '#984EA3' , '#FF7F00' , '#999999' , '#A65628' , '#F781BF', '#17BECF']
 #colors_array = [ '#1B9E77' , '#D95F02' , '#7570B3' , '#E7298A' , '#66A61E' , '#E6AB02' , '#A6761D' , '#666666' ]
 
 if '-pic' in sys.argv or '-plot' in sys.argv:
@@ -446,8 +446,8 @@ if '-pic' in sys.argv or '-plot' in sys.argv:
         nx.draw_networkx_labels(G, new_label_pos, labels = new_labels)
 	plt.axis('off')
 	if '-pic' in sys.argv:
-	        plt.savefig("cluster.png")
-		plt.savefig("cluster.pdf")
+	        plt.savefig(sys.argv[1][:-3] + ".cluster.png")
+		plt.savefig(sys.argv[1][:-3] + ".cluster.pdf")
 #		os.system("convert cluster.png cluster.bmp")
 	if '-plot' in sys.argv:
 		plt.show()
@@ -497,16 +497,15 @@ if '-js' in sys.argv:
 	for n in G.node.keys():
                 G.node[n]['pos'] = [G.node[n]['pos'][0] + shiftX, G.node[n]['pos'][1] + shiftY]
 		if G.node[n]['pos'][0] > Wi + pad or G.node[n]['pos'][0] < 0:
-			print "Mierda!"
+			print "Thre will be nodes out of svg!"
 			print G.node[n]['pos'][0]
-			sys.exit()
 		if G.node[n]['pos'][1] > He + pad or G.node[n]['pos'][0] < 0:
-			print "Mierda!"
+			print "There will be nodes out of svg!"
                         print G.node[n]['pos'][1]
-                        sys.exit()
+                   
 		
 	G_js = json_graph.node_link_data(G)
-	json.dump(G_js, open('cog_finder4v2.json','w'), indent=2)
+	json.dump(G_js, open(sys.argv[1][:-3] + '.json','w'), indent=2)
 	
 	houtjs = """<style>
 
@@ -529,13 +528,13 @@ if '-js' in sys.argv:
 
 var width = 1000,
     height = 750,
-    color = d3.scale.ordinal().domain(d3.range(8)).range([ "#E41A1C" , "#377EB8" , "#4DAF4A" , "#984EA3" , "#FF7F00" , "#999999" , "#A65628" , "#F781BF" ]);
+    color = d3.scale.ordinal().domain(d3.range(8)).range([ "#E41A1C" , "#377EB8" , "#4DAF4A" , "#984EA3" , "#FF7F00" , "#999999" , "#A65628" , "#F781BF", "#17BECF" ]);
 
 var svg = d3.select("body").append("svg")
     .attr("width", width)
     .attr("height", height);
 
-d3.json("cog_finder4v2.json", function(error, graph) {
+d3.json('""" + sys.argv[1][:-3] + """.json', function(error, graph) {
 
   graph.links.forEach(function(d) {
     d.source = graph.nodes[d.source];
@@ -625,26 +624,21 @@ if '-html' in sys.argv:
 		hout += '</table>'
 	hout += 'Job command: ' + ' '.join(sys.argv)
 	hout += '</body>\n</html>'
-	dataout = open('index.html','w')
+	dataout = open(sys.argv[1][:-3] + '.html','w')
 	dataout.write(hout)
 	dataout.close()
 
 if '-cog_output' in sys.argv:
-	for files in list_of_files:
-		query = files
-		output = ''
-		cog = 1
-		for g in groups:
-			output += 'COG ' + str(cog) + '\n'
-			output += '\n'.join(g) + '\n'
-			output += '\n'
-			cog += 1
-		dataout = open(query[:-3] + '.cog.dat', 'w')
-		dataout.write(output)
-		dataout.close()
-
-
-
+	output =''
+	cog = 1
+	for g in groups:
+		output += 'COG ' + str(cog) + '\n'
+		output += '\n'.join(g) + '\n'
+		output += '\n'
+		cog += 1
+	dataout = open(sys.argv[1][:-3] + '.cog.dat', 'w')
+	dataout.write(output)
+	dataout.close()
 
 print 'Done'
 	

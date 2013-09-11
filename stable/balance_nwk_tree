@@ -1,0 +1,19 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 9/4/2013 
+###################################
+import ete2
+import sys
+if '-h' in sys.argv:
+	print 'Balance nwk tree using ete2 python module. Input yourtree.nwk and output yourtree.bal.nwk'
+	sys.exit()
+
+T = ete2.Tree(sys.argv[1])
+
+mp = T.get_midpoint_outgroup()
+
+T.set_outgroup(mp)
+
+treeout = open(sys.argv[1][:-4] + '.bal.nwk', 'w')
+treeout.write(T.write())
+treeout.close()

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 import sys
-from bitk import *
+import bitk
 
 if '-h' in sys.argv:
 	print 'Sort an alignment (CLUSTAW format) according with a tree in nwk format\n\n\
@@ -14,11 +14,11 @@ seq = sys.argv[1]
 tree = sys.argv[2]
 
 if '-name' in sys.argv:
-	seq_dic = alnreader(seq,just_name = 'Yes')
-	tree_list = nwkreader2(tree, 'Yes')
+	seq_dic, seq_list = bitk.fastareader(seq,just_name = 'Yes')
+	tree_list = bitk.nwkreader(tree, 'Yes')
 else:
-	seq_dic = alnreader(seq)
-	tree_list = nwkreader2(tree)
+	seq_dic, seq_list = bitk.fastareader(seq)
+	tree_list = bitk.nwkreader(tree)
 
 
 output = ''
@@ -30,7 +30,7 @@ for name in tree_list:
 
 #print seq_dic.keys()
 
-outfile = open( seq[:-3] + 'sorted.fa', 'w')
+outfile = open( seq[:-3] + '.sorted.fa', 'w')
 outfile.write(output)
 outfile.close()
 
