@@ -65,3 +65,17 @@ ggplot(chemo.df, aes( as.factor(COGs), as.factor(variable), fill = as.factor(cog
         scale_fill_manual(values = c("white","black"), name = "")
 
 #ggplot(chemo.df[chemo.df\$COGs < 15,], aes( as.factor(variable), as.factor(COGs), fill = as.factor(value))) + geom_tile(colour = "black") + facet_grid( ~ prot ) + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + coord_flip() + scale_fill_brewer(palette="Set2", name = "Number of\\n orthologs")
+DELIM
+
+echo "Running R"
+R CMD BATCH ./temp.R
+
+
+if [ "$2" == '-p' ]; then
+	echo "Pubshing at $3"
+        plubd=$3
+	mkdir $plubd/$prjt_nm/
+	cp ../COGs/*json ../COGs/*html ../COGs/*bal.nwk ./*pdf $plubd/$prjt_nm/
+fi
+
+
