@@ -78,7 +78,7 @@ echo "Running $cogfinder on Adaptor\n$cogfinder adap.latest.s.$prjt_nm.hmmtrim.f
 $cogfinder adap.latest.s.$prjt_nm.hmmtrim.fa chew.latest.s.$prjt_nm.hmmtrim.fa chev.latest.s.class.$prjt_nm.hmmtrim.fa -pic -html -js -cog_output -fullseq adap.latest.s.$prjt_nm.fa -Ec 10E-30 &
 
 
-cat ../$prjt_nm.log << DELIM
+cat > $cwd/$prjt_nm/$prjt_nm.log << DELIM
 	Notice that before running the next step, you need to make sure that the data produced is suitable to your purpose.
         Ther are two parts that should be double checked right now. 1) COG_finder4.1 results and the tree.
         ************************************************************************************************

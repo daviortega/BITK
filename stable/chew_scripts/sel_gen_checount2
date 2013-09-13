@@ -8,7 +8,7 @@ import sys
 if '-h' in sys.argv:
 	print 'select the genomes (by mist_id) that contains the specific number of che sequences\n Sintax: sel_gen_checount2 table.dat  -t taxonomic_group -r complete mcps    chea    cheb     checx    ched   cher    chev    chez    chew   adap=(cheW + CheV)'
 	print """
-complete chea    chew    mcp     cheb    checx   ched    cher    chev    chez    adap=(chew + chev)
+complete mcps  chea    cheb    checx   ched    cher    chev    chez    chew    adap=(chew + chev)
  True for complete genomes, False for drafts and A for any
  use N+ for N and larger than N
  use N- for N and less than N
