@@ -1,0 +1,30 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 9/24/2013 
+###################################
+import bitk3
+import sys
+if '-h' in sys.argv:
+	print 'Input a MSA (in fasta) and it will output the PCA coordinates for each sequence'
+	sys.exit()
+
+MSA = bitk3.read_seq(sys.argv[1])
+res = bitk3.p_sector5(MSA)
+
+output = '\t' + '\t'.join( ["PCA" + str(i+1) for i in range(MSA.num)]) + '\n'
+
+for i in range(MSA.num):
+	try:
+		output += MSA.tag[i] + "\t" + "\t".join([ "%.4f" %(j) for j in res[1][i,:]]) + '\n'
+	except IndexError:
+		print "Something went wrong on your SCA. I cannot access the coordinates for: " + MSA.tag[i] 
+		sys.exit()
+#	output += MSA.tag[i] + "\t%.3f\t%.3f\t%.3f\n" %(res[1][i,[0,1,2]][0], res[1][i,[0,1,2]][1], res[1][i,[0,1,2]][2]) 
+#CP.tag[1] + "\t" + "\t".join([ "%.4f" %(i) for i in res[1][2,:3]])
+
+dataout = open(sys.argv[1][:-3] + '.psector5_seq.dat' ,'w')
+dataout.write(output)
+dataout.close()
+
+print "import on R with: D <- read.table('" + sys.argv[1][:-3] + ".psector5_seq.dat', header = T)"
+

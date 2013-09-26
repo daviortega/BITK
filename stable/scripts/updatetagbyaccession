@@ -1,0 +1,38 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 7/8/2012 
+###################################
+import bitk
+import sys
+if '-h' in sys.argv:
+	print 'Transfer MSA from MIST/NCBI tags with accession numbers to Davi standard.\nSintax: updatetag old_fastafile.fa new_fastafile.fa \n'
+	sys.exit()
+
+print "Reading files... please wait"
+seq_dic_old, seq_list_old = bitk.fastareader(sys.argv[1])
+seq_dic_new, seq_list_new = bitk.fastareader(sys.argv[2])
+print "done"
+in_list = []
+out_list = []
+
+
+out_in = ''
+
+for tag_old in seq_list_old:
+	tags = dict({ i.split(':')[0] : i.split(':')[1] for i in tag_old.replace('>','').split('|') })
+	for tag in seq_list_new:
+		if tag.split('-')[2] == tags['accession']:
+			out_in += '>' + tag + '\n' + seq_dic_new[tag] + '\n'
+			print "Found: " + tag
+			in_list.append(tag_old)
+			break
+	if tag_old not in in_list:
+		print "Could not find the accesion number: " + tags['accession']
+		out_list.append(tag_old)
+
+
+outfile = open(sys.argv[2][:-3] + '.updated.fa', 'w')
+outfile.write(out_in)
+outfile.close()
+
+print "There were %d sequences not found" % len(out_list)

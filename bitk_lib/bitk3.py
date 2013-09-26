@@ -415,6 +415,9 @@ def p_sector5(MSA=[], C = 'seq', klist = [0,1,2,3], Niter = 20000, r = 0.0001):
 	print "top 10 eigenvalues"
 	print lbdsort[:10]
 	
+	print "Variance of top 10 eigenvalues"
+	print lbdsort[:10]/sum(lbdsort)
+	
 	print "Calculating Independent Component Analysis"
 	W , c = ICA(evsort, klist, Niter, r)
 	

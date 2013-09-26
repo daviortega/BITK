@@ -39,7 +39,7 @@ echo "Loading the COG info on R and performing some reshaping"
 
 cat > ./temp.R << DELIM
 library(ggplot2)
-library(reshape)
+library(reshape2)
 adap <- read.table("$prjt_nm.sorted.adap.cogperorg.dat", sep='\\t', head=T)
 mcps <- read.table("$prjt_nm.sorted.mcp.cogperorg.dat", sep='\\t', head=T)
 #o <- length(adap[,1]) - colSums(adap == 0)
@@ -56,6 +56,7 @@ adap.df\$prot <- c("adap")
 chemo.df <- rbind(adap.df, mcps.df)
 chemo.df\$cogpres <- ifelse(chemo.df\$value != 0 , 1, 0)
 #for ( bug in unique(chemo.df\$variable)) { for (p in unique(chemo.df\$prot)) {chemo.df[chemo.df\$variable == bug & chemo.df\$prot== p,]\$Noc <- c(sum(chemo.df[chemo.df\$variable == bug & chemo.df\$prot == p,]\$cogpres))}}
+
 pdf("$prjt_nm.pdf")
 
 ggplot(chemo.df, aes( as.factor(COGs), as.factor(variable), fill = as.factor(cogpres))) +
