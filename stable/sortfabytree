@@ -20,6 +20,8 @@ else:
 	seq_dic, seq_list = bitk.fastareader(seq)
 	tree_list = bitk.nwkreader(tree)
 
+print len(tree_list)
+print len(seq_list)
 
 output = ''
 for name in tree_list:

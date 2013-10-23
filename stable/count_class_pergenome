@@ -1,0 +1,51 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 10/3/2013 
+###################################
+import sys
+import bitk
+import numpy
+if '-h' in sys.argv:
+	print 'count_class_pergenomes will tell the statistics of the distribution of the number of classes\n count_class_pergenome mistid.list mcp.fa\n\n-mcp for mcps classes'
+	sys.exit()
+
+if '-mcp' in sys.argv:
+	N = 4
+else:
+	N = 3
+
+
+genomes = []
+gen_data = open(sys.argv[1],'r')
+for line in gen_data:
+	genomes.append(line.replace('\n',''))
+
+seq_dic, seq_list = bitk.fastareader(sys.argv[2])
+
+clapergen = []
+Uncat = 0
+cla1 = 0
+
+for gen in genomes:
+	classes = []
+	for tag in seq_list:
+		if tag.split('-')[0].split('.')[-1] == gen:
+			if tag.split('-')[N] not in classes:
+				classes.append(tag.split('-')[N])
+				if 'Uncat' == tag.split('-')[N]:
+					Uncat += 1
+		
+#			print tag + '\t' + str(classes)
+	classes.sort()
+	clapergen.append(len(classes))
+	if len(classes) == 1:
+		cla1 += 1
+	if len(classes) > 0:
+		print gen + '\t' + str(classes)
+
+
+clapergen = numpy.array(clapergen)
+print 'Average number of classes per genomes: ' + str(numpy.mean(clapergen)) + ' +- ' + str(numpy.std(clapergen))
+print 'Genomes with Uncat MCPs ' + str(Uncat) + '/' + str(len(genomes)) + ' = ' + str(100*Uncat/float(len(genomes))) + '%'
+print 'Genomes with only 1 MCP class ' + str(cla1) + '/' + str(len(genomes)) + ' = ' + str(100*cla1/float(len(genomes))) + '%'
+

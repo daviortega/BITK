@@ -24,7 +24,6 @@ echo "Copying necessary files"
 cp ./$prjt_nm/COGs/*cog.dat ./$prjt_nm/COGs/*bal.nwk ./$prjt_nm/COGs/chea.latest.s.class.$prjt_nm.linsi.fa ./$prjt_nm/merge
 echo "changing directory"
 cd ./$prjt_nm/merge
-rm *pdf
 echo "Sorting the org_id list by the tree"
 sortfabytree chea.latest.s.class.$prjt_nm.linsi.fa chea.latest.s.class.$prjt_nm.linsi.phy_phyml_tree.rec.bal.nwk
 echo "Saving list"
@@ -35,6 +34,9 @@ COGperorgid $prjt_nm.sorted.list mcp.latest.s.class.$prjt_nm.cog.dat
 mv $prjt_nm.sorted.cogperorg.dat $prjt_nm.sorted.mcp.cogperorg.dat
 COGperorgid $prjt_nm.sorted.list adap.latest.s.$prjt_nm.hmmtrim.cog.dat
 mv $prjt_nm.sorted.cogperorg.dat $prjt_nm.sorted.adap.cogperorg.dat
+COGperorgid $prjt_nm.sorted.list chea.latest.s.class.$prjt_nm.cog.dat
+mv $prjt_nm.sorted.cogperorg.dat $prjt_nm.sorted.chea.cogperorg.dat
+
 
 echo "Loading the COG info on R and performing some reshaping"
 
@@ -42,7 +44,11 @@ cat > ./temp.R << DELIM
 library(ggplot2)
 library(reshape2)
 adap <- read.table("$prjt_nm.sorted.adap.cogperorg.dat", sep='\\t', head=T)
+adap\$X <- NULL
 mcps <- read.table("$prjt_nm.sorted.mcp.cogperorg.dat", sep='\\t', head=T)
+mcps\$X <- NULL
+chea <- read.table("$prjt_nm.sorted.chea.cogperorg.dat", sep='\\t', head=T)
+chea\$X <- NULL
 #o <- length(adap[,1]) - colSums(adap == 0)
 #o <- length(mcps[,1]) - colSums(mcps == 0)
 
@@ -51,14 +57,17 @@ mcps <- read.table("$prjt_nm.sorted.mcp.cogperorg.dat", sep='\\t', head=T)
 
 adap.df <- melt(adap, id.vars = "COGs")
 mcps.df <- melt(mcps, id.vars = "COGs")
+chea.df <- melt(chea, id.vars = "COGs")
 mcps.df\$prot <- c("mcps")
 adap.df\$prot <- c("adap")
+chea.df\$prot <- c("chea")
 
-chemo.df <- rbind(adap.df, mcps.df)
-chemo.df\$cogpres <- ifelse(chemo.df\$value != 0 , 1, 0)
+chemo.ai.df <- rbind(chea.df, adap.df, mcps.df)
+chemo.df <- chemo.ai.df
+chemo.df\$cogpres <- ifelse(chemo.ai.df\$value != 0 , 1, 0)
 #for ( bug in unique(chemo.df\$variable)) { for (p in unique(chemo.df\$prot)) {chemo.df[chemo.df\$variable == bug & chemo.df\$prot== p,]\$Noc <- c(sum(chemo.df[chemo.df\$variable == bug & chemo.df\$prot == p,]\$cogpres))}}
 
-pdf("$prjt_nm.pdf")
+pdf("$prjt_nm.presence.pdf")
 
 ggplot(chemo.df, aes( as.factor(COGs), as.factor(variable), fill = as.factor(cogpres))) +
         facet_grid( ~ prot, scale = "free", space = "free" ) +
@@ -66,6 +75,18 @@ ggplot(chemo.df, aes( as.factor(COGs), as.factor(variable), fill = as.factor(cog
         theme(axis.title.y = element_blank(), legend.position = "none", axis.title.x = element_blank(), axis.ticks.y = element_blank()) +
         scale_fill_manual(values = c("white","black"), name = "")
 
+dev.off()
+
+max_prot <- max(chemo.ai.df\$value, na.rm = T) + 1
+color_scale <- colorRampPalette(c("white","black","blue", "red"), space = "rgb")
+
+pdf("$prjt_nm.color.pdf")
+ggplot(chemo.ai.df, aes( as.factor(COGs), as.factor(variable), fill = as.factor(value))) +
+        facet_grid( ~ prot, scale = "free", space = "free" ) +
+        geom_tile(colour = "white") +
+        theme(axis.title.y = element_blank(), legend.position = "bottom", axis.title.x = element_blank(), axis.ticks.y = element_blank()) +
+	scale_fill_manual(values = color_scale(max_prot), name = "")
+        
 dev.off()
 
 pdf("$prjt_nm.clean.pdf")
@@ -80,17 +101,19 @@ ggplot(chemo.df.clean, aes( as.factor(COGs), as.factor(variable), fill = as.fact
 
 dev.off()
 
-max_prot <- max(chemo.df.clean\$value, na.rm = T) + 1
+chemo.ai.df.clean <- chemo.ai.df[chemo.df\$COGs< 31,]
+max_prot <- max(chemo.ai.df.clean\$value, na.rm = T) + 1
 color_scale <- colorRampPalette(c("white","black","blue", "red"), space = "rgb")
 
-pdf("$prjt_nm.color.pdf")
-ggplot(chemo.df.clean, aes( as.factor(COGs), as.factor(variable), fill = as.factor(value))) +
+pdf("$prjt_nm.color.clean.pdf")
+ggplot(chemo.ai.df.clean, aes( as.factor(COGs), as.factor(variable), fill = as.factor(value))) +
         facet_grid( ~ prot, scale = "free", space = "free" ) +
         geom_tile(colour = "white") +
         theme(axis.title.y = element_blank(), legend.position = "bottom", axis.title.x = element_blank(), axis.ticks.y = element_blank()) +
         scale_fill_manual(values = color_scale(max_prot), name = "")
 
 dev.off()
+
 
 
 

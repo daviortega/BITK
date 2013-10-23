@@ -8,7 +8,7 @@ import sys
 import time
 import os
 if '-h' in sys.argv:
-	print 'Reads the data in N dimension and calculate its PCA in 3D'
+	print 'Reads the data in N dimension and calculate its PCA in 3D.\nOptions:\t-e export coord matrix\n\t-c clean output'
 	sys.exit()
 
 start = time.time()
@@ -48,10 +48,13 @@ for name in names:
 		frame = 0
         for val in line:
                 output = output + str(val) + ' , '
-		if line[0] == val:
-			out += str(val).replace('(','').replace('+0j)','') + '\t'*(tabs*(len(line))+1)
-		else:
+		if '-c' in sys.argv:
 			out += str(val).replace('(','').replace('+0j)','') + '\t'
+		else:
+			if line[0] == val:
+				out += str(val).replace('(','').replace('+0j)','') + '\t'*(tabs*(len(line))+1)
+			else:
+				out += str(val).replace('(','').replace('+0j)','') + '\t'
 	
         output = output + '}\n'
 	out += str(frame) + '\n'

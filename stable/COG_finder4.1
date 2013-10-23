@@ -45,13 +45,22 @@ EvP = 10E-100
 Qth = 0.0
 Ec = 1
 
+if '-EvP' in sys.argv:
+        try:
+                EvP = float(sys.argv[sys.argv.index('-EvP')+1])
+        except:
+                print('Number must be passed after -EvP flag. Ex: 10E-100')
+                sys.exit()
+
+
 if '-Ec' in sys.argv:
         try:
                 Ec = float(sys.argv[sys.argv.index('-Ec')+1])
         except:
                 print('Number must be passed after -Ecutoff flag. Ex: 10E-50')
                 sys.exit()
-print Ec
+	if '-EvP' not in sys.argv:
+		EvP = Ec
 
 if '-qcov_cutoff' in sys.argv:
 	Qth = float(sys.argv[sys.argv.index('-qcov_cutoff') + 1])
@@ -421,7 +430,7 @@ for seq_info in query_array:
 colors_array = ['red','blue','green','cyan','magenta','#ff6600', 'yellow','black']
 colors_array = [ '#D73027', '#F46D43', '#FDAE61' , '#FEE090', '#E0F3F8', '#ABD9E9' , '#74ADD1', '#4575B4' ]
 colors_array = [ '#2D5088', '#2D7D88', '#2D8837' , '#7D882D', '#88652D', '#872D7D' , '#74ADD1', '#4575B4' ]
-colors_array = [ '#E41A1C' , '#377EB8' , '#4DAF4A' , '#984EA3' , '#FF7F00' , '#999999' , '#A65628' , '#F781BF', '#17BECF']
+colors_array = [ '#E41A1C' , '#377EB8' , '#4DAF4A' , '#984EA3' , '#FF7F00' , '#999999' , '#A65628' , '#F781BF', '#17BECF', '#2D5088', '#2D7D88']
 #colors_array = [ '#1B9E77' , '#D95F02' , '#7570B3' , '#E7298A' , '#66A61E' , '#E6AB02' , '#A6761D' , '#666666' ]
 
 if '-pic' in sys.argv or '-plot' in sys.argv:
@@ -528,7 +537,7 @@ if '-js' in sys.argv:
 
 var width = 1000,
     height = 750,
-    color = d3.scale.ordinal().domain(d3.range(8)).range([ "#E41A1C" , "#377EB8" , "#4DAF4A" , "#984EA3" , "#FF7F00" , "#999999" , "#A65628" , "#F781BF", "#17BECF" ]);
+    color = d3.scale.ordinal().domain(d3.range(""" + str(len(colors_array)) + """)).range([ """ + ", ".join( [ '"' + i + '"' for i in colors_array ]) + """]);
 
 var svg = d3.select("body").append("svg")
     .attr("width", width)

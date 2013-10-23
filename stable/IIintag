@@ -31,7 +31,10 @@ else:
 	info = sys.argv[3]
 	for tag in seq_list:
 		if '-subst' not in sys.argv:
-			new_tag = '-'.join(tag.split('-')[:N]) + '-' + info + '-' + '-'.join(tag.split('-')[N:])
+			if N != 0:
+				new_tag = '-'.join(tag.split('-')[:N]) + '-' + info + '-' + '-'.join(tag.split('-')[N:])
+			else:
+				new_tag = tag + '-' + info
 		else:
 			new_tag = '-'.join(tag.split('-')[:N-1]) + '-' + info + '-' + '-'.join(tag.split('-')[N:])
 		if new_tag[-1] == '-':
