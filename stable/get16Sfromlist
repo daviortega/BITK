@@ -1,0 +1,33 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 11/6/2013 
+###################################
+import sys
+import bitk
+if '-h' in sys.argv:
+	print 'get16sfromlist organismid.list 16s.XXX.json.fa'
+	sys.exit()
+
+f = open(sys.argv[1],'r')
+
+ge_ids = []
+
+for line in f:
+    ge_ids.append(line.replace('\n',''))
+
+f.close()
+
+seq_dic, seq_list = bitk.fastareader(sys.argv[2],'r')
+
+seq_N = len(ge_ids)
+
+output = ''
+
+for ge in seq_list:
+    if ge.split('|')[0] in ge_ids:
+        output += '>' + ge + '\n' + seq_dic[ge] + '\n'
+
+f = open(sys.argv[1][:-5] + '.16S.fa', 'w')
+f.write(output)
+f.close()
+

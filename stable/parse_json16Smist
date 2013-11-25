@@ -1,0 +1,66 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 11/6/2013 
+###################################
+import json
+import sys
+import random
+import numpy
+if '-h' in sys.argv:
+    print 'parse_json16Smist 16s.XXX.json \n get16sfromlist organismid.list 16s.XXX.json \nOption: -allfrom NNNN  \tGet all r16S sequences from NNNN mistid'
+    sys.exit()
+
+
+f = open(sys.argv[1],'r')
+
+data_dic = {}
+genomes = []
+
+
+if '-allfrom' in sys.argv:
+    orgid = str(sys.argv[sys.argv.index('-allfrom')+1])
+    N = 1
+    output = ''
+    for line in f:
+        data = json.loads(line)
+        if str(data['genome']['_id']) == orgid:
+            tag = str(data['genome']['_id']) + '|' + data['genome']['n']
+            output += '>' + tag + '-' + str(N) + '\n' + data['gseq']['s'] + '\n'
+            N += 1
+    f.close()
+
+    f = open(sys.argv[1] + '.allfrom' + orgid + '.fa', 'w')
+    f.write(output)
+    f.close()
+    sys.exit()
+else:
+    for line in f:
+        data = json.loads(line)
+        tag = str(data['genome']['_id']) + '|' + data['genome']['n']
+        if len(data['gseq']['s']) > 750:
+            if tag not in data_dic.keys():
+	        genomes.append(tag)
+                data_dic[tag] = []
+            data_dic[tag].append(data['gseq']['s'])
+
+f.close()
+
+output = ''
+
+for tag in genomes:
+#   output += '>' + tag + '\n' + random.choice(data_dic[tag]) + '\n'
+    L_array = numpy.array([len(s) for s in data_dic[tag]])
+    M = numpy.mean(L_array)
+    choice = 0
+    for i in range(1,len(L_array)):
+        if abs(L_array[i] - M) < abs(L_array[choice] - M):
+            choice = i
+    output += '>' + tag + '\n' + data_dic[tag][choice] + '\n'
+
+f = open(sys.argv[1] + '.fa', 'w')
+f.write(output)
+f.close()
+
+
+	
+

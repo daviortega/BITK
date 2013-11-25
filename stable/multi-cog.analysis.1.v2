@@ -4,7 +4,7 @@ cwd=$(pwd)
 
 #configuration
 mistd="/home/ortega/MIST2.2"
-cogfinder="COG_finder4.1"
+cogfinder="COG_finder4.2"
 chew_pfam="~/SparkleShare/zlabFS/ortega/pfammodels/pfam/PF01584.hmm"
 NP_linsi=20
 phyml_flags="-q -d aa -m JTT -c 4 -a e -s SPR --no_memory_check"
@@ -24,25 +24,31 @@ echo "Changing directories"
 cd $cwd/$prjt_nm/COGs
 
 echo "Making the MCP CheA and adaptors (CheV+CheW) datasets: (This will take a while)"
+ln -s $mistd/fasta/latest/chea.latest.s.class.fa ./
+ln -s $mistd/fasta/latest/mcp.latest.s.class.fa ./
+ln -s $mistd/fasta/latest/chev.latest.s.class.fa ./
+ln -s $mistd/fasta/latest/chew.latest.s.fa ./
+
 
 echo "	CheA: keepbyorganismid ../$1 $mistd/fasta/latest/chea.latest.s.class.fa &"
-keepbyorganismid ../$1 $mistd/fasta/latest/chea.latest.s.class.fa &
+#keepbyorganismid ../$1 $mistd/fasta/latest/chea.latest.s.class.fa &
+keepbyorganismid ../$1 chea.latest.s.class.fa &
 
 echo "	MCPs: keepbyorganismid ../$1 $mistd/fasta/latest/mcp.latest.s.class.fa &"
-keepbyorganismid ../$1 $mistd/fasta/latest/mcp.latest.s.class.fa &
-
+#keepbyorganismid ../$1 $mistd/fasta/latest/mcp.latest.s.class.fa &
+keepbyorganismid ../$1 mcp.latest.s.class.fa &
 echo "	CheV: keepbyorganismid ../$1 $mistd/fasta/latest/chev.latest.s.class.fa &"
-keepbyorganismid ../$1 $mistd/fasta/latest/chev.latest.s.class.fa &
-
+#keepbyorganismid ../$1 $mistd/fasta/latest/chev.latest.s.class.fa &
+keepbyorganismid ../$1 chev.latest.s.class.fa &
 echo "	CheW: keepbyorganismid ../$1 $mistd/fasta/latest/chew.latest.s.fa &"
-keepbyorganismid ../$1 $mistd/fasta/latest/chew.latest.s.fa &
-
+#keepbyorganismid ../$1 $mistd/fasta/latest/chew.latest.s.fa &
+keepbyorganismid ../$1 chew.latest.s.fa &
 wait
 
-mv $mistd/fasta/latest/chea.latest.s.class.new.fa chea.latest.s.class.$prjt_nm.fa
-mv $mistd/fasta/latest/mcp.latest.s.class.new.fa mcp.latest.s.class.$prjt_nm.fa
-mv $mistd/fasta/latest/chev.latest.s.class.new.fa chev.latest.s.class.$prjt_nm.fa
-mv $mistd/fasta/latest/chew.latest.s.new.fa chew.latest.s.$prjt_nm.fa
+mv chea.latest.s.class.new.fa chea.latest.s.class.$prjt_nm.fa
+mv mcp.latest.s.class.new.fa mcp.latest.s.class.$prjt_nm.fa
+mv chev.latest.s.class.new.fa chev.latest.s.class.$prjt_nm.fa
+mv chew.latest.s.new.fa chew.latest.s.$prjt_nm.fa
 
 echo "Running $cogfinder on MCPs first on background while preparing other files"
 echo "$cogfinder mcp.latest.s.class.$prjt_nm.fa mcp.latest.s.class.$prjt_nm.fa -pic -html -js -cog_output -qcov_cutoff 0.9 -Ec 10E-90 &"
@@ -119,7 +125,7 @@ echo "Final remarks"
 echo "Relocate tags to the tree: rectaxontree2 chea.latest.s.class.$prjt_nm.linsi.phy_phyml_tree.txt"
 rectaxontree2 chea.latest.s.class.$prjt_nm.linsi.phy_phyml_tree.txt;
 echo "Renaming it to nwk: mv chea.latest.s.class.$prjt_nm.linsi.phy_phyml_tree.rec.txt chea.latest.s.class.$prjt_nm.linsi.phy_phyml_tree.rec.nwk"
-mv chea.latest.s.class.$prjt_nm.linsi.phy_phyml_tree.rec.txt chea.latest.s.class.$prjt_nm.linsi.phy_phyml_tree.rec.nwk 
+#mv chea.latest.s.class.$prjt_nm.linsi.phy_phyml_tree.rec.txt chea.latest.s.class.$prjt_nm.linsi.phy_phyml_tree.rec.nwk 
 echo "Balancing the tree: balance_nwk_tree chea.latest.s.class.$prjt_nm.linsi.phy_phyml_tree.rec.nwk"
 balance_nwk_tree chea.latest.s.class.$prjt_nm.linsi.phy_phyml_tree.rec.nwk
 

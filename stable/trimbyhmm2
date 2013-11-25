@@ -5,6 +5,7 @@
 import bitk
 import os
 import sys
+import difflib
 if '-h' in sys.argv:
 	print 'Trim sequences by hmmer hit coordinates: trimbyhmm pfam_model.hmm fastafile.fa [options]\n \
 	Options\n \t -m N for protein with multiple hits. N is the number of domains the protein needs to have to be selected. \n\t\t 0 allows for multiple domains. It will split the sequence in new entries for each domain and add numbers at the end of the tag\n \t -all (to be used with -m N where N != 0 or 1) brings all domains separately only from proteins with N hits\n\t --fullsequence Option forcing no trimm. It basically serves to select sequences with certain number of non-overlapping hits if used with -m option (do not use it... it is beta...) '
@@ -63,6 +64,12 @@ for line in datafile:
 								del(new_seq_dic[name + '-' + str(DN - 1)])
 							new_seq_dic[name + '-' + str(DN)] =  seq_dic[name]
 						else:
+#							print name
+#							for tags in seq_list:
+#								if tags.split('-')[0] == name.split('-')[0]:
+#									print tags		
+#									print '\n'.join(difflib.ndiff([name], [tags.replace(' ','')]))
+#							print seq_dic[name]
 							new_seq_dic[name + '-' + str(DN)] =  seq_dic[name][start:end]
 						new_seq_list.append(name + '-' + str(DN))
 						DN += 1

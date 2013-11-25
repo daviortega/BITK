@@ -12,6 +12,13 @@ seq_dic, seq_list = bitk.fastareader(sys.argv[1])
 filename = sys.argv[1][:-3]
 #print seq_dic
 
+for tag in seq_list:
+	if len(tag) > 30:
+		change = 1
+		break
+	else:
+		change = 0
+
 
 output = ''
 seq_count = 0
@@ -26,11 +33,15 @@ for k, v in seq_dic.iteritems():
 		#print k
 		#kp = k.replace('_','')
 		#print kp
-		dic = dic + 'XX' + str(seq_count) + 'XX' + ';' + k + '\n'
-		#print '\n'
-		output = output + 'XX' + str(seq_count) + 'XX' + ' ' * (30 - len(str(seq_count))) + v + '\n'
-		seq_count = seq_count + 1
-		size = len(v)
+		if len(v) != v.count('-'):
+			if change == 1:
+				dic = dic + 'XX' + str(seq_count) + 'XX' + ';' + k + '\n'
+				#print '\n'
+				output = output + 'XX' + str(seq_count) + 'XX' + ' ' * (30 - len(str(seq_count))) + v + '\n'
+			else:
+				output += k + ' ' * (30 - len(str(seq_count))) + v + '\n'
+			seq_count = seq_count + 1
+			size = len(v)
 
 output = '    ' + str(seq_count) + '     ' + str(size) + '\n' + output
 

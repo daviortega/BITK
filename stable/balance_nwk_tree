@@ -14,6 +14,8 @@ mp = T.get_midpoint_outgroup()
 
 T.set_outgroup(mp)
 
+T.ladderize()
+
 treeout = open(sys.argv[1][:-4] + '.bal.nwk', 'w')
 treeout.write(T.write())
 treeout.close()

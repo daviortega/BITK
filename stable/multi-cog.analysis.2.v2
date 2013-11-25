@@ -127,7 +127,7 @@ R CMD BATCH ./temp.R
 if [ "$2" == '-p' ]; then
 	echo "Pubshing at $3"
         plubd=$3
-	mkdir $plubd/$prjt_nm/
+	mkdir -p $plubd/$prjt_nm/
 	cp ../COGs/*json ../COGs/*html ../COGs/*bal.nwk ./*pdf $plubd/$prjt_nm/
 fi
 

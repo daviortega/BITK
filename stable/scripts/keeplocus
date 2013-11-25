@@ -28,7 +28,7 @@ found_list = []
 output = ''
 for seq in seq_list:
 	seq = seq.replace('/','-')
-	locus = seq.split('-')[1]
+	locus = '-'.join(seq.split('-')[:2])
 	#organism = seq.split('-')[0] + '-' + seq.split('-')[1]
 	if locus in list_locus:
 		output += '>' + seq + '\n' + seq_dic[seq] + '\n'

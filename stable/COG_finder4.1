@@ -32,12 +32,15 @@ if '-h' in sys.argv:
 		 -html outputs html with \n \
 		 -intercluster Meaningful intercluster distances\n \
 		 -pic outputs a pic of the clustering\n \
+		 -ft N  Changes the font of the COG labels in the pdf pic\n \
 		 -cog_output outputs a txt version of grouping. One line per cog and tags separated by " ; "  \n \
-		 -EvT N    Threshould for picking up distant paralogs in other species. N must be a number: default 10E-50\n \
-		 -EvP N    Threshould for picking up distant paralog in the same species. N must eb a number: default 10E-100\n \
+                 -fullseq seq.fa Fasta format file with full sequences to be used to fetch domain arch from SeqSepot\n \
+                 -js       Export json formated nodes and edges to be used in javascripts\n \
+		THRESHOLDS ----------------------------------------------------------- \n \
+		 -EvT N    Threshould for picking up distant paralogs in other species. N must be a number: default 10E-500\n \
+		 -EvP N    Threshould for picking up distant paralog in the same species. N must eb a number: default 10E-500\n \
 		 -Ec  N    Maximum Evalue to consider hit: default 1\n \
-		 -fullseq seq.fa Fasta format file with full sequences to be used to fetch domain arch from SeqSepot\n \
-		 -js	   Export json formated nodes and edges to be used in javascripts\n'
+                 -qcov_cutoff N         Query coverage cutoff to be considered for grouping.\n'
 	sys.exit()
 
 EvT = 10E-50
@@ -73,12 +76,14 @@ if '-EvT' in sys.argv:
                 print('Number must be passed after -EvT flag. Ex: 10E-50')
 		sys.exit()
 
-if '-EvP' in sys.argv:
+if '-ft' in sys.argv:
         try:
-                EvP = float(sys.argv[sys.argv.index('-EvP')+1])
+                ft = int(sys.argv[sys.argv.index('-ft')+1])
         except:
-                print('Number must be passed after -EvP flag. Ex: 10E-100')
-                sys.exit()
+                print('Integer must be passed after -ft flag. Ex: 10')
+else:
+        ft = 10
+
 
 
 #np = sys.argv[2]
@@ -431,6 +436,7 @@ colors_array = ['red','blue','green','cyan','magenta','#ff6600', 'yellow','black
 colors_array = [ '#D73027', '#F46D43', '#FDAE61' , '#FEE090', '#E0F3F8', '#ABD9E9' , '#74ADD1', '#4575B4' ]
 colors_array = [ '#2D5088', '#2D7D88', '#2D8837' , '#7D882D', '#88652D', '#872D7D' , '#74ADD1', '#4575B4' ]
 colors_array = [ '#E41A1C' , '#377EB8' , '#4DAF4A' , '#984EA3' , '#FF7F00' , '#999999' , '#A65628' , '#F781BF', '#17BECF', '#2D5088', '#2D7D88']
+colors_array = [ '#E41A1C' , '#377EB8' , '#4DAF4A' , '#984EA3' , '#FF7F00' , '#999999' , '#A65628' , '#F781BF', '#17BECF', "#8DD3C7", "#BEBADA", "#FB8072", "#80B1D3", "#B3DE69", "#FCCDE5", "#D9D9D9", "#BC80BD", "#CCEBC5", "#FFED6F" ]
 #colors_array = [ '#1B9E77' , '#D95F02' , '#7570B3' , '#E7298A' , '#66A61E' , '#E6AB02' , '#A6761D' , '#666666' ]
 
 if '-pic' in sys.argv or '-plot' in sys.argv:
@@ -452,7 +458,7 @@ if '-pic' in sys.argv or '-plot' in sys.argv:
 	for i in range(len(query_array)):
 		nx.draw_networkx_nodes(G,pos, node_size = 30, linewidths = 0.5, node_color = colors_array[i], nodelist=query_array[i][1] )
         nx.draw_networkx_edges(G,pos, width = 1, alpha = 0.2, edge_color = 'black')
-        nx.draw_networkx_labels(G, new_label_pos, labels = new_labels)
+        nx.draw_networkx_labels(G, new_label_pos, labels = new_labels, font_size = ft)
 	plt.axis('off')
 	if '-pic' in sys.argv:
 	        plt.savefig(sys.argv[1][:-3] + ".cluster.png")

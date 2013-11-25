@@ -1,0 +1,45 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 4/26/2013 
+###################################
+import bitk
+import sys
+if '-h' in sys.argv:
+	print 'outputs the fasta file with extra TAG abotu COGs. \n \
+	Sintax: addCOG2tag some.cog.dat related_fasta.fa'
+	sys.exit()
+
+seq_dic, seq_list = bitk.fastareader(sys.argv[2])
+
+datafile = open(sys.argv[1],'r')
+
+output = ''
+
+cog = 1
+for line in datafile:
+	if "COG" in line:
+		COG = line.replace('\n','').split(' ')[-1]
+	elif len(line) > 3:
+		output += '>' + line.replace('\n','') + '-' + COG + '\n' + seq_dic[line.replace('\n','')] + '\n'
+
+#		for line in datafile:
+#			if "COG" not in line:
+#
+#				tags.append(line.split('-')[0])
+#			else:
+#				for tag in orglist:
+#					output += '\t' + str(tags.count(tag))
+#	                        output += '\n' +  line.replace('\n','\t').split(' ')[-1]
+#	               		tags = []
+
+datafile.close()
+
+if '-u' in sys.argv:
+	datafile = open(sys.argv[2],'w')
+else:
+	datafile = open(sys.argv[2][:-3] + '.addCOG2tag.fa' , 'w')
+datafile.write(output)
+datafile.close()
+
+	
+

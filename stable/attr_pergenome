@@ -5,14 +5,20 @@
 import sys
 import bitk
 import numpy
+import json
+
+
 if '-h' in sys.argv:
-	print 'count_class_pergenomes will tell the statistics of the distribution of the number of classes\n count_class_pergenome mistid.list mcp.fa\n\n-mcp for mcps classes'
+	print 'class_pergenomes will tell the statistics of the distribution of the attribute in certain position in the tag per organism and output json with mistid and list of attributes\n count_class_pergenome mistid.list fastafile.fa N \n\nN is the position of the attribute in the tag (separated by - and starting from 0)'
 	sys.exit()
 
-if '-mcp' in sys.argv:
-	N = 4
-else:
-	N = 3
+#if '-mcp' in sys.argv:
+#	N = 4
+#else:
+#	N = 3
+
+N = int(sys.argv[2])
+
 
 
 genomes = []
@@ -22,9 +28,15 @@ for line in gen_data:
 
 seq_dic, seq_list = bitk.fastareader(sys.argv[2])
 
+output = ''
+
 clapergen = []
 Uncat = 0
 cla1 = 0
+allcla = []
+
+
+json_out = {}
 
 for gen in genomes:
 	classes = []
@@ -34,6 +46,9 @@ for gen in genomes:
 				classes.append(tag.split('-')[N])
 				if 'Uncat' == tag.split('-')[N]:
 					Uncat += 1
+			if tag.split('-')[N] not in allcla:
+				allcla.append(tag.split('-')[N])
+	
 		
 #			print tag + '\t' + str(classes)
 	classes.sort()
@@ -42,7 +57,18 @@ for gen in genomes:
 		cla1 += 1
 	if len(classes) > 0:
 		print gen + '\t' + str(classes)
+	json_out[gen] = classes
 
+
+json_out['allcla'] = allcla
+
+f = open(sys.argv[1][:-4] + '.attribute_pergenomes.json', 'w')
+json.dump(json_out, f)
+f.close()
+
+#f = open(sys.argv[1][:-3] + '.class_pergenomes.list', 'w')
+#f.write(json.dump(json_out))
+#f.close()
 
 clapergen = numpy.array(clapergen)
 print 'Average number of classes per genomes: ' + str(numpy.mean(clapergen)) + ' +- ' + str(numpy.std(clapergen))

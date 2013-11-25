@@ -28,35 +28,24 @@ if '-h' in sys.argv:
 	print 'COG-finder3 with BLAST. It takes (in order) one alignment as the database and two others as queries. Then optional flags (as decribed bellow).  \n \
 	 Option: -plot for plot on display \n \
 		 -skip for skipping calculations\n \
+		 -qcov_cutoff N		Query coverage cutoff to be considered for grouping.\n \
 		 -html outputs html with \n \
 		 -intercluster Meaningful intercluster distances\n \
 		 -pic outputs a pic of the clustering\n \
-		 -ft N  Changes the font of the COG labels in the pdf pic\n \
+		 -ft N	Changes the font of the COG labels in the pdf pic\n \
 		 -cog_output outputs a txt version of grouping. One line per cog and tags separated by " ; "  \n \
-                 -fullseq seq.fa Fasta format file with full sequences to be used to fetch domain arch from SeqSepot\n \
-                 -js       Export json formated nodes and edges to be used in javascripts\n \
-		 -nolabels No labels in the picture\n \
-		THRESHOLDS ----------------------------------------------------------- \n \
 		 -EvT N    Threshould for picking up distant paralogs in other species. N must be a number: default 10E-50\n \
 		 -EvP N    Threshould for picking up distant paralog in the same species. N must eb a number: default 10E-100\n \
 		 -Ec  N    Maximum Evalue to consider hit: default 1\n \
-                 -qcov_cutoff N         Query coverage cutoff to be considered for grouping.\n\n\n\n \
-		_______________________________________________________________________\n \
-		BLAST COMMAND: blastp -db dbname -query your_query.fa -out output_file.dat -num_threads 10 -outfmt "6 qseqid sseqid bitscore evalue qlen length" -evalue 0.001 -max_target_seqs 100000' 
+		 -fullseq seq.fa Fasta format file with full sequences to be used to fetch domain arch from SeqSepot\n \
+		 -js	   Export json formated nodes and edges to be used in javascripts\n \
+		 -COGdm	   Distance matrix between COGs. Calculated by averaging all E-values between members of the two cogs.'
 	sys.exit()
 
-EvT = 10E-500
-EvP = 10E-500
+EvT = 10E-50
+EvP = 10E-100
 Qth = 0.0
 Ec = 1
-
-if '-EvP' in sys.argv:
-        try:
-                EvP = float(sys.argv[sys.argv.index('-EvP')+1])
-        except:
-                print('Number must be passed after -EvP flag. Ex: 10E-100')
-                sys.exit()
-
 
 if '-Ec' in sys.argv:
         try:
@@ -64,6 +53,7 @@ if '-Ec' in sys.argv:
         except:
                 print('Number must be passed after -Ecutoff flag. Ex: 10E-50')
                 sys.exit()
+print Ec
 
 if '-qcov_cutoff' in sys.argv:
 	Qth = float(sys.argv[sys.argv.index('-qcov_cutoff') + 1])
@@ -76,15 +66,20 @@ if '-EvT' in sys.argv:
                 print('Number must be passed after -EvT flag. Ex: 10E-50')
 		sys.exit()
 
-if '-ft' in sys.argv:
+if '-EvP' in sys.argv:
         try:
-                ft = int(sys.argv[sys.argv.index('-ft')+1])
+                EvP = float(sys.argv[sys.argv.index('-EvP')+1])
         except:
-                print('Integer must be passed after -ft flag. Ex: 10')
+                print('Number must be passed after -EvP flag. Ex: 10E-100')
+                sys.exit()
+
+if '-ft' in sys.argv:
+	try:
+		ft = int(sys.argv[sys.argv.index('-ft')+1])
+	except:
+		print('Integer must be passed after -ft flag. Ex: 10')
 else:
-        ft = 10
-
-
+	ft = 10
 
 #np = sys.argv[2]
 filename = sys.argv[1]
@@ -161,12 +156,25 @@ data_list = []
 datafile = open(blastname,'r')
 output = ''
 
+if '-COGdm' in sys.argv:
+	print 'COG distance matrix requested... This might take a while.'
+	COGdm = {}
+
+
+
 for line in datafile:
 	field = line.replace('\n','').split('\t')
 #	while '' in field:
 #		field.remove('')
 	qry = field[0]
 	hit = field[1]
+
+	if '-COGdm' in sys.argv:	
+		if qry not in COGdm.keys():
+			COGdm[qry] = {hit:field[3]}
+		else:
+			COGdm[qry] = {hit:field[3]}
+
 	
 	qcov = int(field[5])/float(field[4])
 	if hit != qry and qry in seq_list:
@@ -351,9 +359,45 @@ groups = groups_order
 print(len(groups))
 
 for i in range(len(groups)):
-        for node in groups[i]:
+       	for node in groups[i]:
 		G.node[node]['group'] = i
 
+
+if '-COGdm' in sys.argv:
+	COGout_dic = {}
+	for i in range(len(groups)):
+		COGout_dic[str(i+1)] = {}
+		COGout_dic[str(i+1)][str(i+1)] = 0
+		for j in range(i+1,len(groups)):
+			COGij = []
+			for nodei in groups[i]:
+				for nodej in groups[j]:
+					try:
+						COGij.append(float(COGdm[nodei][nodej]))
+					except KeyError:
+						COGij.append(1)
+			COGout_dic[str(i+1)][str(j+1)] = np.mean(np.array(COGij))
+			print 'COG' + str(i+1) + '\tCOG' + str(j+1) + '\t' +  str(COGij) + '\t' + str(np.mean(np.array(COGij)))
+			if i < j :
+				if str(1+j) not in COGout_dic.keys():
+					COGout_dic[str(j+1)] = {}
+					COGout_dic[str(j+1)][str(i+1)] = COGout_dic[str(i+1)][str(j+1)]
+	COGoutput = '\t' + '\t'.join(['COG' + str(i+1) for i in range(len(groups))]) + '\n'
+	print COGout_dic.keys()
+	for i in range(len(groups)):
+		COGoutput += 'COG' + str(i+1)
+		for j in range(len(groups)):
+			try:
+				COGoutput += '\t' + str(COGout_dic[str(i+1)][str(j+1)])
+			except KeyError:
+				try:
+					COGoutput += '\t' + str(COGout_dic[str(j+1)][str(i+1)])
+				except KeyError:
+					COGoutput += '\tNA'
+		COGoutput += '\n'
+	print COGoutput
+
+		
 
 
 UU = nx.Graph()
@@ -409,7 +453,7 @@ if '-plot_ind' in sys.argv:
 			nx.draw_networkx_edges(Gpg,pos, alpha = 0.3 , width = 2, edge_color = 'r' )
 			r = max(center)*0.1
 			label_pos = dict((n,(x+r*(x-center[0])/np.sqrt(np.power(x-center[0],2) + np.power(y - center[1],2)), y + r*(y-center[1])/np.sqrt(np.power(x-center[0],2) + np.power(y - center[1],2)))) for n,(x,y) in pos.items())
-			nx.draw_networkx_labels(Gpg, label_pos, labels=labels, rotate = True)
+			nx.draw_networkx_labels(Gpg, label_pos, labels=labels, rotate = True, font_size = ft)
 #			plt.xlim(0,1)
 #			plt.ylim(0,1)
 			plt.title('COG ' + str(groups.index(group)) )
@@ -435,7 +479,7 @@ for seq_info in query_array:
 colors_array = ['red','blue','green','cyan','magenta','#ff6600', 'yellow','black']
 colors_array = [ '#D73027', '#F46D43', '#FDAE61' , '#FEE090', '#E0F3F8', '#ABD9E9' , '#74ADD1', '#4575B4' ]
 colors_array = [ '#2D5088', '#2D7D88', '#2D8837' , '#7D882D', '#88652D', '#872D7D' , '#74ADD1', '#4575B4' ]
-colors_array = [ '#E41A1C' , '#377EB8' , '#4DAF4A' , '#984EA3' , '#FF7F00' , '#999999' , '#A65628' , '#F781BF', '#17BECF', '#2D5088', '#2D7D88']
+colors_array = [ '#E41A1C' , '#377EB8' , '#4DAF4A' , '#984EA3' , '#FF7F00' , '#999999' , '#A65628' , '#F781BF', '#17BECF']
 colors_array = [ '#E41A1C' , '#377EB8' , '#4DAF4A' , '#984EA3' , '#FF7F00' , '#999999' , '#A65628' , '#F781BF', '#17BECF', "#8DD3C7", "#BEBADA", "#FB8072", "#80B1D3", "#B3DE69", "#FCCDE5", "#D9D9D9", "#BC80BD", "#CCEBC5", "#FFED6F" ]
 #colors_array = [ '#1B9E77' , '#D95F02' , '#7570B3' , '#E7298A' , '#66A61E' , '#E6AB02' , '#A6761D' , '#666666' ]
 
@@ -458,8 +502,7 @@ if '-pic' in sys.argv or '-plot' in sys.argv:
 	for i in range(len(query_array)):
 		nx.draw_networkx_nodes(G,pos, node_size = 30, linewidths = 0.5, node_color = colors_array[i], nodelist=query_array[i][1] )
         nx.draw_networkx_edges(G,pos, width = 1, alpha = 0.2, edge_color = 'black')
-	if '-nolabels' not in sys.argv:
-	        nx.draw_networkx_labels(G, new_label_pos, labels = new_labels, font_size = ft)
+        nx.draw_networkx_labels(G, new_label_pos, labels = new_labels, font_size = ft)
 	plt.axis('off')
 	if '-pic' in sys.argv:
 	        plt.savefig(sys.argv[1][:-3] + ".cluster.png")
@@ -544,7 +587,7 @@ if '-js' in sys.argv:
 
 var width = 1000,
     height = 750,
-    color = d3.scale.ordinal().domain(d3.range(""" + str(len(colors_array)) + """)).range([ """ + ", ".join( [ '"' + i + '"' for i in colors_array ]) + """]);
+    color = d3.scale.ordinal().domain(d3.range(8)).range([ "#E41A1C" , "#377EB8" , "#4DAF4A" , "#984EA3" , "#FF7F00" , "#999999" , "#A65628" , "#F781BF", "#17BECF" ]);
 
 var svg = d3.select("body").append("svg")
     .attr("width", width)
