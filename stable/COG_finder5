@@ -1,0 +1,666 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 8/16/2012 
+###################################
+#version 2 graduated on 08/23/2012
+###################################
+#version 3 started on 08/23/2013
+###################################
+#Version 4 started on 09/02/2013
+##################################
+
+import sys
+import bitk
+import os
+import matplotlib as mplt
+import time
+import numpy as np
+import json
+from networkx.readwrite import json_graph
+
+if '-plot' not in sys.argv and '-plot_ind' not in sys.argv:
+	mplt.use('Agg')
+
+import networkx as nx
+import matplotlib.pyplot as plt
+
+if '-h' in sys.argv:
+	print 'COG-finder3 with BLAST. It takes (in order) one alignment as the database and two others as queries. Then optional flags (as decribed bellow).  \n \
+	 Option: -plot for plot on display \n \
+		 -skip for skipping calculations\n \
+		 -html outputs html with \n \
+		 -intercluster Meaningful intercluster distances\n \
+		 -pic outputs a pic of the clustering\n \
+		 -ft N  Changes the font of the COG labels in the pdf pic\n \
+		 -cog_output outputs a txt version of grouping. One line per cog and tags separated by " ; "  \n \
+                 -fullseq seq.fa Fasta format file with full sequences to be used to fetch domain arch from SeqSepot\n \
+                 -js       Export json formated nodes and edges to be used in javascripts\n \
+		 -nolabels No labels in the picture\n \
+		 -notCOG  Just cluster by BLAST results above threshold \n \
+		THRESHOLDS ----------------------------------------------------------- \n \
+		 -EvT N    Threshould for picking up distant paralogs in other species. N must be a number: default 10E-500\n \
+		 -EvP N    Threshould for picking up distant paralog in the same species. N must eb a number: default 10E-500\n \
+		 -Ec  N    Maximum Evalue to consider hit: default 1\n \
+                 -qcov_cutoff N         Query coverage cutoff to be considered for grouping.\n\n\n\n \
+		_______________________________________________________________________\n \
+		BLAST COMMAND: blastp -db dbname -query your_query.fa -out output_file.dat -num_threads 10 -outfmt "6 qseqid sseqid bitscore evalue qlen length" -evalue 0.001 -max_target_seqs 100000' 
+	sys.exit()
+
+EvT = 10E-500
+EvP = 10E-500
+Qth = 0.0
+Ec = 1
+
+if '-EvP' in sys.argv:
+        try:
+                EvP = float(sys.argv[sys.argv.index('-EvP')+1])
+        except:
+                print('Number must be passed after -EvP flag. Ex: 10E-100')
+                sys.exit()
+
+if '-notCOG' in sys.argv:
+	EvP = 10
+
+
+if '-Ec' in sys.argv:
+        try:
+                Ec = float(sys.argv[sys.argv.index('-Ec')+1])
+        except:
+                print('Number must be passed after -Ecutoff flag. Ex: 10E-50')
+                sys.exit()
+
+if '-qcov_cutoff' in sys.argv:
+	Qth = float(sys.argv[sys.argv.index('-qcov_cutoff') + 1])
+
+
+if '-EvT' in sys.argv:
+        try:
+                EvT = float(sys.argv[sys.argv.index('-EvT')+1])
+        except:
+                print('Number must be passed after -EvT flag. Ex: 10E-50')
+		sys.exit()
+
+if '-ft' in sys.argv:
+        try:
+                ft = int(sys.argv[sys.argv.index('-ft')+1])
+        except:
+                print('Integer must be passed after -ft flag. Ex: 10')
+else:
+        ft = 10
+
+
+
+#np = sys.argv[2]
+filename = sys.argv[1]
+dbname = 'temp.' + filename[:-2] + 'db'
+blastname = 'output_blastp.' + filename[:-2] + 'dat'
+outfile = filename[:-2] + 'blastpall.dat'
+
+query_array = []
+
+list_of_files = []
+
+for files in sys.argv[2:]:
+	if files[0] == '-':
+		break
+	try:
+		seq_dic, seq_list = bitk.fastareader(files)
+		list_of_files.append(files)
+		query_array.append([seq_dic,seq_list])
+	except IOError:
+		pass
+
+if '-fullseq' in sys.argv:
+        seqf_dic, seqf_list = bitk.fastareader(sys.argv[sys.argv.index('-fullseq')+1])
+
+
+for seq_info1 in query_array:
+	for seq_info2 in query_array[query_array.index(seq_info1)+1:]:
+		common = list(set(seq_info1[1]) & set(seq_info2[1]))
+		if len(common) != 0:
+			print "\n\nSame tag sequences in two supplied alignments. Unacceptable because I won't know which to where it trully belongs: " + sys.argv[2 + query_array.index(seq_info1)] + " or " + sys.argv[2 + query_array.index(seq_info2)] + ".\nCould you fix it for me before resubmit?\nThe common sequences is(are):\n" + "\n".join(common) 
+			sys.exit()
+
+#merging sequences for the sake of calculations.
+
+seq_list = []
+seq_dic = {}
+for seq_info in query_array:
+	seq_list = seq_list + seq_info[1]
+	print len(seq_info[1])
+	seq_dic = dict(seq_dic.items() + seq_info[0].items())
+
+print len(seq_list)
+
+if "-skip" not in sys.argv:
+
+	os.system('rm ' + blastname)
+	os.system('rm ' + dbname + '*')
+	os.system('rm ' + outfile)
+
+
+	print 'Building Database'
+	os.system('formatdb -i ' + filename + ' -n ' + dbname )
+	
+	print 'Running blastp'
+	#os.system('blastp -db ' + dbname + ' -query ' + filename + ' -out ' + blastname + ' -evalue 1000000 -max_target_seqs 10000 -num_alignments 10000 -outfmt "6 qseqid sseqid bitscore" -comp_based_stats no -seg no -num_threads 10')
+
+	out_tmp = ""
+	for seq in seq_list:
+		out_tmp += ">" + seq + "\n" + seq_dic[seq] + "\n"
+	outfiletmp = open(sys.argv[1][:-3] + '.align.tmp.fa','w')
+	outfiletmp.write(out_tmp)
+	outfiletmp.close()
+	os.system('blastp -db ' + dbname + ' -query ' + sys.argv[1][:-3] + '.align.tmp.fa -out ' + blastname + ' -num_threads 10 -outfmt "6 qseqid sseqid bitscore evalue qlen length" -evalue 0.001 -max_target_seqs 100000' )
+	os.system('rm ' + sys.argv[1][:-3] + '.align.tmp.fa')
+
+
+#os.system('blastall -p blastp -d ' + dbname + ' -i test.fa -o ' + blastname + ' -e 100000000000 -b 100000000 -m 8')
+
+print 'Parsing blast results'
+
+data_dic = {}
+data_list = []
+
+datafile = open(blastname,'r')
+output = ''
+
+for line in datafile:
+	field = line.replace('\n','').split('\t')
+#	while '' in field:
+#		field.remove('')
+	qry = field[0]
+	hit = field[1]
+	
+	qcov = int(field[5])/float(field[4])
+	if hit != qry and qry in seq_list:
+		if qcov > Qth and float(field[3]) < Ec:
+			if qry not in data_dic:
+				data_dic[qry] = {}
+				data_list.append(qry)
+			try:
+				hit_orgid = hit.split('-')[0]
+				qry_orgid = qry.split('-')[0]
+			except IndexError:
+				print hit.split('-')[0]
+				sys.exit()
+			if float(field[3]) < EvP:
+				data_dic[qry][hit] = [ float(i) for i in field[2:] ]
+                	        output += qry + '\t' + hit + '\t' + field[2] + '\t' + str(qcov) + '\n' 
+
+			if hit_orgid not in [ i.split('-')[0] for i in data_dic[qry].keys()] or hit_orgid == qry_orgid:
+				if hit_orgid == qry_orgid:
+					if float(field[3]) < EvT: 
+						data_dic[qry][hit] = [ float(i) for i in field[2:] ]
+		                	        output += qry + '\t' + hit + '\t' + field[2] + '\t' + str(qcov) +'\n'
+				else:
+	
+					data_dic[qry][hit] = [ float(i) for i in field[2:] ]
+        		                output += qry + '\t' + hit + '\t' + field[2] + '\t' + str(qcov) + '\n'
+			elif '-notCOG' not in sys.argv:
+				for i in data_dic[qry].keys():
+					if hit_orgid == i.split('-')[0]:
+#						print field
+#						print data_dic[qry][i]
+						if data_dic[qry][i][1] > float(field[3]):
+							del data_dic[qry][i]
+							data_dic[qry][hit] = [ float(i) for i in field[2:] ]
+
+datafile.close()
+
+#check for unique clans made out of qcov factors and add them:
+
+
+print "Sequences that are now made its own COG because of domain coverage cutoff"
+for seq in seq_list: 
+	if seq not in data_dic.keys():
+		data_dic[seq]={}
+		data_list.append(seq)
+		print seq
+
+
+
+#for tag in data_list:
+#	for key in data_dic[tag].keys():
+#		if key in data_list:
+#			if tag in data_dic[key].keys():
+#				print "one pair"
+#				print tag
+#	                	print key
+#				print data_dic[key][tag]
+
+
+
+# Making the COGs and building edges
+
+G = nx.Graph()
+H = nx.Graph()
+#G.add_nodes_from(data_list)
+recip_hit = []
+uni_hit = []
+
+groups = []
+
+for qry in data_list:
+	new = 0
+#	print qry
+#	print groups
+	grp = -1
+	for group in groups:
+		if qry in group:
+			grp = groups.index(group)
+			break
+		for hit in group:
+			if hit in data_dic[qry].keys() and qry in data_dic[hit].keys():
+				grp = groups.index(group)
+				# The new qry should be added to the group grp right now!
+				groups[grp].append(qry)
+				break 
+	
+	if grp == -1:
+		groups.append([qry])
+		grp = groups.index([qry])
+		new = 1
+#	print "keys from " + qry
+#	print data_dic[qry].keys()
+#	print data_list[:10]
+#	print [ i for hit in data_dic[qry].keys() if hit in data_list ]
+	for hit in data_dic[qry].keys():		
+#		time.sleep(5)
+		if hit in data_list:
+			if qry in data_dic[hit].keys():
+				score = max(data_dic[hit][qry][0],data_dic[qry][hit][0])
+#				print qry + '\t' + hit
+#				print groups
+				G.add_edge(qry,hit, weigth = score)
+				recip_hit.append((qry,hit))
+				if hit not in groups[grp]:
+					groups[grp].append(hit)
+#				print groups
+			elif data_dic[qry][hit][1] < EvP:
+				score = data_dic[qry][hit][0]
+				G.add_edge(qry,hit, weigth = score)
+				H.add_edge(qry,hit, weigth = data_dic[qry][hit][0]/10)
+                                recip_hit.append((qry,hit))
+                                if hit not in groups[grp]:
+                                        groups[grp].append(hit)
+			else:
+				H.add_edge(qry,hit, weigth = data_dic[qry][hit][0]/10)
+				uni_hit.append((qry,hit))
+
+	for group in groups[:grp] + groups[grp+1:]:
+#		print group
+		merge = 0
+		for i in group:
+			if i in groups[grp]:
+#				print i
+				grp_i = groups.index(group)				
+				groups[grp_i] = list(set(groups[grp] + groups[grp_i]))
+				del groups[grp]
+				merge = 1
+				break
+		if merge == 1:
+			break
+#	print groups
+
+#ordering groups from large to smallest
+
+nodes = []
+
+for group in groups:
+#       nodes += [ i.split('-')[1] for i in group ]
+        nodes += group
+print len(nodes)
+#print [ i for i in data_dic.keys() if data_list[1] in data_dic[i].keys()]
+
+
+
+
+for i in range(len(groups)):
+	for node in groups[i]:
+	        for j in range(len(query_array)):
+        	        if node in query_array[j][1]:
+                	        break
+	        G.add_node(node, aln = j, url = "#" + node)
+        	H.add_node(node, aln = j, url = "#" + node)
+
+grp_size = [ len(i) for i in groups ]
+grp_size = list(set(grp_size))
+grp_size.sort()
+grp_size.reverse()
+
+
+print len(groups)
+#print groups
+print "sorting..."
+groups_order = []
+for i in grp_size:
+        for group in groups:
+                if len(group) == i:
+			grp_deg = [ G.degree(k) for k in group]
+			grp_deg = list(set(grp_deg))
+			grp_deg.sort()
+			grp_deg.reverse()
+			group_sorted = []
+			for j in grp_deg:
+				for tag in group:
+					if j == G.degree(tag):
+						group_sorted.append(tag)
+                        groups_order.append(group_sorted)
+#			groups_order.append(group)
+#print [ g for g in groups if g.sort() not in [ h.sort() for h in groups_order] ]
+print "Printing information about groups:"
+print len(groups)
+print len(groups_order)
+groups = groups_order
+print(len(groups))
+
+for i in range(len(groups)):
+        for node in groups[i]:
+		G.node[node]['group'] = i
+
+
+
+UU = nx.Graph()
+
+for group in groups:
+	g = G.subgraph(group)
+	pos = nx.circular_layout(g)
+#	nx.draw(g,pos)
+#	nx.draw_networkx_nodes(g,pos, node_size = 2)
+#	nx.draw_networkx_edges(g,pos, width = 0.5)
+	UU = nx.disjoint_union(UU,g)
+
+if '-plot' in sys.argv:
+	if 'intercluster' in sys.argv:
+		pos = nx.circular_layout(H)
+	else:
+		pos = nx.circular_layout(UU)
+	nx.draw_networkx_nodes(UU,pos, node_size = 2)
+	nx.draw_networkx_edges(UU,pos, width = 1, alpha = 0.3, edge_color = 'r')
+	plt.show()
+
+
+
+
+#print G.degree()
+
+if '-plot_ind' in sys.argv:
+	for group in groups[:2]:	
+		if len(group) > 1:
+			plt.figure(figsize=(8,8))
+			Gpg = nx.Graph()
+			for node in nodes:
+				if node in group:
+					Gpg.add_node(node)
+			for edge in recip_hit:
+				if edge[0] in group and edge[1] in group:
+					Gpg.add_edge(edge[0],edge[1])
+#			pos = nx.circular_layout(Gpg)
+			
+			
+			labels = dict((n,n.split('-')[1]) for n in Gpg.nodes())
+			print labels
+			print nx.center(Gpg)
+			pos = nx.graphviz_layout(Gpg, prog = 'neato')
+			#pos = nx.circular_layout(Gpg)
+			print pos
+			center = [0,0]
+			for k in pos.values():
+				center[0] += k[0]/float(len(pos))
+				center[1] += k[1]/float(len(pos))
+			print center
+			nx.draw_networkx_nodes(Gpg,pos, alpha = 0.3, node_size = 100, node_color = [float(Gpg.degree(v)) for v in Gpg])
+			nx.draw_networkx_edges(Gpg,pos, alpha = 0.3 , width = 2, edge_color = 'r' )
+			r = max(center)*0.1
+			label_pos = dict((n,(x+r*(x-center[0])/np.sqrt(np.power(x-center[0],2) + np.power(y - center[1],2)), y + r*(y-center[1])/np.sqrt(np.power(x-center[0],2) + np.power(y - center[1],2)))) for n,(x,y) in pos.items())
+			nx.draw_networkx_labels(Gpg, label_pos, labels=labels, rotate = True)
+#			plt.xlim(0,1)
+#			plt.ylim(0,1)
+			plt.title('COG ' + str(groups.index(group)) )
+			plt.show()
+
+
+
+node_list = []
+for seq_info in query_array:
+	node_list_tmp = []
+	for seq in seq_info[1]:
+#		print seq
+		try:
+			node_list_tmp.append(seq_list.index(seq))
+		except ValueError:
+			print seq
+			pass
+	node_list.append(node_list_tmp)
+
+#print node_list
+#print nodes
+
+colors_array = ['red','blue','green','cyan','magenta','#ff6600', 'yellow','black']
+colors_array = [ '#D73027', '#F46D43', '#FDAE61' , '#FEE090', '#E0F3F8', '#ABD9E9' , '#74ADD1', '#4575B4' ]
+colors_array = [ '#2D5088', '#2D7D88', '#2D8837' , '#7D882D', '#88652D', '#872D7D' , '#74ADD1', '#4575B4' ]
+colors_array = [ '#E41A1C' , '#377EB8' , '#4DAF4A' , '#984EA3' , '#FF7F00' , '#999999' , '#A65628' , '#F781BF', '#17BECF', '#2D5088', '#2D7D88']
+colors_array = [ '#E41A1C' , '#377EB8' , '#4DAF4A' , '#984EA3' , '#FF7F00' , '#999999' , '#A65628' , '#F781BF', '#17BECF', "#8DD3C7", "#BEBADA", "#FB8072", "#80B1D3", "#B3DE69", "#FCCDE5", "#D9D9D9", "#BC80BD", "#CCEBC5", "#FFED6F" ]
+#colors_array = [ '#1B9E77' , '#D95F02' , '#7570B3' , '#E7298A' , '#66A61E' , '#E6AB02' , '#A6761D' , '#666666' ]
+
+if '-pic' in sys.argv or '-plot' in sys.argv:
+	plt.figure(figsize=(13,10))
+	if '-intercluster' in sys.argv:
+		pos = nx.graphviz_layout(H, prog = 'neato')
+	else:
+		pos = nx.graphviz_layout(G, prog = 'neato')
+		nx.set_node_attributes(G,'pos',pos)
+        new_labels = {}
+        new_label_pos = {}
+        for group in groups:
+                new_labels[group[0]] = 'COG ' + str(groups.index(group)+1)
+                #center = [np.mean([x for n,(x,y) in pos.items() if n in group]), np.mean([y for n,(x,y) in pos.items() if n in group])]
+                lab_pos = [np.mean([x for n,(x,y) in pos.items() if n in group]), 50 + max([y for n,(x,y) in pos.items() if n in group])]
+                new_label_pos[group[0]] = tuple(lab_pos)
+
+	print "There are " + str(len(query_array)) + " files"
+	for i in range(len(query_array)):
+		nx.draw_networkx_nodes(G,pos, node_size = 30, linewidths = 0.5, node_color = colors_array[i], nodelist=query_array[i][1] )
+        nx.draw_networkx_edges(G,pos, width = 1, alpha = 0.2, edge_color = 'black')
+	if '-nolabels' not in sys.argv:
+	        nx.draw_networkx_labels(G, new_label_pos, labels = new_labels, font_size = ft)
+	plt.axis('off')
+	if '-pic' in sys.argv:
+	        plt.savefig(sys.argv[1][:-3] + ".cluster.png")
+		plt.savefig(sys.argv[1][:-3] + ".cluster.pdf")
+#		os.system("convert cluster.png cluster.bmp")
+	if '-plot' in sys.argv:
+		plt.show()
+
+dataout = open(outfile,'w')
+dataout.write(output)
+dataout.close()
+
+if '-js' in sys.argv:
+#	pos = nx.graphviz_layout(G, prog = 'neato')
+	pad = 10
+	Wi = 980
+	He = 730
+	maxX = max([G.node[n]['pos'][0] for n in G.node.keys()]) 
+	minX = min([G.node[n]['pos'][0] for n in G.node.keys()])
+	maxY = max([G.node[n]['pos'][1] for n in G.node.keys()]) 
+	minY = min([G.node[n]['pos'][1] for n in G.node.keys()])
+	print maxX
+	print minX
+	print maxY
+        print minY
+	scalex = Wi/float(maxX - minX)
+	scaley = He/float(maxY - minY)
+	print scalex
+	print scaley
+	for n in G.node.keys():
+#		print n
+		G.node[n]['pos'] = [G.node[n]['pos'][0]*scalex, G.node[n]['pos'][1]*scaley]
+#	center = [ np.mean([G.node[n]['pos'][0] for n in G.node.keys()]), np.mean([G.node[n]['pos'][1] for n in G.node.keys()])]
+	maxX = max([G.node[n]['pos'][0] for n in G.node.keys()])
+        minX = min([G.node[n]['pos'][0] for n in G.node.keys()])
+        maxY = max([G.node[n]['pos'][1] for n in G.node.keys()])
+        minY = min([G.node[n]['pos'][1] for n in G.node.keys()])
+        print maxX
+        print minX
+        print maxY
+        print minY
+
+	center = [ (maxX + minX)/float(2), (maxY + minY) /float(2)]
+	print center
+	shiftX = Wi/2 - center[0] + pad
+	shiftY = He/2 - center[1] + pad 
+
+	print shiftX
+	print shiftY   
+ 
+	for n in G.node.keys():
+                G.node[n]['pos'] = [G.node[n]['pos'][0] + shiftX, G.node[n]['pos'][1] + shiftY]
+		if G.node[n]['pos'][0] > Wi + pad or G.node[n]['pos'][0] < 0:
+			print "Thre will be nodes out of svg!"
+			print G.node[n]['pos'][0]
+		if G.node[n]['pos'][1] > He + pad or G.node[n]['pos'][0] < 0:
+			print "There will be nodes out of svg!"
+                        print G.node[n]['pos'][1]
+                   
+		
+	G_js = json_graph.node_link_data(G)
+	json.dump(G_js, open(sys.argv[1][:-3] + '.json','w'), indent=2)
+	
+	houtjs = """<style>
+
+.node {
+  stroke: #000000;
+  stroke-width: 0.5px;
+
+}
+
+.link {
+  fill: none;
+  stroke: #999;
+  stroke-opacity: .3;
+}
+
+</style>
+<body>
+<script src="http://d3js.org/d3.v3.min.js"></script>
+<script>
+
+var width = 1000,
+    height = 750,
+    color = d3.scale.ordinal().domain(d3.range(""" + str(len(colors_array)) + """)).range([ """ + ", ".join( [ '"' + i + '"' for i in colors_array ]) + """]);
+
+var svg = d3.select("body").append("svg")
+    .attr("width", width)
+    .attr("height", height);
+
+d3.json('""" + sys.argv[1][:-3] + """.json', function(error, graph) {
+
+  graph.links.forEach(function(d) {
+    d.source = graph.nodes[d.source];
+    d.target = graph.nodes[d.target];
+  });
+
+  var link = svg.append("g")
+      .attr("class", "link")
+    .selectAll("line")
+      .data(graph.links)
+    .enter().append("line")
+      .attr("x1", function(d) { return d.source.pos[0]; })
+      .attr("y1", function(d) { return d.source.pos[1]; })
+      .attr("x2", function(d) { return d.target.pos[0]; })
+      .attr("y2", function(d) { return d.target.pos[1]; });
+
+
+  var node = svg.append("g")
+      .attr("class", "node")
+    .selectAll("circle")
+      .data(graph.nodes)
+    .enter().append("circle")
+      .attr("r", 4)
+      .attr("cx", function(d) { return d.pos[0]; })
+      .attr("cy", function(d) { return d.pos[1]; })
+      .style("fill", function(d) { return color(d.aln); })
+      .on("click", daviclick);
+
+
+
+   node.append("title")
+       .text(function(d) { return "COG " + ( 1 + d.group ) + " - " + d.id;  });
+
+   function daviclick(d) {
+        d3.select(this)
+        .style("stroke","red")
+        .style("stroke-width", "1px")
+        .attr("r",6);
+        window.location = d.url;
+        d3.select(this).transition()
+        .delay(3)
+        .style("stroke","black")
+        .style("stroke-width", "0.5px")
+        .attr("r",4);};
+});
+</script>
+"""
+
+
+if '-html' in sys.argv:
+	print "Working on the index.html file"
+	hout = '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"\n"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">\n<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">\n<meta charset="utf-8">\n<head>\n<title>COGs</title>\n</head>\n'
+	if '-js' in sys.argv:
+		hout += houtjs
+#	if '-pic' in sys.argv:
+#	hout += '<body>\n<div>\n<table cellspacing="0" cellpadding="0">\n<tr>\n<td>\n<img id="cluster" src=cluster.png />\n</td>\n</tr>\n</table>\n</div>\n'
+#	hout += '<style>\nbody, html {margin:0; padding:0; height:100%; width:100%;}\n#cluster { left:0; top:0; z-index:1; height:100%; width:100%; }\n</style>\n<p>'
+	hout += "<p> <br></br> <p>"
+	for i in range(len(query_array)):
+		hout += '<font color="' + colors_array[i] + '"><b>' + list_of_files[i] + '<b></font><br>'
+	hout += '</p>\n'	
+	for i in range(len(groups)):
+		hout += '<table width="1500" border="0">\n'
+		hout += '<tr>\n<td colspan="3">\n<h1>COG ' + str(i+1) + ' </h1>\n</td>\n</tr>'
+		for tag in groups[i]:
+			j = G.node[tag]['aln']
+			if '-fullseq' in sys.argv:
+				simple_tag = '-'.join(tag.split('-')[0:-1])
+				if simple_tag in seqf_list:
+					conn = G.neighbors(tag)
+					htmp = '<font color="'+ colors_array[j] +'">(</font>'
+					for k in range(len(query_array)):
+						htmp += '<font color="'+ colors_array[k] +'"><a title="' + str(list(set(query_array[k][1]).intersection(conn))) +'">' + str(len(list(set(query_array[k][1]).intersection(conn)))) + '</a></font><font color="'+ colors_array[j] +'">/</font>'
+					htmp += '<font color="'+ colors_array[j] +'">)</font>'
+					hout += '<tr> <td style="width:800px;"> <font color="' + colors_array[j] +'"><b>'+ str(G.degree(tag)) + '</b></font> ' + htmp + ' <a name="' + tag + '" href="http://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE=Proteins&amp;PROGRAM=blastp&amp;BLAST_PROGRAMS=blastp&amp;QUERY=' + seq_dic[tag] + '&amp;LINK_LOC=protein&amp;PAGE_TYPE=BlastSearch">' + tag + '</a></td>\n<td style="width:200px;"> <img align="right" title="'+ str(G.degree(tag)) + ' ' + tag + '" src="http://seqdepot.net/api/v1/aseqs/' + bitk.getmd5(seqf_dic[simple_tag]) + '.png" ></td></tr>\n'
+				else:
+					print "Your fullseq file is not up to snuff, please fix it or give up on domain architecture"
+					print "Defective tag is: " + simple_tag
+					sys.exit()
+			else:
+				conn = G.neighbors(tag)
+                                htmp = '<font color="'+ colors_array[j] +'">(</font>'
+                                for k in range(len(query_array)):
+	                                htmp += '<font color="'+ colors_array[k] +'"><a title="' + str(list(set(query_array[k][1]).intersection(conn))) +'">' + str(len(list(set(query_array[k][1]).intersection(conn)))) + '</a></font><font color="'+ colors_array[j] +'">/</font>'
+                                htmp += '<font color="'+ colors_array[j] +'">)</font>'
+                                hout += '<tr> <td style="width:800px;"> <font color="' + colors_array[j] +'"><b>'+ str(G.degree(tag)) + '</b></font> ' + htmp + ' <a name="' + tag + '" href="http://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE=Proteins&amp;PROGRAM=blastp&amp;BLAST_PROGRAMS=blastp&amp;QUERY=' + seq_dic[tag] + '&amp;LINK_LOC=protein&amp;PAGE_TYPE=BlastSearch">' + tag + '</a></td>\n<td style="width:200px;"> <img align="right" title="'+ str(G.degree(tag)) + ' ' + tag + '" src="http://seqdepot.net/api/v1/aseqs/' + bitk.getmd5(seq_dic[tag]) + '.png" ></td></tr>\n'
+		hout += '</table>'
+	hout += 'Job command: ' + ' '.join(sys.argv)
+	hout += '</body>\n</html>'
+	dataout = open(sys.argv[1][:-3] + '.html','w')
+	dataout.write(hout)
+	dataout.close()
+
+if '-cog_output' in sys.argv:
+	output =''
+	cog = 1
+	for g in groups:
+		output += 'COG ' + str(cog) + '\n'
+		output += '\n'.join(g) + '\n'
+		output += '\n'
+		cog += 1
+	dataout = open(sys.argv[1][:-3] + '.cog.dat', 'w')
+	dataout.write(output)
+	dataout.close()
+
+print 'Done'
+	
+
