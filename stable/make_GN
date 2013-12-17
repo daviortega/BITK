@@ -2,10 +2,15 @@
 ###################################
 #    Davi Ortega 11/25/2013 
 ###################################
+import matplotlib
+import sys
+if '-pdf' in sys.argv:
+	matplotlib.use('Agg')
+
+
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import numpy
-import sys
 import bitk
 import pymongo
 import paramiko
@@ -13,8 +18,12 @@ if '-h' in sys.argv:
     print 'make_GN fasta_file.fa N \n\n N is window [-N,+N] \n\n Options :\n \
 	-pdf		Makes a pdf instead of printing on screen \n \
 	-name		Include the name of the chemotaxis genes \n \
-	-order_st	Correct the direction of the genes by the central gene direction poiting to the right (TODO)'
+	-org		Reference name will be Name of the strain  -  locus number - GN\n \
+	-order_st	Correct the direction of the genes by the central gene direction poiting to the right \n \
+	-sort		Sort list of sequnces by alphabetical order \n '
     sys.exit()
+
+
 
 
 che_array = [ 'mcp',  'chea',  'cheb',  'checx', 'ched', 'cher', 'chev', 'chez','chew', 'other', '' ]
@@ -38,20 +47,38 @@ mist = client.mist22
 
 seq_dic, seq_list = bitk.fastareader(sys.argv[1])
 col = len(seq_list)
+seq_list.sort()
 
-fig = plt.figure(figsize=(10,0.5*col), facecolor = 'w')
-
+fig = plt.figure(figsize=(15,0.5*col), facecolor = 'w')
 coords_list = []
 largest_operon = 0
 
 for i in range(len(seq_list)):
 	tag = seq_list[i]
+	if '-org' in sys.argv:
+		mistid = int(tag.split('-')[0].split('.')[-1])
+		new_tag = mist.genomes.find_one({'_id':mistid})
+		if new_tag:
+	#		new_tag = new_tag['n'] + ' - ' + tag.split('-')[1]
+			ax = fig.add_subplot(col,3,3*(i)+1)
+			ax.text(0,0.25,new_tag['n'], verticalalignment = 'bottom', horizontalalignment = 'left', fontsize = 10)
+			ax.axis('off')
+		        ax.autoscale_view()
+			ax.figure.canvas.draw()
 
-	ax = fig.add_subplot(col,2,2*(i)+1)
-	ax.text(1,0.25,tag, verticalalignment = 'bottom', horizontalalignment = 'right', fontsize = 11)
-	ax.axis('off')
-	ax.autoscale_view()
-	ax.figure.canvas.draw()
+			ax = fig.add_subplot(col,3,3*(i)+2)
+			ax.text(0,0.25, tag.split('-')[1], verticalalignment = 'bottom', horizontalalignment = 'left', fontsize = 10)
+			ax.axis('off')
+		        ax.autoscale_view()
+			ax.figure.canvas.draw()
+
+			
+	else:
+		ax = fig.add_subplot(col,2,2*(i)+1)
+		ax.text(0,0.25,tag, verticalalignment = 'bottom', horizontalalignment = 'left', fontsize = 10)
+		ax.axis('off')
+		ax.autoscale_view()
+		ax.figure.canvas.draw()
 
 	ac = tag.split('-')[2]
 	geneinfo = mist.genes.find_one({'p.ac':ac})
@@ -68,7 +95,6 @@ for i in range(len(seq_list)):
 		pos_list.append(g['pos'])
 	pos_list.sort()
 	ax = fig.add_subplot(col,2,2*i+2)
-	print tag
 	coords = []
 	for pos in pos_list:
 		chemo_info = mist.signal_genes5.find_one({'cid':cid, '_id':GN[pos]['_id']})
@@ -87,36 +113,69 @@ for i in range(len(seq_list)):
 	operon_size = max(coords[-1][:2]) - min(coords[0][:2])
 	if operon_size > largest_operon:
 		largest_operon = operon_size
-	coords_list.append(coords)
+	if len(coords) == 2*N+1:
+		coords_list.append(coords)
+		print tag
+	else:
+		print 'This did not work well and it will be excluded: ' + tag 
 
-sf = 1/float(largest_operon)
+sf = 1/float(largest_operon+100)
  
 
 for i in range(len(coords_list)):
 	coords = coords_list[i]
+#	if '-org' not in sys.argv:
+#		ax = fig.add_subplot(col,3,3*i+3)
+#		ax.axis('off')
+#	else:
 	ax = fig.add_subplot(col,2,2*i+2)
-	beg = coords[0][0]
+	ax.axis('off')
 #	sf = 1/float(ab - coords[0][0])
+	
+	if '-order_st' in sys.argv and coords[N][2] == '-':
+		beg = coords[0][0]
+		coords.reverse()
+		new_coords = []
+		for i in range(len(coords)-1):
+			end = beg + coords[i][1] - coords[i][0]
+			if coords[i][2] == '-':
+				new_coords.append([ beg, end , '+', coords[i][3]])
+			else:
+				new_coords.append([ beg, end , '-', coords[i][3]])
+			beg = end + coords[i][0] - coords[i+1][1]
+		end = beg + coords[-1][1] - coords[-1][0]
+                if coords[i][2] == '-':
+                        new_coords.append([ beg, end , '+', coords[-1][3]])
+                else:
+                        new_coords.append([ beg, end , '-', coords[-1][3]])
+		coords = new_coords
+	
+	
+
+	beg = coords[0][0]
+
 	for coord in coords:
 #		start = coord[0]*sf
 #		end = (coord[0] - coord[1])*sf
 		start = (coord[0]-beg)*sf
 		dx = (coord[1] - coord[0])*sf
-		print coord[3]
-		print start
 #		ax.add_patch(mpatches.Arrow(start,1.5,dx,0,width = 1,color = colors_array[coords.index(coord)]))
 		if '-name' in sys.argv:
 			ax.text(start+dx/2, 0.8, che_dic[coord[3]], ha = 'center', size = 10)
 		if coord[2] == '+':
 			ax.add_patch(mpatches.Arrow(start,0.5,dx-0.001,0,width = 1,ec = 'black', color = che_colors[che_array.index(coord[3])]))
+			ax.axis('off')
 		else:
 			ax.add_patch(mpatches.Arrow(start+dx,0.5,0.001-dx,0,width = 1,ec = 'black', color = che_colors[che_array.index(coord[3])]))
-	ax.axis('off')
+			ax.axis('off')
+#	ax.axis('off')
 #       ax.autoscale_view()
         ax.figure.canvas.draw()
 
+#plt.xticks([])
 
-	print '\n'
+
+print '\n'
 if '-pdf' in sys.argv:
 	plt.savefig(sys.argv[1][:-3] + '.GN.pdf')
 else:

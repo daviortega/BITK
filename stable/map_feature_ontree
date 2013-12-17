@@ -1,0 +1,132 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 9/4/2013 
+###################################
+import matplotlib
+import sys
+if '-pdf' in sys.argv:
+        matplotlib.use('Agg')
+
+import ete2
+import json
+import sys
+import math
+if '-h' in sys.argv:
+    print 'Map feature from classes from the list to the correspondent nwk tree using ete2 python module. Input class_pergenome.json yourtree.nwk and output is a png figure'
+    sys.exit()
+
+#CLASS_IN_ORDER = ['F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9', 'F10', 'F11', 'F12', 'F13', 'F14', 'F15', 'F16', 'F17', 'F18', 'F19', 'F20', 'Tfp', 'ACF', 'Uncat']
+
+colors_array = [ '#E41A1C' , '#377EB8' , '#4DAF4A' , '#984EA3' , '#FF7F00' , '#999999' , '#A65628' , '#F781BF', '#17BECF', "#8DD3C7", "#BEBADA", "#FB8072", "#80B1D3", "#B3DE69", "#FCCDE5", "#D9D9D9", "#BC80BD", "#CCEBC5", "#FFED6F" ]
+
+
+
+
+#cla = json.load(open(sys.argv[1]))
+T = ete2.Tree(sys.argv[1])
+N = int(sys.argv[2])
+#print cla['allcla']
+
+#if '-checlass' in sys.argv:
+#    new_order = []
+#    for c in CLASS_IN_ORDER:
+#        if c in cla['allcla']:
+#            new_order.append(c)
+#    cla['allcla'] = new_order
+#else:
+#    cla['allcla'].sort()
+#
+#print cla['allcla']
+#Faces = {}
+
+#for che in cla['allcla']:
+#    Faces[che] = ete2.faces.AttrFace("checla", fsize=20, fgcolor="#009000", bgcolor = colors_array[cla['allcla'].index(che)])
+#nameFace = ete2.AttrFace("name", fsize=20, fgcolor="#009000")
+
+#for node in T.iter_leaves():
+#    node.add_feature(che = cla[node.name.split('|')[0]])
+
+
+ts = ete2.TreeStyle()
+
+ts.branch_vertical_margin = 5
+
+#if '-rem' in sys.argv:
+#    rem = sys.argv[sys.argv.index('-rem')+1].split(',')
+#    for node in T.iter_leaves():
+#        node.detach()
+#else:
+#    rem = []
+
+#if '-mistid' not in sys.argv: #keep mistid
+#    ts.show_leaf_name = False
+
+
+
+features = []
+
+def mylayout(node):
+    if node.is_leaf():
+        if 1:
+            print node.name
+#           if '-mistid' not in sys.argv:
+#               if len(node.name.split('|')) != 2:
+#                   if '|' not in node.name:
+#                       node.name = node.name + '|X Error'
+#                   else:
+#                       node.name = node.name.split('|')[0] + '|Error'
+            feature = node.name.split('-')[N]
+            if feature not in features:
+		features.append(feature)
+            i = int(math.fmod(features.index(feature), len(colors_array)))
+            ete2.faces.add_face_to_node(ete2.faces.TextFace(node.name), node, column = 0)
+	    Face = ete2.faces.TextFace(feature)
+            Face.background.color = colors_array[i]
+            Face.margin_top = 3
+            Face.margin_bottom = 3
+            Face.margin_left = 3
+            Face.margin_right = 3
+            ete2.faces.add_face_to_node(Face, node, column = 1, aligned = True)
+#           ete2.faces.add_face_to_node(ete2.faces.TextFace(' ', fgcolor = 'white'), node, column = 2*i+2, aligned = True)
+            
+if '-bal' in sys.argv:
+#   T.ladderize()
+    mp = T.get_midpoint_outgroup()
+    T.set_outgroup(mp)
+    T.ladderize()
+
+if '-c' in sys.argv:
+    ts.mode = 'c'
+
+if '-c180' in sys.argv:
+    ts.mode = 'c'
+    ts.arc_start = -180 # 0 degrees = 3 o'clock
+    ts.arc_span = 180		
+    
+ts.layout_fn = mylayout
+
+
+
+if '-show' in sys.argv:
+    T.show(tree_style = ts)
+else:
+    T.render(sys.argv[1] + '.pdf',w=600, tree_style = ts)
+
+
+
+
+#for node in T.iter_leaves():
+#    for che in cla['allcla']:
+#        ete2.faces.add_face_to_node(node.
+#        if che in cla[node.name.split('|')[0]]:
+           
+
+#   nstyle = NodeStyle()
+#   nstyle["fgcolor"] = "red"
+#   nstyle["size"] = 15
+#   n.set_style(nstyle)
+
+
+
+
+

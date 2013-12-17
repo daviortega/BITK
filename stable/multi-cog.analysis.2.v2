@@ -21,7 +21,7 @@ prjt_nm=${1%.*}
 echo $prjt_nm
 
 echo "Copying necessary files"
-cp ./$prjt_nm/COGs/*cog.dat ./$prjt_nm/COGs/*bal.nwk ./$prjt_nm/COGs/chea.latest.s.class.$prjt_nm.linsi.fa ./$prjt_nm/merge
+cp ./$prjt_nm/COGs/*.pdf ./$prjt_nm/COGs/*cog.dat ./$prjt_nm/COGs/*bal.nwk ./$prjt_nm/COGs/chea.latest.s.class.$prjt_nm.linsi.fa ./$prjt_nm/merge
 echo "changing directory"
 cd ./$prjt_nm/merge
 echo "Sorting the org_id list by the tree"

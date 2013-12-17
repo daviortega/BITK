@@ -63,7 +63,7 @@ echo "Formating fasta to phyml: fa2phy chea.latest.s.class.$prjt_nm.linsi.fa"
 fa2phy chea.latest.s.class.$prjt_nm.linsi.fa
 
 echo "Making the tree: phyml -i chea.latest.s.class.$prjt_nm.linsi.phy $phyml_flags &"
-phyml -i chea.latest.s.class.$prjt_nm.linsi.phy $phyml_flags
+phyml -i chea.latest.s.class.$prjt_nm.linsi.phy $phyml_flags &
 
 
 echo "Preparing Adaptor files..."

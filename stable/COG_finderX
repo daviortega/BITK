@@ -28,26 +28,23 @@ if '-h' in sys.argv:
 	print 'COG-finder3 with BLAST. It takes (in order) one alignment as the database and two others as queries. Then optional flags (as decribed bellow).  \n \
 	 Option: -plot for plot on display \n \
 		 -skip for skipping calculations\n \
+		 -qcov_cutoff N		Query coverage cutoff to be considered for grouping.\n \
 		 -html outputs html with \n \
 		 -intercluster Meaningful intercluster distances\n \
 		 -pic outputs a pic of the clustering\n \
 		 -ft N  Changes the font of the COG labels in the pdf pic\n \
 		 -cog_output outputs a txt version of grouping. One line per cog and tags separated by " ; "  \n \
-                 -fullseq seq.fa Fasta format file with full sequences to be used to fetch domain arch from SeqSepot\n \
-                 -js       Export json formated nodes and edges to be used in javascripts\n \
-		 -nolabels No labels in the picture\n \
-		 -notCOG  Just cluster by BLAST results above threshold \n \
 		THRESHOLDS ----------------------------------------------------------- \n \
-		 -EvT N    Threshould for picking up distant paralogs in other species. N must be a number: default 10E-500\n \
-		 -EvP N    Threshould for picking up distant paralog in the same species. N must eb a number: default 10E-500\n \
+		 -EvT N    Threshould for picking up distant paralogs in other species. N must be a number: default 10E-50\n \
+		 -EvP N    Threshould for picking up distant paralog in the same species. N must eb a number: default 10E-100\n \
 		 -Ec  N    Maximum Evalue to consider hit: default 1\n \
-                 -qcov_cutoff N         Query coverage cutoff to be considered for grouping.\n\n\n\n \
-		_______________________________________________________________________\n \
-		BLAST COMMAND: blastp -db dbname -query your_query.fa -out output_file.dat -num_threads 10 -outfmt "6 qseqid sseqid bitscore evalue qlen length" -evalue 0.001 -max_target_seqs 100000' 
+
+		 -fullseq seq.fa Fasta format file with full sequences to be used to fetch domain arch from SeqSepot\n \
+		 -js	   Export json formated nodes and edges to be used in javascripts\n'
 	sys.exit()
 
-EvT = 10E-500
-EvP = 10E-500
+EvT = 10E-50
+EvP = 10E-100
 Qth = 0.0
 Ec = 1
 
@@ -58,9 +55,6 @@ if '-EvP' in sys.argv:
                 print('Number must be passed after -EvP flag. Ex: 10E-100')
                 sys.exit()
 
-if '-notCOG' in sys.argv:
-	EvP = 10
-
 
 if '-Ec' in sys.argv:
         try:
@@ -68,6 +62,8 @@ if '-Ec' in sys.argv:
         except:
                 print('Number must be passed after -Ecutoff flag. Ex: 10E-50')
                 sys.exit()
+	if '-EvP' not in sys.argv:
+		EvP = Ec
 
 if '-qcov_cutoff' in sys.argv:
 	Qth = float(sys.argv[sys.argv.index('-qcov_cutoff') + 1])
@@ -197,7 +193,7 @@ for line in datafile:
 	
 					data_dic[qry][hit] = [ float(i) for i in field[2:] ]
         		                output += qry + '\t' + hit + '\t' + field[2] + '\t' + str(qcov) + '\n'
-			elif '-notCOG' not in sys.argv:
+			else:
 				for i in data_dic[qry].keys():
 					if hit_orgid == i.split('-')[0]:
 #						print field
@@ -205,14 +201,13 @@ for line in datafile:
 						if data_dic[qry][i][1] > float(field[3]):
 							del data_dic[qry][i]
 							data_dic[qry][hit] = [ float(i) for i in field[2:] ]
-
 datafile.close()
 
 #check for unique clans made out of qcov factors and add them:
 
 
 print "Sequences that are now made its own COG because of domain coverage cutoff"
-for seq in seq_list: 
+for seq in seq_list:
 	if seq not in data_dic.keys():
 		data_dic[seq]={}
 		data_list.append(seq)
@@ -359,19 +354,6 @@ for i in range(len(groups)):
         for node in groups[i]:
 		G.node[node]['group'] = i
 
-print "Taking a moment to output the clusters in case NetworkX give up on you later :)"
-if '-cog_output' in sys.argv:
-        output =''
-        cog = 1
-        for g in groups:
-                output += 'COG ' + str(cog) + '\n'
-                output += '\n'.join(g) + '\n'
-                output += '\n'
-                cog += 1
-        dataout = open(sys.argv[1][:-3] + '.cog.dat', 'w')
-        dataout.write(output)
-        dataout.close()
-
 
 
 UU = nx.Graph()
@@ -476,8 +458,7 @@ if '-pic' in sys.argv or '-plot' in sys.argv:
 	for i in range(len(query_array)):
 		nx.draw_networkx_nodes(G,pos, node_size = 30, linewidths = 0.5, node_color = colors_array[i], nodelist=query_array[i][1] )
         nx.draw_networkx_edges(G,pos, width = 1, alpha = 0.2, edge_color = 'black')
-	if '-nolabels' not in sys.argv:
-	        nx.draw_networkx_labels(G, new_label_pos, labels = new_labels, font_size = ft)
+        nx.draw_networkx_labels(G, new_label_pos, labels = new_labels, font_size = ft)
 	plt.axis('off')
 	if '-pic' in sys.argv:
 	        plt.savefig(sys.argv[1][:-3] + ".cluster.png")
@@ -662,18 +643,18 @@ if '-html' in sys.argv:
 	dataout.write(hout)
 	dataout.close()
 
-#if '-cog_output' in sys.argv:
-#	output =''
-#	cog = 1
-#	for g in groups:
-#		output += 'COG ' + str(cog) + '\n'
-#		output += '\n'.join(g) + '\n'
-#		output += '\n'
-#		cog += 1
-#	dataout = open(sys.argv[1][:-3] + '.cog.dat', 'w')
-#	dataout.write(output)
-#	dataout.close()
- 
+if '-cog_output' in sys.argv:
+	output =''
+	cog = 1
+	for g in groups:
+		output += 'COG ' + str(cog) + '\n'
+		output += '\n'.join(g) + '\n'
+		output += '\n'
+		cog += 1
+	dataout = open(sys.argv[1][:-3] + '.cog.dat', 'w')
+	dataout.write(output)
+	dataout.close()
+
 print 'Done'
 	
 
