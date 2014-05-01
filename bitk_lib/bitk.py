@@ -4,6 +4,8 @@ import sys
 import numpy
 import md5
 import base64
+import ete2
+
 
 def alnreader(datafile, list = 'no', just_name = 'no'):
 #	"""Reads a clustalw format file and returns the information in a dictionary name:sequences"""
@@ -86,6 +88,15 @@ def phreader(datafile):
 			seq_list.append(name)
         data.close()
         return seq_list
+
+
+def nwkreader2(datafile):
+	seq_list = []
+	tr = ete2.Tree(datafile)
+	for n in tr:
+		seq_list.append(n.name)
+	return seq_list
+
 
 def nwkreader(datafile,just_name='no'):
 #	"""Reads a .nwk file and return a list with the sequences in the same order as the .nwk file"
