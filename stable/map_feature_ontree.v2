@@ -24,7 +24,12 @@ colors_array = [ '#E41A1C' , '#377EB8' , '#4DAF4A' , '#984EA3' , '#FF7F00' , '#9
 
 #cla = json.load(open(sys.argv[1]))
 T = ete2.Tree(sys.argv[1])
-N = int(sys.argv[2])
+N_list = []
+for i in sys.argv[2:]:
+	if '-' in i:
+		break
+	N_list.append(int(i))
+
 #print cla['allcla']
 
 #if '-checlass' in sys.argv:
@@ -75,19 +80,22 @@ def mylayout(node):
 #                       node.name = node.name + '|X Error'
 #                   else:
 #                       node.name = node.name.split('|')[0] + '|Error'
-            feature = node.name.split('-')[N]
-            if feature not in features:
-		features.append(feature)
-            i = int(math.fmod(features.index(feature), len(colors_array)))
-#           ete2.faces.add_face_to_node(ete2.faces.TextFace(node.name), node, column = 0)
-	    Face = ete2.faces.TextFace(feature)
-            Face.background.color = colors_array[i]
-            Face.margin_top = 3
-            Face.margin_bottom = 3
-            Face.margin_left = 3
-            Face.margin_right = 3
-            ete2.faces.add_face_to_node(Face, node, column = 1, aligned = True)
-#           ete2.faces.add_face_to_node(ete2.faces.TextFace(' ', fgcolor = 'white'), node, column = 2*i+2, aligned = True)
+	    c = 1
+	    for N in N_list:
+	            feature = node.name.split('-')[N]
+        	    if feature not in features:
+			features.append(feature)
+	            i = int(math.fmod(features.index(feature), len(colors_array)))
+#       	    ete2.faces.add_face_to_node(ete2.faces.TextFace(node.name), node, column = 0)
+		    Face = ete2.faces.TextFace(feature)
+        	    Face.background.color = colors_array[i]
+	            Face.margin_top = 3
+        	    Face.margin_bottom = 3
+	            Face.margin_left = 3
+        	    Face.margin_right = 3
+	            ete2.faces.add_face_to_node(Face, node, column = c, aligned = True)
+		    c += 1
+#       	    ete2.faces.add_face_to_node(ete2.faces.TextFace(' ', fgcolor = 'white'), node, column = 2*i+2, aligned = True)
             
 if '-bal' in sys.argv:
 #   T.ladderize()
@@ -100,7 +108,7 @@ if '-c' in sys.argv:
 
 if '-c180' in sys.argv:
     ts.mode = 'c'
-    ts.arc_start = -180 # 0 degrees = 3 o'clock
+    ts.arc_start = 180 # 0 degrees = 3 o'clock
     ts.arc_span = 180		
 
 ts.layout_fn = mylayout
@@ -109,11 +117,12 @@ ts.layout_fn = mylayout
 
 if '-show' in sys.argv:
     T.show(tree_style = ts)
-else:
+
+if '-pdf' in sys.argv:
     print "here now"
     T.render(sys.argv[1] + '.pdf',w=600, tree_style = ts)
     print "here !?"
-
+i
 
 
 

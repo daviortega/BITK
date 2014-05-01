@@ -1,0 +1,165 @@
+#!/bin/bash
+
+cwd=$(pwd)
+
+#configuration
+mistd="/home/ortega/MIST2.2"
+cogfinder="COG_finder4.2"
+chew_pfam="~/SparkleShare/zlabFS/ortega/pfammodels/pfam/PF01584.hmm"
+mcp_pfam="~/SparkleShare/zlabFS/ortega/pfammodels/MCPsignal.hmm"
+NP_linsi=12
+phyml_flags="-q -d aa -m JTT -c 4 -a e -s SPR --no_memory_check"
+phyml_flags_16S="-q -m GTR -c 20 -a e -s SPR --no_memory_check"
+r16Sfile="16S.latest.json.fa"
+Gblocks_flags=" -t=d -b5=h -b4=2"
+make_GN_flags="7 -pdf -org -order_st"
+
+prjt_nm=${1%.*}
+
+echo "Making project $prjt_nm directory"
+
+mkdir ./$prjt_nm
+mkdir ./$prjt_nm/COGs
+mkdir ./$prjt_nm/merge
+
+cp ./$1 ./$prjt_nm/$1
+
+echo "Step 1: Making the datasets"
+echo "Changing directories"
+cd $cwd/$prjt_nm/COGs
+
+echo "Making the MCP CheA and adaptors (CheV+CheW) datasets: (This will take a while)"
+ln -s $mistd/fasta/latest/chea.latest.s.class.fa ./
+ln -s $mistd/fasta/latest/mcp.latest.s.class.fa ./
+ln -s $mistd/fasta/latest/chev.latest.s.class.fa ./
+ln -s $mistd/fasta/latest/chew.latest.s.fa ./
+ln -s $mistd/fasta/latest/$r16Sfile ./
+
+
+echo "	CheA: keepbyorganismid ../$1 $mistd/fasta/latest/chea.latest.s.class.fa &"
+#keepbyorganismid ../$1 $mistd/fasta/latest/chea.latest.s.class.fa &
+keepbyorganismid ../$1 chea.latest.s.class.fa &
+
+echo "	MCPs: keepbyorganismid ../$1 $mistd/fasta/latest/mcp.latest.s.class.fa &"
+#keepbyorganismid ../$1 $mistd/fasta/latest/mcp.latest.s.class.fa &
+keepbyorganismid ../$1 mcp.latest.s.class.fa &
+echo "	CheV: keepbyorganismid ../$1 $mistd/fasta/latest/chev.latest.s.class.fa &"
+#keepbyorganismid ../$1 $mistd/fasta/latest/chev.latest.s.class.fa &
+keepbyorganismid ../$1 chev.latest.s.class.fa &
+echo "	CheW: keepbyorganismid ../$1 $mistd/fasta/latest/chew.latest.s.fa &"
+#keepbyorganismid ../$1 $mistd/fasta/latest/chew.latest.s.fa &
+keepbyorganismid ../$1 chew.latest.s.fa &
+echo "	16S:  get16Sfromlist ../$1 $r16Sfile &"
+get16Sfromlist ../$1 $r16Sfile -only_id &
+wait
+
+mv chea.latest.s.class.new.fa chea.latest.s.class.$prjt_nm.fa
+mv mcp.latest.s.class.new.fa mcp.latest.s.class.$prjt_nm.fa
+mv chev.latest.s.class.new.fa chev.latest.s.class.$prjt_nm.fa
+mv chew.latest.s.new.fa chew.latest.s.$prjt_nm.fa
+mv ../$prjt_nm.16S.fa ./
+
+echo "Running $cogfinder on MCPs first on background while preparing other files"
+echo "$cogfinder mcp.latest.s.class.$prjt_nm.fa mcp.latest.s.class.$prjt_nm.fa -pic -html -js -cog_output -qcov_cutoff 0.9 -Ec 10E-90 &"
+$cogfinder mcp.latest.s.class.$prjt_nm.fa mcp.latest.s.class.$prjt_nm.fa -pic -html -js -cog_output -qcov_cutoff 0.95 -Ec 10E-30 &
+
+echo "Trimming MCP sequences by HMMs: trimbyhmm2 $mcp_pfam mcpchev.latest.s.$prjt_nm.fa -m 1"
+trimbyhmm2 $mcp_pfam mcp.latest.s.class.$prjt_nm.fa -m 1
+echo "$cogfinder mcp.latest.s.class.$prjt_nm.hmmtrim.fa mcp.latest.s.class.$prjt_nm.hmmtrim.fa -pic -html -js -cog_output -qcov_cutoff 0.9 -Ec 10E-90 &"
+$cogfinder mcp.latest.s.class.$prjt_nm.hmmtrim.fa mcp.latest.s.class.$prjt_nm.hmmtrim.fa -pic -html -js -cog_output -qcov_cutoff 0.95 -Ec 10E-90 &
+
+
+echo "Making 16S tree might take a bit too, so let's get it started"
+echo "Aligning: linsi --quiet --thread $NP_linsi $prjt_nm.16S.fa > $prjt_nm.16S.linsi.fa"
+linsi --quiet --thread $NP_linsi $prjt_nm.16S.fa > $prjt_nm.16S.linsi.fa
+echo "Cleaning with Gblock: Gblock $prjt_nm.16S.linsi.fa $Gblack_flags"
+Gblocks $prjt_nm.16S.linsi.fa $Gblocks_flags
+mv $prjt_nm.16S.linsi.fa-gb $prjt_nm.16S.linsi.gb.fa
+echo "Formating fasta to phyml: fa2phy $prjt_nm.16S.linsi.gb.fa"
+fa2phy $prjt_nm.16S.linsi.gb.fa
+echo "Making the tree: phyml -i $prjt_nm.16S.linsi.gb.phy $phml_flags_16S &"
+phyml -i $prjt_nm.16S.linsi.gb.phy $phml_flags_16S &
+
+echo "Making CheA tree might also take a bit, so let's get it started"
+echo "Aligning: linsi --quiet -thread $NP_linsi chea.latest.s.class.$prjt_nm.fa > chea.latest.s.class.$prjt_nm.linsi.fa"
+linsi --quiet --thread $NP_linsi chea.latest.s.class.$prjt_nm.fa > chea.latest.s.class.$prjt_nm.linsi.fa 
+echo "Formating fasta to phyml: fa2phy chea.latest.s.class.$prjt_nm.linsi.fa"
+fa2phy chea.latest.s.class.$prjt_nm.linsi.fa
+echo "Making the tree: phyml -i chea.latest.s.class.$prjt_nm.linsi.phy $phyml_flags &"
+phyml -i chea.latest.s.class.$prjt_nm.linsi.phy $phyml_flags &
+
+echo "Making Gene neighborhood"
+make_GN chea.latest.s.class.$prjt_nm.linsi.fa $make_GN_flags &
+
+
+echo "Preparing Adaptor files..."
+echo "Trimming CheW sequences by HMMs: trimbyhmm2 $chew_pfam chew.latest.s.$prjt_nm.fa -m 1"
+trimbyhmm2 $chew_pfam chew.latest.s.$prjt_nm.fa -m 1
+
+echo "Trimming CheV sequences by HMMs: trimbyhmm2 $chew_pfam chev.latest.s.$prjt_nm.fa -m 1"
+trimbyhmm2 $chew_pfam chev.latest.s.class.$prjt_nm.fa -m 1
+
+echo "Combining to make the database for full legth: cat chew.latest.s.$prjt_nm.fa chev.latest.s.class.$prjt_nm.fa > adap.latest.s.$prjt_nm.fa"
+cat chew.latest.s.$prjt_nm.fa chev.latest.s.class.$prjt_nm.fa > adap.latest.s.$prjt_nm.fa
+
+echo "Combining to make the database to be blasted: cat chew.latest.s.$prjt_nm.hmmtrim.fa chev.latest.s.class.$prjt_nm.hmmtrim.fa > adap.latest.s.$prjt_nm.hmmtrim.fa"
+cat chew.latest.s.$prjt_nm.hmmtrim.fa chev.latest.s.class.$prjt_nm.hmmtrim.fa > adap.latest.s.$prjt_nm.hmmtrim.fa
+
+
+echo "Running $cogfinder on Adaptor\n$cogfinder adap.latest.s.$prjt_nm.hmmtrim.fa chew.latest.s.$prjt_nm.hmmtrim.fa chev.latest.s.class.$prjt_nm.hmmtrim.fa -pic -html -js -cog_output -fullseq adap.latest.s.$prjt_nm.fa -Ec 10E-30&"
+$cogfinder adap.latest.s.$prjt_nm.hmmtrim.fa chew.latest.s.$prjt_nm.hmmtrim.fa chev.latest.s.class.$prjt_nm.hmmtrim.fa -pic -html -js -cog_output -fullseq adap.latest.s.$prjt_nm.fa -Ec 10E-30 &
+
+echo "Running $cogfinder on Kinases\n$cogfinder chea.latest.s.class.$prjt_nm.fa chea.latest.s.class.$prjt_nm.fa -pic -html -js -cog_output -qcov_cutoff 0.95 -Ec 10E-120"
+$cogfinder chea.latest.s.class.$prjt_nm.fa chea.latest.s.class.$prjt_nm.fa -pic -html -js -cog_output -qcov_cutoff 0.95 -Ec 10E-120 &
+
+
+cat > $cwd/$prjt_nm/$prjt_nm.log << DELIM
+	Notice that before running the next step, you need to make sure that the data produced is suitable to your purpose.
+        Ther are two parts that should be double checked right now. 1) COG_finder4.1 results and the tree.
+        ************************************************************************************************
+        					$cogfinder
+        ************************************************************************************************
+        You can visualize teh COGs by copying the html and json files to a web directory or load it locally in a browser (firefox best).
+	Take a look at the help of $cogfinder (flag -h) for options with cutoffs. 
+	If you want to change them, please run $cogfinder by the following commands (plus any flag you want).
+        
+	MCPs: $cogfinder mcp.latest.s.class.$prjt_nm.fa mcp.latest.s.class.$prjt_nm.fa -pic -html -js -cog_output -skip -qcov_cutoff 0.95 -Ec 10E-30
+        
+	Adap: $cogfinder adap.latest.s.$prjt_nm.hmmtrim.fa chew.latest.s.$prjt_nm.hmmtrim.fa chev.latest.s.class.$prjt_nm.hmmtrim.fa -pic -html -js -cog_output -fullseq adap.latest.s.$prjt_nm.fa -skip -Ec 10E-30
+
+	CheA: $cogfinder chea.latest.s.class.$prjt_nm.fa chea.latest.s.class.$prjt_nm.fa -pic -html -js -cog_output -skip -qcov_cutoff 0.95 -Ec 10E-120
+
+        ************************************************************************************************
+				    CheA tree (used to sort the species)
+        ************************************************************************************************
+        You can substitute our tree for your own tree the directory /media/storage4/2013/Adaptors/singleCheA/1A.Euryarchaeota.oc/COGs
+        Copy your tree to the directory ./COGs with the name:
+        chea.latest.s.class.$prjt_nm.linsi.phy_phyml_tree.rec.bal.nwk
+
+        Once ajusted please run the multi-cog.analysis.2.v2
+
+	*********************  IMPORTANT: DO NOT CHANGE THE NAME OF THE FILES  **************************
+
+DELIM
+
+
+echo "Log file is at the project directory of name $prjt_nm"
+
+echo "Waiting for all the jobs to be finished to give you the prompt back. Coffee time?"
+wait
+echo "Final remarks"
+rectaxontree2 $prjt_nm.16S.linsi.gb.phy_phyml_tree.txt
+balance_nwk_tree $prjt_nm.16S.linsi.gb.phy_phyml_tree.rec.nwk
+echo "Relocate tags to the tree: rectaxontree2 chea.latest.s.class.$prjt_nm.linsi.phy_phyml_tree.txt"
+rectaxontree2 chea.latest.s.class.$prjt_nm.linsi.phy_phyml_tree.txt;
+echo "Renaming it to nwk: mv chea.latest.s.class.$prjt_nm.linsi.phy_phyml_tree.rec.txt chea.latest.s.class.$prjt_nm.linsi.phy_phyml_tree.rec.nwk"
+#mv chea.latest.s.class.$prjt_nm.linsi.phy_phyml_tree.rec.txt chea.latest.s.class.$prjt_nm.linsi.phy_phyml_tree.rec.nwk 
+echo "Balancing the tree: balance_nwk_tree chea.latest.s.class.$prjt_nm.linsi.phy_phyml_tree.rec.nwk"
+balance_nwk_tree chea.latest.s.class.$prjt_nm.linsi.phy_phyml_tree.rec.nwk
+
+
+echo "Done"
+exit 0
+
+
+

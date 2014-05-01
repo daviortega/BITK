@@ -1,0 +1,79 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 1/30/2014 
+###################################
+import sys
+import pymongo
+if '-h' in sys.argv:
+	print 'By request, this script takes two entries, blastmistdb output and query coverage cutoff, to perform two tasks: 1:) separate the hits for each sequence from query into independent files, 2) presence and abscence table of a hits for each query sequence per genome'
+	sys.exit()
+
+try:
+        client = pymongo.MongoClient('localhost',27017)
+except Connection:
+        print "You must open a tunnel with ares.bio.utk.edu: ssh -L 27017:are.bio.utk.edu:27017 ares.bio.utk.edu"
+        sys.exit()
+mist = client.mist22
+
+
+
+N = float(sys.argv[2])
+
+data_dic = {}
+qry_list = []
+hit_list = []
+locus_dic = {}
+
+datafile = open(sys.argv[1],'r')
+for line in datafile:
+	field = line.replace('\n','').split('\t')
+	qry = field[0]
+	hit = field[1].split('-')[0]
+	hit_loc = field[1].split('-')[1]
+	Evalue = field[3]
+	qcov = float(field[5])/float(field[4])
+	if qcov > N:
+		if hit not in data_dic.keys():
+			data_dic[hit] = [qry]
+			hit_list.append(hit)
+		else:
+			data_dic[hit].append(qry)
+		if qry not in qry_list:
+			qry_list.append(qry)
+			locus_dic[qry] = {hit:[hit_loc + ';' + Evalue]}
+		elif hit not in locus_dic[qry].keys():
+			locus_dic[qry][hit] = [hit_loc + ';' + Evalue]
+		else:
+			locus_dic[qry][hit].append(hit_loc + ';' + Evalue)
+
+
+
+
+datafile.close()
+
+qry_list.sort()
+hit_list.sort()
+
+output = 'MistID\tKingdom\tPhylum\tClass\tOrder\tGenome name\t' + '\t'.join(qry_list) + '\t'.join(qry_list) + '\n'
+
+
+for hit in hit_list:
+	gen = mist.genomes.find_one({"_id":int(hit)},{"ta":1, "n":1})
+	pres = []
+	loc = []
+	for qry in qry_list:
+		pres.append(str(data_dic[hit].count(qry)))
+		if hit in locus_dic[qry].keys():
+			loc.append('|'.join(locus_dic[qry][hit]))
+		else:
+			loc.append('')
+	tax = gen['ta'][:4]
+	while len(tax) != 4:
+		tax.append('')
+	output += hit + '\t' + '\t'.join(tax) + '\t' + gen['n'] + '\t' + '\t'.join(pres) + '\t' + '\t'.join(loc) + '\n'  
+
+datafile = open(sys.argv[1][:-3] + 'presence.txt','w')
+datafile.write(output)
+datafile.close()
+
+

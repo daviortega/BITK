@@ -1,0 +1,51 @@
+#! /usr/bin/env python 
+###################################
+##    Davi Ortega                ##
+###################################
+import bitk
+import sys
+
+if '-h' in sys.argv:
+	print 'Reads list generated of Nth feature marked in the tag and KEEP only the sequences from the given alignment of the proteins with feature in the list \n\n\tSintaxe: keepbyfeature featurestobekept.list alignment.fa N\nN is the position of the feature in the tag separated by -'
+	sys.exit()
+
+listfile = open(sys.argv[1],'r')
+N = int(sys.argv[3])
+
+list_features = []
+for line in listfile:
+	line = line.replace('\r','').replace('\n','')
+	if line.count('-') > 1:
+		cut_point = line[:line.find('-')+1].find('-') + line.find('-')
+		list_features.append(line[:cut_point])
+		
+	else:
+		list_features.append(line.replace('\n',''))
+
+print list_features
+seq_dic, seq_list = bitk.fastareader(sys.argv[2])
+
+found_list = []
+
+output = ''
+for seq in seq_list:
+	print seq
+	seq = seq.replace('/','-')
+	feature = seq.split('-')[N]
+	print feature
+	#organism = seq.split('-')[0] + '-' + seq.split('-')[1]
+	if feature in list_features:
+		print seq
+		output += '>' + seq + '\n' + seq_dic[seq] + '\n'
+		found_list.append(feature)
+
+#for feature in list_features:
+#	if feature not in found_list:
+#		print "Not found: " + feature
+	
+
+datafile = open(sys.argv[2][:-3] + '.feature.' + str(N) + '.fa', 'w')
+datafile.write(output)
+datafile.close()
+listfile.close()
+		

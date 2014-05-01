@@ -1,0 +1,24 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 1/30/2014 
+###################################
+import sys
+import os
+if '-h' in sys.argv:
+	print 'this will blast mist, it will take all the options for blast format as usual but the db name and the query file (will be the file you provide against mist database). Mist will be in the following format: >organism_mistid-locus-accession. Sintax: blastmist filetobeblasted.fa [optional flags for blast (use \\" for ")  ] '
+	sys.exit()
+
+MISTDB = "/home/ortega/MIST2.2/fasta/all/mistdb"
+#os.system('ln -s /home/ortega/MIST2.2/fasta/all/mist* ./')
+
+
+filename = sys.argv[1]
+print len(sys.argv)
+if len(sys.argv) == 2:
+	options = '-num_threads 10 -outfmt "6 qseqid sseqid bitscore evalue qlen length" -num_alignments 100000 -evalue 0.001 -num_descriptions 100000 -max_target_seqs 100000'
+else:
+	options = " ".join(sys.argv[2:])
+print options
+
+os.system('blastp -db ' + MISTDB + ' -query ' + sys.argv[1] + ' -out ' + sys.argv[1][:-3] + '.blastedvsmistdb.dat ' +  options )
+

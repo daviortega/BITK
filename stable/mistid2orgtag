@@ -1,0 +1,33 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 1/23/2014 
+###################################
+import bitk
+import sys
+if '-h' in sys.argv:
+	print 'list of mistid to be transformed into tag. This is a lazy implementation and require a original chea file should contain all tags for all orgid \n \
+	Sintax: mistid2orgtag mistid.list chea.file.withalltags.fa'
+	sys.exit()
+
+seq_list, seq_dic = bitk.fastareader(sys.argv[2])
+
+output = ''
+
+datafile = open(sys.argv[1],'r')
+
+
+
+for line in datafile:
+	mistid = line.replace('\n','')
+	for tag in seq_list:
+		if tag.split('-')[0].split('.')[-1] == mistid:
+			output += tag.split('-')[0] + '\n'
+			break
+
+datafile.close()
+dataout = open(sys.argv[1][:sys.argv[1].rfind('.')] + '.orgtag.list', 'w')
+dataout.write(output)
+dataout.close()
+
+
+

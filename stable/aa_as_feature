@@ -1,0 +1,24 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 4/22/2014 
+###################################
+import sys
+import bitk
+if '-h' in sys.argv:
+	print 'include the amino-acid of a certain position N in the alignment as feature in the sequence tag.\n Sintax: aa_as_feature fasta.fa N (start at position 1)'
+	sys.exit()
+
+
+msa_dic, msa_list = bitk.fastareader(sys.argv[1])
+N = int(sys.argv[2])
+
+
+output = ''
+
+for tag in msa_list:
+	output += '>' + tag + '-' + msa_dic[tag][N-1] + '\n' + msa_dic[tag] + '\n'
+
+dataout = open(sys.argv[1][:-3] + '.aa_as_feature_' + str(N) + '.fa', 'w')
+dataout.write(output)
+dataout.close()
+

@@ -1,0 +1,31 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 5/1/2014 
+###################################
+import sys
+if '-h' in sys.argv:
+	print 'Cheap solution to trim the table of chemotaxis counts with a subset of genomes\n \
+	Sintaxe: checount.table.by.mistid mistid.list checount.latest.j.tab'
+	sys.exit()
+
+
+genomes = []
+
+datain = open(sys.argv[1], 'r')
+for line in datain:
+	genomes.append(line.replace('\n',''))
+datain.close()
+
+datain2 = open(sys.argv[2], 'r')
+output = ''
+
+for line in datain2:
+	if line.split('\t')[6] in genomes:
+		output += line
+
+datain2.close()
+
+dataout = open(sys.argv[2][:-3] + 'trimmed.tab', 'w')
+dataout.write(output)
+dataout.close()
+

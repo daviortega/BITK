@@ -432,12 +432,13 @@ for seq_info in query_array:
 #print node_list
 #print nodes
 
-colors_array = ['red','blue','green','cyan','magenta','#ff6600', 'yellow','black']
-colors_array = [ '#D73027', '#F46D43', '#FDAE61' , '#FEE090', '#E0F3F8', '#ABD9E9' , '#74ADD1', '#4575B4' ]
-colors_array = [ '#2D5088', '#2D7D88', '#2D8837' , '#7D882D', '#88652D', '#872D7D' , '#74ADD1', '#4575B4' ]
-colors_array = [ '#E41A1C' , '#377EB8' , '#4DAF4A' , '#984EA3' , '#FF7F00' , '#999999' , '#A65628' , '#F781BF', '#17BECF', '#2D5088', '#2D7D88']
-colors_array = [ '#E41A1C' , '#377EB8' , '#4DAF4A' , '#984EA3' , '#FF7F00' , '#999999' , '#A65628' , '#F781BF', '#17BECF', "#8DD3C7", "#BEBADA", "#FB8072", "#80B1D3", "#B3DE69", "#FCCDE5", "#D9D9D9", "#BC80BD", "#CCEBC5", "#FFED6F" ]
+#colors_array = ['red','blue','green','cyan','magenta','#ff6600', 'yellow','black']
+#colors_array = [ '#D73027', '#F46D43', '#FDAE61' , '#FEE090', '#E0F3F8', '#ABD9E9' , '#74ADD1', '#4575B4' ]
+#colors_array = [ '#2D5088', '#2D7D88', '#2D8837' , '#7D882D', '#88652D', '#872D7D' , '#74ADD1', '#4575B4' ]
+#colors_array = [ '#E41A1C' , '#377EB8' , '#4DAF4A' , '#984EA3' , '#FF7F00' , '#999999' , '#A65628' , '#F781BF', '#17BECF', '#2D5088', '#2D7D88']
+#colors_array = [ '#E41A1C' , '#377EB8' , '#4DAF4A' , '#984EA3' , '#FF7F00' , '#999999' , '#A65628' , '#F781BF', '#17BECF', "#8DD3C7", "#BEBADA", "#FB8072", "#80B1D3", "#B3DE69", "#FCCDE5", "#D9D9D9", "#BC80BD", "#CCEBC5", "#FFED6F" ]
 #colors_array = [ '#1B9E77' , '#D95F02' , '#7570B3' , '#E7298A' , '#66A61E' , '#E6AB02' , '#A6761D' , '#666666' ]
+colors_array = [ '#D8D8D8','#E41A1C' , '#377EB8']
 
 if '-pic' in sys.argv or '-plot' in sys.argv:
 	plt.figure(figsize=(13,10))
@@ -456,8 +457,11 @@ if '-pic' in sys.argv or '-plot' in sys.argv:
 
 	print "There are " + str(len(query_array)) + " files"
 	for i in range(len(query_array)):
-		nx.draw_networkx_nodes(G,pos, node_size = 30, linewidths = 0.5, node_color = colors_array[i], nodelist=query_array[i][1] )
-        nx.draw_networkx_edges(G,pos, width = 1, alpha = 0.2, edge_color = 'black')
+		if i == 0:
+			nx.draw_networkx_nodes(G,pos, node_size = 40, alpha = 0.5, linewidths = 0.1, node_color = colors_array[i], nodelist=query_array[i][1] )
+		else:
+			nx.draw_networkx_nodes(G,pos, node_size = 40, linewidths = 0.2, node_color = colors_array[i], nodelist=query_array[i][1] )
+       	nx.draw_networkx_edges(G,pos, width = 1, alpha = 0.1, edge_color = 'black')
 	if '-nolabels' not in sys.argv:
 	        nx.draw_networkx_labels(G, new_label_pos, labels = new_labels, font_size = ft)
 	plt.axis('off')
@@ -562,6 +566,7 @@ d3.json('""" + sys.argv[1][:-3] + """.json', function(error, graph) {
     .selectAll("line")
       .data(graph.links)
     .enter().append("line")
+      .attr("stroke-opacity", 0.5)
       .attr("x1", function(d) { return d.source.pos[0]; })
       .attr("y1", function(d) { return d.source.pos[1]; })
       .attr("x2", function(d) { return d.target.pos[0]; })

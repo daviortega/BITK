@@ -1,0 +1,164 @@
+#!/bin/bash
+
+cwd=$(pwd)
+
+
+
+if [ "$3" == '-p' ]; then
+        plubd=$4
+        if [ $# != 4 ]; then
+                echo "tell me where to publish"
+                exit 1
+        fi
+fi
+#configuration
+mistd="/home/ortega/MIST2.2"
+cogpreid="COGperorgid"
+make_GN_flags="7 -pdf -org -order_st"
+
+prjt_nm=${1%.*}
+
+echo $prjt_nm
+
+echo "Copying necessary files"
+cp ./$prjt_nm/COGs/*.pdf ./$prjt_nm/COGs/*cog.dat ./$prjt_nm/COGs/*bal.nwk ./$prjt_nm/COGs/chea.latest.s.class.$prjt_nm.linsi.fa ./$prjt_nm/COGs/$prjt_nm.16S.fa ./$prjt_nm/merge
+echo "changing directory"
+cd ./$prjt_nm/merge
+echo "Sorting the org_id list by the tree"
+#sortfabytree chea.latest.s.class.$prjt_nm.linsi.fa chea.latest.s.class.$prjt_nm.linsi.phy_phyml_tree.rec.bal.nwk
+sortfabytree $prjt_nm.16S.fa $prjt_nm.16S.linsi.gb.phy_phyml_tree.rec.bal.nwk
+echo "Saving list"
+#getorganism chea.latest.s.class.$prjt_nm.linsi.sorted.fa
+getmistid_16S $prjt_nm.16S.sorted.fa
+mistid2orgtag mistid.16S.list chea.latest.s.class.$prjt_nm.linsi.fa
+
+
+if [ "$2" == '-chea' ]; then
+	echo "Using CheA to order"
+	mv organism.list $prjt_nm.sorted.list
+elif [ "$2" == '-r16' ]; then
+	echo "Using r16 to order"
+	mv mistid.16S.orgtag.list $prjt_nm.sorted.list
+else
+	echo "CheA or r16 ?!"
+	exit 1	
+fi
+
+
+echo "Formating the COG information for R"
+COGperorgid $prjt_nm.sorted.list mcp.latest.s.class.$prjt_nm.cog.dat
+mv $prjt_nm.sorted.cogperorg.dat $prjt_nm.sorted.mcp.cogperorg.dat
+COGperorgid $prjt_nm.sorted.list mcp.latest.s.class.$prjt_nm.hmmtrim.cog.dat
+mv $prjt_nm.sorted.cogperorg.dat $prjt_nm.sorted.mcp.hmmtrim.cogperorg.dat
+COGperorgid $prjt_nm.sorted.list adap.latest.s.$prjt_nm.hmmtrim.cog.dat
+mv $prjt_nm.sorted.cogperorg.dat $prjt_nm.sorted.adap.cogperorg.dat
+COGperorgid $prjt_nm.sorted.list chea.latest.s.class.$prjt_nm.cog.dat
+mv $prjt_nm.sorted.cogperorg.dat $prjt_nm.sorted.chea.cogperorg.dat
+
+
+echo "Loading the COG info on R and performing some reshaping"
+
+cat > ./temp.R << DELIM
+library(ggplot2)
+library(reshape2)
+adap <- read.table("$prjt_nm.sorted.adap.cogperorg.dat", sep='\\t', head=T)
+adap\$X <- NULL
+mcps <- read.table("$prjt_nm.sorted.mcp.cogperorg.dat", sep='\\t', head=T)
+mcps\$X <- NULL
+chea <- read.table("$prjt_nm.sorted.chea.cogperorg.dat", sep='\\t', head=T)
+chea\$X <- NULL
+mcp_hmmt <- read.table("$prjt_nm.sorted.mcp.cogperorg.hmmtrim.dat", sep='\\t', head=T)
+#o <- length(adap[,1]) - colSums(adap == 0)
+#o <- length(mcps[,1]) - colSums(mcps == 0)
+
+#adap.df <- melt(adap[,order(o)], id.vars = "COGs") # Sort the name of genome by number of adaptors
+#mcps.df <- melt(mcps[,order(o)], id.vars = "COGs")
+
+
+adap.df <- melt(adap, id.vars = "COGs")
+mcps.df <- melt(mcps, id.vars = "COGs")
+chea.df <- melt(chea, id.vars = "COGs")
+mcp_hmmt <- melt(mcp_hmmt, id.vars = "COGs")
+mcps.df\$prot <- c("mcps")
+adap.df\$prot <- c("adap")
+chea.df\$prot <- c("chea")
+mcp_hmmt.df\$prot <- c("mcps")
+
+
+# THIS WILL MAKE THE PHYLOGENETIC PROFILE WITH THE ENTIRE MCP SEQUENCE
+
+chemo.ai.df <- rbind(chea.df, adap.df, mcps.df)
+chemo.df <- chemo.ai.df
+chemo.df\$cogpres <- ifelse(chemo.ai.df\$value != 0 , 1, 0)
+
+NCOGS <- length(unique(mcps.df\$COGs)) + length(unique(adap.df\$COGs)) + length(unique(chea.df\$COGs))
+NORG <- length(unique(chemo.df\$variable))
+
+pdf("$prjt_nm.presence.pdf", width = 0.3 * NCOGS + 2, height = 0.15 * NORG + 4)
+
+ggplot(chemo.df, aes( as.factor(COGs), as.factor(variable), fill = as.factor(cogpres))) +
+        facet_grid( ~ prot, scale = "free", space = "free" ) +
+        geom_tile(colour = "white") +
+        theme(axis.title.y = element_blank(), legend.position = "none", axis.title.x = element_blank(), axis.ticks.y = element_blank()) +
+        scale_fill_manual(values = c("white","black"), name = "")
+
+dev.off()
+
+max_prot <- max(chemo.ai.df\$value, na.rm = T) + 1
+color_scale <- colorRampPalette(c("white","black","blue", "red"), space = "rgb")
+
+pdf("$prjt_nm.color.pdf", width = 0.3 * NCOGS + 2, height = 0.15 * NORG + 4)
+ggplot(chemo.ai.df, aes( as.factor(COGs), as.factor(variable), fill = as.factor(value))) +
+        facet_grid( ~ prot, scale = "free", space = "free" ) +
+        geom_tile(colour = "white") +
+        theme(axis.title.y = element_blank(), legend.position = "bottom", axis.title.x = element_blank(), axis.ticks.y = element_blank()) +
+	scale_fill_manual(values = color_scale(max_prot), name = "")
+        
+dev.off()
+
+# THIS WILL MAKE THE PHYLOGENETIC PROFILE WITH THE MCP TRIMMED SEQUENCE
+
+chemo.ai.df <- rbind(chea.df, adap.df, mcp_hmmt.df)
+chemo.df <- chemo.ai.df
+chemo.df\$cogpres <- ifelse(chemo.ai.df\$value != 0 , 1, 0)
+
+NCOGS <- length(unique(mcp_hmmt.df\$COGs)) + length(unique(adap.df\$COGs)) + length(unique(chea.df\$COGs))
+NORG <- length(unique(chemo.df\$variable))
+
+pdf("$prjt_nm.presence.mcp_signal.pdf", width = 0.3 * NCOGS + 2, height = 0.15 * NORG + 4)
+
+ggplot(chemo.df, aes( as.factor(COGs), as.factor(variable), fill = as.factor(cogpres))) +
+        facet_grid( ~ prot, scale = "free", space = "free" ) +
+        geom_tile(colour = "white") +
+        theme(axis.title.y = element_blank(), legend.position = "none", axis.title.x = element_blank(), axis.ticks.y = element_blank()) +
+        scale_fill_manual(values = c("white","black"), name = "")
+
+dev.off()
+
+max_prot <- max(chemo.ai.df\$value, na.rm = T) + 1
+color_scale <- colorRampPalette(c("white","black","blue", "red"), space = "rgb")
+
+pdf("$prjt_nm.color.mcp_signal.pdf", width = 0.3 * NCOGS + 2, height = 0.15 * NORG + 4)
+ggplot(chemo.ai.df, aes( as.factor(COGs), as.factor(variable), fill = as.factor(value))) +
+        facet_grid( ~ prot, scale = "free", space = "free" ) +
+        geom_tile(colour = "white") +
+        theme(axis.title.y = element_blank(), legend.position = "bottom", axis.title.x = element_blank(), axis.ticks.y = element_blank()) +
+        scale_fill_manual(values = color_scale(max_prot), name = "")
+
+dev.off()
+
+
+DELIM
+
+echo "Running R"
+R CMD BATCH ./temp.R
+
+
+if [ "$3" == '-p' ]; then
+	echo "Pubshing at $4"
+        plubd=$4
+	mkdir -p $plubd/$prjt_nm/
+	cp ../COGs/*json ../COGs/*html ../COGs/*bal.nwk ./*pdf $plubd/$prjt_nm/
+fi
+
+

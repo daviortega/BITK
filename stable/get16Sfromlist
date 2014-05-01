@@ -5,7 +5,7 @@
 import sys
 import bitk
 if '-h' in sys.argv:
-	print 'get16sfromlist organismid.list 16s.XXX.json.fa'
+	print 'get16sfromlist organismid.list 16s.XXX.json.fa\nOption -only_id to only include mist_id (used by multi-COG.analysis.1.v3)'
 	sys.exit()
 
 f = open(sys.argv[1],'r')
@@ -25,9 +25,12 @@ output = ''
 
 for ge in seq_list:
     if ge.split('|')[0] in ge_ids:
-        output += '>' + ge + '\n' + seq_dic[ge] + '\n'
+	if '-only_id' in sys.argv:
+		output += '>' + ge.split('|')[0] + '\n' + seq_dic[ge] + '\n'
+	else:
+		output += '>' + ge + '\n' + seq_dic[ge] + '\n'
 
-f = open(sys.argv[1][:-5] + '.16S.fa', 'w')
+f = open(sys.argv[1][:sys.argv[1].rfind('.')] + '.16S.fa', 'w')
 f.write(output)
 f.close()
 

@@ -1,0 +1,28 @@
+#! /usr/bin/env python 
+###################################
+##    Davi Ortega                ##
+###################################
+import bitk
+import sys
+
+
+if '-h' in sys.argv:
+	print 'This program gets the organism id from sequences with 16S standard format "ORGID|strain name"\n\n\tSintax: python getorganism.py fasta_file.fa'
+	sys.exit()
+
+seq_dic, seq_list = bitk.fastareader(sys.argv[1])
+
+
+output = ''
+orgid_list = []
+#print seq_dic.keys()
+for name in seq_list:
+	orgid = name.split('|')[0]
+	if orgid not in orgid_list:
+		orgid_list.append(orgid)
+		output += orgid + '\n'
+
+outfile = open('mistid.16S.list', 'w')
+outfile.write(output)
+outfile.close
+

@@ -1,0 +1,70 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 1/30/2014 
+###################################
+import sys
+import pymongo
+if '-h' in sys.argv:
+	print 'By request, this script takes two entries, blastmistdb output and query coverage cutoff, to perform one tasks: separate the sequence of hits for each sequence from query into independent files'
+	sys.exit()
+
+try:
+        client = pymongo.MongoClient('localhost',27017)
+except Connection:
+        print "You must open a tunnel with ares.bio.utk.edu: ssh -L 27017:are.bio.utk.edu:27017 ares.bio.utk.edu"
+        sys.exit()
+mist = client.mist22
+
+
+output = []
+N = float(sys.argv[2])
+
+if '-mcp_class' in sys.argv:
+	M = -3
+else:
+	M = -1
+
+qry_list = []
+
+datafile = open(sys.argv[1],'r')
+for line in datafile:
+	field = line.replace('\n','').split('\t')
+	qry = field[0]
+	hit = field[1].split('-')[0]
+	hit_ac = field[1].split('-')[M]
+	qcov = float(field[5])/float(field[4])
+	if qcov > N:
+		if qry not in qry_list:
+			qry_list.append(qry)
+			output.append('')
+		if '-dna' not in sys.argv:
+			_id = mist.genes.find_one({"p.ac":hit_ac},{"p.aid":1})
+		else:
+			_id = mist.genes.find_one({"p.ac":hit_ac},{"gs_id":1})
+		if _id:
+			if '-dna' not in sys.argv:
+				_id = _id['p']['aid']
+			else:
+				_id = _id['gs_id']
+			if '-dna' not in sys.argv:
+				seq = mist.aseqs.find_one({"_id":_id},{"s":1})
+			else:
+				seq = mist.gseqs.find_one({"_id":_id},{"s":1})
+			if seq:
+				output[qry_list.index(qry)] += '>' + field[1] + '\n' + seq['s'] + '\n'
+			else:
+				print line
+		else:
+			print "No _id: " + line
+			print "|" + hit_ac + "|"
+datafile.close()
+
+for qry in qry_list:
+	if '-dna' not in sys.argv:
+		datafile = open(qry + '.fa','w')
+	else:
+		datafile = open(qry + '.dna.fa','w')
+	datafile.write(output[qry_list.index(qry)])
+	datafile.close()
+
+
