@@ -7,8 +7,10 @@ import fuzzy_davi
 import sys
 import time
 import os
+import json
+
 if '-h' in sys.argv:
-	print 'Reads RMSD matrix and return points in 3D\nOptions: \n -e for export coordinates \n-f for format in different columns by name'
+	print 'Reads RMSD matrix and return points in 3D\nOptions: \n -e for export coordinates \n-f for format in different columns by name \n -json for json output'
 	sys.exit()
 
 start = time.time()
@@ -21,9 +23,9 @@ print "Memory load: " + str(fuzzy_davi.memory(m0))
 #names.sort()
 print len(Dmatrix)
 if '-e' in sys.argv:
-	X, X_2D = fuzzy_davi.coord2(names, Dmatrix, sys.argv[1], 'y')
+	var, X, X_2D = fuzzy_davi.coord2(names, Dmatrix, sys.argv[1], 'y')
 else:
-	X, X_2D = fuzzy_davi.coord2(names, Dmatrix, sys.argv[1])
+	var, X, X_2D = fuzzy_davi.coord2(names, Dmatrix, sys.argv[1])
 
 output = ''
 out = ''
@@ -32,7 +34,11 @@ old_prefix = ''
 tabs = -1
 frame = 0
 
+
+datajson = {'variance': list(var[:10]), 'matrix':[]}
+
 for name in names:
+	datajson['matrix'].append({'label':name, 'x': X_2D[name][0] , 'y': X_2D[name][1] , 'z': X_2D[name][2] })
 	line = X_2D[name]
         output = output + name + '{'
 	out += name + '\t'
@@ -52,8 +58,15 @@ for name in names:
 	out += str(frame) + '\n'
 	frame += 1
 
-
 fileout = open(sys.argv[1][:-3] + 'coord.txt', 'w')
 fileout.write(out)
 fileout.close()
+
+print datajson['variance']
+
+if '-json' in sys.argv:
+	print "Writing json!!!"
+	fileout = open(sys.argv[1][:-3] + 'coord.json', 'w')
+	json.dump(datajson, fileout)
+	fileout.close()
 

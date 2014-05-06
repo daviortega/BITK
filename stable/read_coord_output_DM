@@ -8,13 +8,25 @@ import sys
 import time
 import os
 if '-h' in sys.argv:
-	print 'Reads the data in N dimension and output euclidean distance matrix'
+	print 'Reads the data in N dimension and output euclidean distance matrix, use -sep_in "#" where # is the separator of input data and -sep_out "#" for output data. Also, use -no_header to eliminate the top line of the matrix (thi is necessary for MDS_3D). Also for MDS_3D use sep_out as default'
 	sys.exit()
 
 start = time.time()
 m0 = fuzzy_davi.memory()
 
-names, all_coords = fuzzy_davi.read_coords(sys.argv[1])
+if '-sep_in' in sys.argv:
+        sep_in = sys.argv[sys.argv.index('-sep_in') + 1]
+else:
+	sep_in = '\t'
+
+if '-sep_out' in sys.argv:
+        sep_out = sys.argv[sys.argv.index('-sep_out') + 1]
+else:
+        sep_out = ';'
+
+
+
+names, all_coords = fuzzy_davi.read_coords(sys.argv[1], lim = sep_in)
 print names
 print all_coords
 Dmatrix = fuzzy_davi.DistMtx(all_coords)
@@ -25,18 +37,25 @@ print "Memory load: " + str(fuzzy_davi.memory(m0))
 
 #names.sort()
 print len(Dmatrix)
+print len(Dmatrix[0])
+print sep_in
 
-output = 'sample\t' + '\t'.join(names) + '\n'
+if '-no_header' in sys.argv:
+	output = ''
+else:
+	output = 'sample' + sep_out + sep_out.join(names) + '\n'
 
 for i in range(len(names)):
 	output += names[i]
 	for j in Dmatrix[i]:
-		output += '\t' + str(j)
+		output += sep_out + str(j)
 	output += '\n'
 
 outfile = open(sys.argv[1][:-3] + 'Dmatrix.txt', 'w')
 outfile.write(output)
 outfile.close()
+
+
 
 if '-pdf' in sys.argv:
 	r_command = "D <- read.table('" + sys.argv[1][:-3] + 'Dmatrix.txt' + "', header = T, sep = '\\t')\nDM <- data.matrix(D[,2:length(D)])\nrow.names(DM) <- D$sample\npdf('"+sys.argv[1][:-3] + 'Dmatrix.pdf' + "')\nheatmap(DM, symm = T)\ndev.off()"

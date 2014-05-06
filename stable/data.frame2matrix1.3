@@ -10,12 +10,20 @@
 
 import sys
 import numpy
+import codecs
+
 if '-h' in sys.argv:
-	print 'Read something like: \nname1 name1 value11\nname1 name2 value12\n name2 name1 value21\n...\n and put in the matrix format with first row as headers... compatible to MDS_3D\nOption -fd0 Force diagonal to be zero\n -D for 1/(value) \n -sep "#"  \tWhere # is the separator of data'
+	print 'Read something like: \nname1 name1 value11\nname1 name2 value12\n name2 name1 value21\n...\n and put in the matrix format with first row as headers... compatible to MDS_3D\nOption -fd0 Force diagonal to be zero\n -D for 1/(value) \n -sep_in "#"  \tWhere # is the separator of input data and -sep_out "#"'
 	sys.exit()
 
-if '-sep' in sys.argv:
-	sep = sys.argv[sys.argv.index('-sep') + 1]
+if '-sep_in' in sys.argv:
+	sep_in = sys.argv[sys.argv.index('-sep_in') + 1]
+
+if '-sep_out' in sys.argv:
+        sep = sys.argv[sys.argv.index('-sep_out') + 1]
+else:
+	sep = '\t'
+
 
 if '-D' in sys.argv:
 	outfilename = sys.argv[1][:-3] + 'D.matrix.txt'
@@ -31,11 +39,12 @@ data_dic = {}
 values = []
 
 for line in datafile:
-	fields = line.replace('\n','').split('\t')
+	line = line.decode('utf8')
+	fields = line.replace('\n','').split(sep_in)
 	if fields[0] not in names:
 		names.append(fields[0])
 		data_dic[fields[0]] = {}
-		print "Working on " + fields[0]
+		print "Working on " + fields[0].encode('ascii','replace')
 	if '-D' not in sys.argv:
 		if fields[1] not in data_dic[fields[0]].keys():
 			data_dic[fields[0]][fields[1]] = fields[2]
@@ -51,6 +60,8 @@ for line in datafile:
 	                data_dic[fields[0]][fields[1]] = 1/float(fields[2])
 			values[:-1] = 1/float(fields[2])
 
+print values
+
 values = numpy.array(values)
 M = numpy.max(values)
 
@@ -58,12 +69,12 @@ datafile.close()
 
 output = ''
 
-for name in names:
+#for name in names:
 #	if set(data_dic[name].keys()).difference(names) != set([]):
 #		print name + '\t' + str(set(data_dic[name].keys()).difference(names))
 #	if set(names).difference(data_dic[name].keys()) != set([]):
 #		print name + '\t' + str(set(names).difference(data_dic[name].keys()))
-	print str(len(data_dic[name].keys())) + '\t' + name + '\t' + str(set(names).difference(data_dic[name].keys()))
+#	print str(len(data_dic[name].keys())) + '\t' + name + '\t' + str(set(names).difference(data_dic[name].keys())).encode('ascii','replace')
 
 
 errors = 0
@@ -101,7 +112,7 @@ for name1 in names:
 print 'Missign values = ' + str(errors)
 
 
-outfile = open(outfilename, 'w')
+outfile = codecs.open(outfilename, 'w', encoding='utf-8')
 outfile.write(output)
 outfile.close()
 
