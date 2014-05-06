@@ -196,7 +196,10 @@ def pirwriter(seq_dic):
 	
 	return output
 	
-		
+def nogap(seq):
+	while '-' in seq:
+		seq = seq.remove('-')
+	return seq		
 
 def nogaps(seq):
 	if seq.__class__ == dict:

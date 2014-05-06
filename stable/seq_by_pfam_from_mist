@@ -1,0 +1,40 @@
+#! /usr/bin/env python
+###################################
+#    Davi Ortega 1/30/2014 
+###################################
+import sys
+import pymongo
+if '-h' in sys.argv:
+        print 'Sintaxe: seq_by_pfam_from_mist pfam_domain_model'
+        sys.exit()
+
+try:
+        client = pymongo.MongoClient('localhost',27017)
+except Connection:
+        print "You must open a tunnel with ares.bio.utk.edu: ssh -L 27017:are.bio.utk.edu:27017 ares.bio.utk.edu"
+        sys.exit()
+
+mist = client.mist22
+
+output = ''
+#print mist.db.genomes.find_one()
+#print mist.db.signal_genes5.find_one({'dc': {'CheW':1}})
+#print 'here'
+
+search = 'dc.' + sys.argv[1]
+
+for res in mist.signal_genes5.find({search: { '$gte' : 1 }},{'_id':1}):
+#	print res
+	gene = mist.genes.find_one({'_id':res['_id']},{'gid':1, 'p.aid':1, 'lo':1, 'p.ac':1})
+	genome = mist.genomes.find_one({'_id':gene['gid']}, {'g':1, 'sp':1})
+#	print gene['p']['aid']
+	seq = mist.aseqs.find_one({'_id':gene['p']['aid']}, {'s':1})
+	print str(gene['gid']) + ' - ' + genome['g'] + ' ' + genome ['sp'] + '\t\t' + gene['p']['aid']
+	if 'lo' not in gene.keys():
+		gene['lo'] = 'NULL'
+
+	output += '>' + genome['g'][:2] + '.' + genome['sp'][:3] + '.' + str(gene['gid']) + '-' + gene['lo'] + '-' + gene['p']['ac'] + '\n' + seq['s'] + '\n'
+
+datafile = open(sys.argv[1] + '.fa','w')
+datafile.write(output)
+datafile.close()

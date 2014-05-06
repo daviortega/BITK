@@ -1,0 +1,39 @@
+#! /usr/bin/env python
+###################################
+#    Davi Ortega 1/30/2014 
+###################################
+import sys
+import pymongo
+if '-h' in sys.argv:
+        print 'Mist id to strain: fasta with mist_id and output is the mist_id-strain name'
+        sys.exit()
+
+try:
+        client = pymongo.MongoClient('localhost',27017)
+except Connection:
+        print "You must open a tunnel with ares.bio.utk.edu: ssh -L 27017:are.bio.utk.edu:27017 ares.bio.utk.edu"
+        sys.exit()
+
+mist = client.mist22
+
+
+output = ''
+
+datafile = open(sys.argv[1],'r')
+for line in datafile:
+	if '>' in line:
+	        mist_id = line.replace('\n','').replace('>','')
+	        res = mist.genomes.find_one({"_id":int(mist_id)}, {"n":1})
+        	if res != None:
+	                output += '>' + str(res['_id']) + '-' + res['n'] + '\n'
+        	else:		
+			output += mist_id + '\n'
+			print mist_id
+			sys.exit()
+	else:
+		output += line
+datafile.close()
+
+datafile = open(sys.argv[1][:-3]+ '.strain.fa','w')
+datafile.write(output)
+datafile.close()
