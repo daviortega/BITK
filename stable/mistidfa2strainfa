@@ -5,7 +5,7 @@
 import sys
 import pymongo
 if '-h' in sys.argv:
-        print 'Mist id to strain: fasta with mist_id and output is the mist_id-strain name'
+        print 'Mist id to strain: fasta with mist_id and output is the mist_id-strain name\nOption -no_mistid'
         sys.exit()
 
 try:
@@ -25,7 +25,10 @@ for line in datafile:
 	        mist_id = line.replace('\n','').replace('>','')
 	        res = mist.genomes.find_one({"_id":int(mist_id)}, {"n":1})
         	if res != None:
-	                output += '>' + str(res['_id']) + '-' + res['n'] + '\n'
+			if '-no_mistid' in sys.argv:
+				output += '>' + res['n'] + '\n'
+			else:
+		                output += '>' + str(res['_id']) + '-' + res['n'] + '\n'
         	else:		
 			output += mist_id + '\n'
 			print mist_id

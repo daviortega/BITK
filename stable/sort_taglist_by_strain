@@ -1,0 +1,50 @@
+#! /usr/bin/env python
+###################################
+#    Davi Ortega 1/30/2014 
+###################################
+import sys
+import pymongo
+import bitk
+
+if '-h' in sys.argv:
+        print 'Input fasta format and it will sort the list of tags by strains (no MSA output)'
+        sys.exit()
+
+try:
+        client = pymongo.MongoClient('localhost',27017)
+except Connection:
+        print "You must open a tunnel with ares.bio.utk.edu: ssh -L 27017:are.bio.utk.edu:27017 ares.bio.utk.edu"
+        sys.exit()
+
+mist = client.mist22
+
+
+output = ''
+
+seq_dic, seq_list = bitk.fastareader(sys.argv[1])
+
+names = []
+names_dic = {}
+
+for tag in seq_list:
+	mist_id = int(tag.split('-')[0].split('.')[-1])
+	genome = mist.genomes.find_one({"_id":mist_id}, { "n" : 1})
+	if genome != None and genome['n'] not in names:
+		names.append(genome['n'])
+		names_dic[genome['n']] = mist_id
+
+output = ''
+
+names.sort()
+
+for genome in names:
+	output += genome + '\n'
+	for tag in seq_list:
+		if int(tag.split('-')[0].split('.')[-1]) == names_dic[genome]:
+			output += tag + '\n'
+	output += '\n'
+
+
+datafile = open(sys.argv[1][:-3]+ '.tag_perstrain.list','w')
+datafile.write(output)
+datafile.close()

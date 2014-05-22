@@ -9,7 +9,7 @@ import json
 
 
 if '-h' in sys.argv:
-	print 'class_pergenomes will tell the statistics of the distribution of the attribute in certain position in the tag per organism and output json with mistid and list of attributes\n count_class_pergenome mistid.list fastafile.fa N \n\nN is the position of the attribute in the tag (separated by - and starting from 0)'
+	print 'attr_pergenomes will tell the statistics of the distribution of the attribute in certain position in the tag per organism and output json with mistid and list of attributes\n count_class_pergenome mistid.list fastafile.fa N \n\nN is the position of the attribute in the tag (separated by - and starting from 0)'
 	sys.exit()
 
 #if '-mcp' in sys.argv:

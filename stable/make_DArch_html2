@@ -8,12 +8,8 @@ import bitk
 import pymongo
 
 if '-h' in sys.argv:
-    print 'Outputs a html with domain architecture of sequences in a multiple sequence alignment\n\n Sintaxe: make_DArch fasta_file.fa \n Options: -name for name of the organism'
+    print 'Outputs a html with domain architecture of sequences in a multiple sequence alignment\n\n Sintaxe: make_DArch_html2 fasta_file.fa \n'
     sys.exit()
-
-
-
-
 
 #MONGO
 try:
@@ -36,22 +32,20 @@ for tag in seq_list:
 	moreinfo = True
 
 	try:
-		mist_info = mist.genes.find_one({'p.ac':tag.split('-')[2]}, {'p.aid':1, 'gid': 1 })
+		mist_info = mist.genes.find_one({'p.aid': bitk.getmd5(seq_dic[tag])}, {'p.aid':1, 'gid': 1 })
 	except:
 		print tag
-		print tag.split('-')[2]
+#		print tag.split('-')[2]
 		moreinfo = False
 
 
 
 	if moreinfo and mist_info != None:
 		print mist_info['p']['aid']
-		genome = mist.genomes.find_one({'_id':mist_info['gid']}, {'ta':1, 'n': 1})
+		genome = mist.genomes.find_one({'_id':mist_info['gid']}, {'ta':1})
 		hout += '\t<tr>\n'
 		hout += '\t\t <td style="width:400px;"> <a name="' + tag + '" href="http://mistdb.com/proteins/view/' + str(mist_info['_id']) + '">' + tag + '</a></td>\n'
 		hout += '\t\t <td style="width:800px;"> ' + str(genome['ta'][1:4]) + '</td>\n'
-		if '-name' in sys.argv:
-			hout += '\t\t <td style="width:800px;"> ' + str(genome['n']) + '</td>\n'
 		hout += '\t\t <td style="width:800px;" align="right"> <embed align="right" src="http://seqdepot.net/api/v1/aseqs/' + mist_info['p']['aid'] + '.svg" width="1000px" height="30px" type="image/svg" /></td>\n\t</tr>\n'
 #		hout += '\t\t <td style="width:400px;" align="right"> <img align="right" src="http://seqdepot.net/api/v1/aseqs/' + mist_info['p']['aid'] + '.png" ></td>\n\t</tr>\n'
 

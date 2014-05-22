@@ -20,7 +20,10 @@ for line in datafile:
 	if "COG" in line:
 		COG = line.replace('\n','').split(' ')[-1]
 	elif len(line) > 3:
-		output += '>' + line.replace('\n','') + '-' + COG + '\n' + seq_dic[line.replace('\n','')] + '\n'
+		if '-COG' in sys.argv:
+			output += '>' + line.replace('\n','') + '-COG' + COG + '\n' + seq_dic[line.replace('\n','')] + '\n'
+		else:
+			output += '>' + line.replace('\n','') + '-' + COG + '\n' + seq_dic[line.replace('\n','')] + '\n'
 
 #		for line in datafile:
 #			if "COG" not in line:
