@@ -365,6 +365,7 @@ def coord2(names, Dmatrix, datafile, export = 'n'):
 		sys.exit()
 	mD = memory()
 	print "Released by Dmatrix: " + str(memory(mD))
+	print A
 #	for i in range(len(names)):
 #		print A[i][i]
 #	sys.exit()
@@ -433,7 +434,7 @@ def coord2(names, Dmatrix, datafile, export = 'n'):
         for i in range(len(names)):
                 Final_3D[names[i]] = H[i][:3]
 #       print Final
-        return Final, Final_3D
+        return Lp, Final, Final_3D
 
 
 
