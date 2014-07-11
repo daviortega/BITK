@@ -1,0 +1,31 @@
+#! /usr/bin/env python
+###################################
+#    Davi Ortega 1/30/2014 
+###################################
+import sys
+import pymongo
+if '-h' in sys.argv:
+        print 'Mist id to strain: just list of mist_id and output is the mist_id [tab] strain name'
+        sys.exit()
+
+try:
+        client = pymongo.MongoClient('localhost',27017)
+except Connection:
+        print "You must open a tunnel with ares.bio.utk.edu: ssh -L 27017:are.bio.utk.edu:27017 ares.bio.utk.edu"
+        sys.exit()
+
+mist = client.mist22
+
+output = ''
+#print mist.db.genomes.find_one()
+#print mist.db.signal_genes5.find_one({'dc': {'CheW':1}})
+#print 'here'
+i = 0
+for res in  mist.aseqs.find({'t.pfam27' : { '$elemMatch' : { '0' : 'CheW'}}}, {'_id': 1, 's' : 1 }, timeout = False):
+	print str(i) + '\t' + res['_id']
+	output += '>' + res['_id'] + '\n' + res['s'] + '\n'
+	i += 1
+
+datafile = open('CheW.v2.fa','w')
+datafile.write(output)
+datafile.close()

@@ -1,0 +1,65 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 11/25/2013 
+###################################
+import sys
+import numpy
+import bitk
+import pymongo
+
+if '-h' in sys.argv:
+    print 'Outputs a html with domain architecture of sequences in a multiple sequence alignment\n\n Sintaxe: make_DArch_html2 fasta_file.fa \n'
+    sys.exit()
+
+#MONGO
+try:
+    client = pymongo.MongoClient('localhost',27017)
+except Connection:
+    print "You must open a tunnel with ares.bio.utk.edu: ssh -L 27017:are.bio.utk.edu:27017 ares.bio.utk.edu"
+    sys.exit()
+mist = client.mist22
+#END MONGO 
+
+
+seq_dic, seq_list = bitk.fastareader(sys.argv[1])
+
+hout = '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"\n"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">\n<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">\n<meta charset="utf-8">\n<head>\n<title>Domain Architectures </title>\n</head>\n'
+hout += '<tr>\n<td colspan="3">\n<h1>Domain Architectures - ' + sys.argv[1] + ' </h1>\n</td>\n</tr>\n'
+hout += '<table width="2000" border="0">\n'
+#hout += '<table>\n'
+
+for tag in seq_list:
+	moreinfo = True
+
+	try:
+		mist_info = mist.genes.find_one({'p.aid': bitk.getmd5(seq_dic[tag])}, {'p.aid':1, 'gid': 1 })
+	except:
+		print tag
+#		print tag.split('-')[2]
+		moreinfo = False
+
+
+
+	if moreinfo and mist_info != None:
+		print mist_info['p']['aid']
+		genome = mist.genomes.find_one({'_id':mist_info['gid']}, {'ta':1})
+		hout += '\t<tr>\n'
+		hout += '\t\t <td style="width:400px;"> <a name="' + tag + '" href="http://mistdb.com/proteins/view/' + str(mist_info['_id']) + '">' + tag + '</a></td>\n'
+		hout += '\t\t <td style="width:800px;"> ' + str(genome['ta'][1:4]) + '</td>\n'
+		hout += '\t\t <td style="width:800px;" align="right"> <embed align="right" src="http://seqdepot.net/api/v1/aseqs/' + mist_info['p']['aid'] + '.svg" width="1000px" height="30px" type="image/svg" /></td>\n\t</tr>\n'
+#		hout += '\t\t <td style="width:400px;" align="right"> <img align="right" src="http://seqdepot.net/api/v1/aseqs/' + mist_info['p']['aid'] + '.png" ></td>\n\t</tr>\n'
+
+	else:
+		hout += '<tr> <td style="width:800px;"> <a name="' + tag + '" href="http://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE=Proteins&amp;PROGRAM=blastp&amp;BLAST_PROGRAMS=blastp&amp;QUERY=' + seq_dic[tag] + '&amp;LINK_LOC=protein&amp;PAGE_TYPE=BlastSearch">' + tag + '</a></td>\n<td style="width:200px;"> <img align="right" src="http://seqdepot.net/api/v1/aseqs/' + bitk.getmd5(bitk.nogap(seq_dic[tag])) + '.svg" ></td></tr>\n'
+
+hout += '</table>'
+hout += '</body>\n</html>'
+
+dataout = open(sys.argv[1] + '.html', 'w')
+dataout.write(hout)
+dataout.close()
+
+	
+
+	
+

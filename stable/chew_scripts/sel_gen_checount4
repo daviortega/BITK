@@ -1,0 +1,114 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 6/30/2012 
+###################################
+#   version 2 - 03/09/2013
+###################################
+import sys
+import random
+import pymongo
+import ast
+
+if '-h' in sys.argv:
+	print 'select the genomes (by mist_id) that contains the specific number of che sequences\n Sintax: sel_gen_checount2 table.dat  -t taxonomic_group -r complete mcps    chea    cheb     checx    ched   cher    chev    chez    chew   adap=(cheW + CheV)'
+	print """
+complete mcps  chea    cheb    checx   ched    cher    chev    chez    chew    adap=(chew + chev)
+ True for complete genomes, False for drafts and A for any
+ use N+ for N and larger than N
+ use N- for N and less than N
+ use A for any
+ use N1_N2 for between N1 and N2 (inclusive)\n\n\n Use -nr before rules to make it non-redundant at the specie name level (genus + species) by picking randomly only one of the genomes """
+	sys.exit()
+
+#complete chea    chew    mcp     cheb    checx   ched    cher    chev    chez    other
+# 1 for complete genomes, 0 for drafts and A for any
+# use N+ for N and larger than N
+# use N- for N and less than N
+# use A for any
+# use N1_N2 for between N1 and N2 (inclusive)
+
+# input parser
+
+print "Verifying tunnels"
+print "Mist"
+try:
+        client = pymongo.MongoClient('localhost',27019)
+except:
+        print "You must open a tunnel with ares.bio.utk.edu: ssh -L -N -f  27019:localhost:27017 ares.bio.utk.edu"
+        sys.exit()
+mist = client.mist22
+
+if '-t' in sys.argv:
+	taxon = sys.argv[sys.argv.index('-t')+1]
+else:
+	taxon = None
+
+if '-r' in sys.argv:
+	rules = sys.argv[sys.argv.index('-r')+1:]
+else:
+	print "gotta give me some rules... "
+	print '-h for help'
+	sys.exit()
+
+rule_tags = [ 'co', 'stats.mcp', 'stats.chea','stats.cheb','stats.checx','stats.ched','stats.cher','stats.chev','stats.chez','stats.chew']
+rules = sys.argv[sys.argv.index('-r') + 1].split(',')
+
+if len(rules) != len(rule_tags):
+	print " Rules are not complete, please fix and run the program again"
+	sys.exit()
+else:
+	query = '{'
+	if taxon != None:
+		query += "'ta' : { '$in' : ['" + taxon + "']},"
+	if rules[0] != 'A':
+		query +=  "'" + rule_tags[0] + "' : " + str(rules[0]) + " , "
+	for i in range(1,len(rule_tags)):
+		if rules[i] != 'A':
+			if '+' in rules[i]:
+				query += "'" + rule_tags[i] + "' : { '$gt' : " + rules[i].replace('+','') + " },"
+			if '-' in rules[i]:
+				query += "'" + rule_tags[i] + "' : { '$lt' : " + rules[i].replace('-','') + " },"
+			if '_' in rules[i]:
+				low, high = rules[i].split('_')
+				ra = str(range(int(low), int(high) + 1))
+				query += "'" + rule_tags[i] + "' : { '$in' : " + ra + " }, "
+			else:
+				query += "'" + rule_tags[i] + "' : " + rules[i] + ", "
+	query += '}'
+
+print query
+
+genomes = []
+output = ''
+
+
+if '-nr' in sys.argv:
+	sp_dict = {}
+
+for genome in mist.genomes.find(ast.literal_eval(query)):
+#	print genome
+	genomes.append(genome)
+	if '-nr' in sys.argv:
+		name = genome['g'] + ' ' + genome['sp']
+		if name not in sp_dict.keys():
+			sp_dict[name] = [ genome['_id'] ]
+		else:
+			sp_dict[name].append(genome['_id'])
+	else:
+		output += str(genome['_id']) + '\n'
+
+if '-nr' in sys.argv:
+	for sp, ls in sp_dict.iteritems():
+		output += str(random.choice(ls)) + '\n'
+		print sp
+	print len(sp_dict)
+else:
+	print len(genomes)
+
+outfile = open('selected_genomes.txt','w')
+outfile.write(output)
+outfile.close()
+
+
+
+			

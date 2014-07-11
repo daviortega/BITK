@@ -1,0 +1,96 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 4/10/2014 
+###################################
+import ete2
+import sys
+import json
+if '-h' in sys.argv:
+	print 'insert cog.dat file and we will build a matrix of presence COGs x Organism'
+	sys.exit()
+
+
+
+files = []
+
+for i in sys.argv[1:]:
+
+	if i != '-tree':
+		files.append(i)
+	else:
+		break
+	print files
+
+
+data = {}
+data_json = {'row':[], 'col':[], 'links':[]}
+org_list = []
+COG_list = []
+
+if '-tree' in sys.argv:
+	t = ete2.Tree(sys.argv[sys.argv.index('-tree')+1])
+	org_order = []
+	for node in t.iter_leaves():
+		if node.is_leaf():
+			org_order.append(node.name.split('|')[0])
+
+
+
+i_old = 0
+for f in files:
+	print f
+	i = files.index(f)
+	if i != i_old:
+		COG_list.append('_')
+	datafile = open(f,'r')
+#	data[org] = []
+	for line in datafile:
+		line = line.replace('\n','')
+		if 'COG' in line[:3]:
+			COG = line
+		else:
+			org = line.split('-')[0]
+			if COG + '_' + str(i) not in COG_list:
+				COG_list.append(COG + '_' + str(i))
+			if org != '':
+				if org not in data.keys():
+					data[org] = { COG + '_' + str(i) : 1}
+					org_list.append(org)
+				else:
+					if COG + '_' + str(i) not in data[org].keys():
+						data[org][COG + '_' + str(i)] = 1
+					else:
+						data[org][COG + '_' + str(i)] += 1
+	i_old = i
+
+#for org in data.keys():
+#	if org.split(".")[-1] not in org_order:
+#		del data[org]
+#		org_list.remove(org)
+
+datafile.close()
+if '-tree' in sys.argv:
+	for org in org_list:
+#		if org.split(".")[-1] in org_order:
+        	data_json['row'].append({'name':org, 'phy_ord': org_order.index(org.split(".")[-1])})
+else:
+	for org in org_list:
+                data_json['row'].append({'name':org, 'phy_ord': '0'})
+
+for COG in COG_list:
+	data_json['col'].append({'name':COG.split('_')[0], 'group':COG.split('_')[1]})
+
+for org in org_list:
+	for COG in COG_list:
+		if COG in data[org].keys():
+			data_json['links'].append({'source':org_list.index(org), 'target': COG_list.index(COG), 'value' : data[org][COG], 'group' : COG.split('_')[1] })
+		else:
+			data_json['links'].append({'source':org_list.index(org), 'target': COG_list.index(COG), 'value' : 0, 'group' : COG.split('_')[1] })
+if '-o' in sys.argv:
+	filename = sys.argv[sys.argv.index('-o')+1]
+else:
+	filename = 'cog.dat2json2.output.json'
+
+with open(filename, 'w') as f:
+	json.dump(data_json,f, indent=2)
+

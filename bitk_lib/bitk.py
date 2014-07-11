@@ -147,7 +147,7 @@ def fastareader(datafile, just_name = 'no'):
 		else:
 			while line.find('\n') != -1:
 				line = line[0:line.find('\n')] + line[line.find('\n')+2:]
-			seq_dic[name]= seq_dic[name] + line
+			seq_dic[name]= seq_dic[name] + line.replace(' ','')
 	dataout = ''
 	for k, v in seq_dic.iteritems():
 	 	dataout = dataout + '>' + k + '\n' + v + '\n'
@@ -196,7 +196,10 @@ def pirwriter(seq_dic):
 	
 	return output
 	
-		
+def nogap(seq):
+	while '-' in seq:
+		seq = seq.remove('-')
+	return seq		
 
 def nogaps(seq):
 	if seq.__class__ == dict:
@@ -1041,6 +1044,47 @@ def threeLetter2oneLetter(seq):
 def getmd5(seq):
 	return base64.encodestring(md5.new(seq.replace('-','')).digest()).replace('/','_').replace('=','').replace('+','-').replace('\n','')
 
+def tree_to_phyloxml (ete_tree):
+	"""
+	Convert an Ete2 tree to PhyloXML.
+ 
+	:Parameters:
+	ete_tree
+	An Ete2 format tree
+ 
+	:Returns:
+	PhyloXML markup as text
+ 
+	"""
+	from cStringIO import StringIO
+	buffer = StringIO()
+ 
+	def visit_node (node, buf, indent=0):
+		buf.write (" " * indent)
+		buf.write ("<phy:clade>\n")
+		buf.write (" " * (indent+1))
+		buf.write ("<phy:name>%s</phy:name>\n" % node.name )
+		buf.write (" " * (indent+1))
+		buf.write ("<phy:branch_length>%s</phy:branch_length>\n" % node.dist)
+		buf.write (" " * (indent+1))
+		buf.write ("<phy:confidence type='branch_support'>%s</phy:confidence>\n" % node.support)
+ 
+		for c in node.get_children():
+			visit_node (c, buf, indent=indent+1)
+ 
+		buf.write (" " * indent)
+		buf.write ("</phy:clade>\n")
+ 
+	buffer.write ("<phy:Phyloxml xmlns:phy='http://www.phyloxml.org/1.10/phyloxml.xsd'>\n")
+	buffer.write ("<phy:phylogeny>\n")
+	buffer.write ("<phy:name>test_tree</phy:name>\n")
+ 
+	visit_node (ete_tree.get_tree_root(), buffer)
+ 
+ 	buffer.write ("</phy:phylogeny>\n")
+	buffer.write ("</phy:Phyloxml>\n")
+ 
+	return buffer.getvalue()
 
 
 

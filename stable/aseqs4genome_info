@@ -1,0 +1,27 @@
+#! /usr/bin/env python
+###################################
+#    Davi Ortega 1/30/2014 
+###################################
+import sys
+import pymongo
+if '-h' in sys.argv:
+        print 'aseq4genome_info aseq'
+        sys.exit()
+
+try:
+        client = pymongo.MongoClient('localhost',27017)
+except Connection:
+        print "You must open a tunnel with ares.bio.utk.edu: ssh -L 27017:are.bio.utk.edu:27017 ares.bio.utk.edu"
+        sys.exit()
+
+mist = client.mist22
+
+
+output = ''
+gid = mist.genes.find_one({"p.aid":sys.argv[1]},{'gid':1})['gid']
+
+gen = mist.genomes.find_one({"_id":int(gid)}, {"n":1, "tg" : 1 })
+print gen['n']
+print gen['tg']
+
+

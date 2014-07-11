@@ -1,0 +1,73 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 8/22/2011 
+###################################
+import bitk
+import sys
+from operator import itemgetter
+
+if '-h' in sys.argv:
+	print 'Separate by length\n\tSintax: sortbylength msa.fa number_of_aminoacids\n\toutput => longer.fa and shorter.fa'
+	sys.exit()
+
+
+Th_low = int(sys.argv[2])
+msa_dic, name_list = bitk.fastareader(sys.argv[1])
+
+if len(sys.argv) < 3:
+	Th_hig = int(sys.argv[3])
+else:
+	Th_high = False
+
+
+len_dic = []
+
+for name in name_list:
+	seq = msa_dic[name].replace('-','')
+#	print len(seq)
+	len_dic.append([name, len(seq)])
+
+
+len_dic.sort(key= lambda len_dic: len_dic[1])
+
+#sorted_list = []
+
+#for item in len_dic:
+#	sorted_list.append(item[0])
+
+#sorted_msa = (msa_dic.values(), key=len)
+
+#print sorted_msa
+
+#for pair in sorted_msa:
+#	name_list.append(pair[0])
+
+shorter = ''
+longer = ''
+
+for name_len in len_dic:
+	if Th_high:
+		if name_len[1] > Th_low and name_len[1] < Th_high:
+			between += '>' + name_len[0] + '\n' + msa_dic[name_len[0]] + '\n'
+	else:
+
+		if name_len[1] > Th_low:
+			longer += '>' + name_len[0] + '\n' + msa_dic[name_len[0]] + '\n' 
+		else:
+			shorter += '>' + name_len[0] + '\n' + msa_dic[name_len[0]] + '\n'
+if Th_high:
+	dataout = open('between.' + str(Th_low) + '.' + str(Th_high) + '.fa','w')
+        dataout.write(between)
+        dataout.close()
+else:
+	dataout = open('shorter.fa','w')
+	dataout.write(shorter)
+	dataout.close()
+
+	dataout = open('longer.fa','w')
+	dataout.write(longer)
+	dataout.close()
+
+
+
+
