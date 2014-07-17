@@ -1,0 +1,452 @@
+#!/bin/bash
+
+cwd=$(pwd)
+
+
+
+if [ "$3" == '-p' ]; then
+        plubd=$4
+        if [ $# != 4 ]; then
+                echo "tell me where to publish"
+                exit 1
+        fi
+fi
+#configuration
+mistd="/home/ortega/MIST2.2"
+cogpreid="COGperorgid"
+make_GN_flags="7 -pdf -org -order_st"
+
+prjt_nm=${1%.*}
+
+echo $prjt_nm
+
+echo "Copying necessary files"
+cp ./$prjt_nm/COGs/*.pdf ./$prjt_nm/COGs/*cog.dat ./$prjt_nm/COGs/*bal.nwk ./$prjt_nm/COGs/chea.latest.s.class.$prjt_nm.linsi.fa ./$prjt_nm/COGs/$prjt_nm.16S.fa ./$prjt_nm/merge
+echo "changing directory"
+cd ./$prjt_nm/merge
+echo "Sorting the org_id list by the tree"
+#sortfabytree chea.latest.s.class.$prjt_nm.linsi.fa chea.latest.s.class.$prjt_nm.linsi.phy_phyml_tree.rec.bal.nwk
+sortfabytree $prjt_nm.16S.fa $prjt_nm.16S.linsi.gb.phy_phyml_tree.rec.bal.nwk
+echo "Saving list"
+#getorganism chea.latest.s.class.$prjt_nm.linsi.sorted.fa
+getmistid_16S $prjt_nm.16S.sorted.fa
+mistid2orgtag mistid.16S.list chea.latest.s.class.$prjt_nm.linsi.fa
+
+
+if [ "$2" == '-chea' ]; then
+	echo "Using CheA to order"
+	mv organism.list $prjt_nm.sorted.list
+elif [ "$2" == '-r16' ]; then
+	echo "Using r16 to order"
+	mv mistid.16S.orgtag.list $prjt_nm.sorted.list
+else
+	echo "CheA or r16 ?!"
+	exit 1	
+fi
+
+
+echo "Formating the COG information for R"
+COGperorgid $prjt_nm.sorted.list mcp.latest.s.class.$prjt_nm.cog.dat
+mv $prjt_nm.sorted.cogperorg.dat $prjt_nm.sorted.mcp.cogperorg.dat
+COGperorgid $prjt_nm.sorted.list mcp.latest.s.class.$prjt_nm.hmmtrim.cog.dat
+mv $prjt_nm.sorted.cogperorg.dat $prjt_nm.sorted.mcp.hmmtrim.cogperorg.dat
+COGperorgid $prjt_nm.sorted.list adap.latest.s.$prjt_nm.hmmtrim.cog.dat
+mv $prjt_nm.sorted.cogperorg.dat $prjt_nm.sorted.adap.cogperorg.dat
+COGperorgid $prjt_nm.sorted.list chea.latest.s.class.$prjt_nm.cog.dat
+mv $prjt_nm.sorted.cogperorg.dat $prjt_nm.sorted.chea.cogperorg.dat
+
+
+echo "Loading the COG info on R and performing some reshaping"
+
+cat > ./temp.R << DELIM
+library(ggplot2)
+library(reshape2)
+adap <- read.table("$prjt_nm.sorted.adap.cogperorg.dat", sep='\\t', head=T)
+adap\$X <- NULL
+mcps <- read.table("$prjt_nm.sorted.mcp.cogperorg.dat", sep='\\t', head=T)
+mcps\$X <- NULL
+chea <- read.table("$prjt_nm.sorted.chea.cogperorg.dat", sep='\\t', head=T)
+chea\$X <- NULL
+mcp_hmmt <- read.table("$prjt_nm.sorted.mcp.hmmtrim.cogperorg.dat", sep='\\t', head=T)
+#o <- length(adap[,1]) - colSums(adap == 0)
+#o <- length(mcps[,1]) - colSums(mcps == 0)
+
+#adap.df <- melt(adap[,order(o)], id.vars = "COGs") # Sort the name of genome by number of adaptors
+#mcps.df <- melt(mcps[,order(o)], id.vars = "COGs")
+
+
+adap.df <- melt(adap, id.vars = "COGs")
+mcps.df <- melt(mcps, id.vars = "COGs")
+chea.df <- melt(chea, id.vars = "COGs")
+mcp_hmmt.df <- melt(mcp_hmmt, id.vars = "COGs")
+mcps.df\$prot <- c("mcps")
+adap.df\$prot <- c("adap")
+chea.df\$prot <- c("chea")
+mcp_hmmt.df\$prot <- c("mcps")
+
+
+# THIS WILL MAKE THE PHYLOGENETIC PROFILE WITH THE ENTIRE MCP SEQUENCE
+
+chemo.ai.df <- rbind(chea.df, adap.df, mcps.df)
+chemo.df <- chemo.ai.df
+chemo.df\$cogpres <- ifelse(chemo.ai.df\$value != 0 , 1, 0)
+
+NCOGS <- length(unique(mcps.df\$COGs)) + length(unique(adap.df\$COGs)) + length(unique(chea.df\$COGs))
+NORG <- length(unique(chemo.df\$variable))
+
+pdf("$prjt_nm.presence.pdf", width = 0.3 * NCOGS + 2, height = 0.15 * NORG + 4)
+
+ggplot(chemo.df, aes( as.factor(COGs), as.factor(variable), fill = as.factor(cogpres))) +
+        facet_grid( ~ prot, scale = "free", space = "free" ) +
+        geom_tile(colour = "white") +
+        theme(axis.title.y = element_blank(), legend.position = "none", axis.title.x = element_blank(), axis.ticks.y = element_blank()) +
+        scale_fill_manual(values = c("white","black"), name = "")
+
+dev.off()
+
+max_prot <- max(chemo.ai.df\$value, na.rm = T) + 1
+color_scale <- colorRampPalette(c("white","black","blue", "red"), space = "rgb")
+
+pdf("$prjt_nm.color.pdf", width = 0.3 * NCOGS + 2, height = 0.15 * NORG + 4)
+ggplot(chemo.ai.df, aes( as.factor(COGs), as.factor(variable), fill = as.factor(value))) +
+        facet_grid( ~ prot, scale = "free", space = "free" ) +
+        geom_tile(colour = "white") +
+        theme(axis.title.y = element_blank(), legend.position = "bottom", axis.title.x = element_blank(), axis.ticks.y = element_blank()) +
+	scale_fill_manual(values = color_scale(max_prot), name = "")
+        
+dev.off()
+
+# THIS WILL MAKE THE PHYLOGENETIC PROFILE WITH THE MCP TRIMMED SEQUENCE
+
+chemo.ai.df <- rbind(chea.df, adap.df, mcp_hmmt.df)
+chemo.df <- chemo.ai.df
+chemo.df\$cogpres <- ifelse(chemo.ai.df\$value != 0 , 1, 0)
+
+NCOGS <- length(unique(mcp_hmmt.df\$COGs)) + length(unique(adap.df\$COGs)) + length(unique(chea.df\$COGs))
+NORG <- length(unique(chemo.df\$variable))
+
+pdf("$prjt_nm.presence.mcp_signal.pdf", width = 0.3 * NCOGS + 2, height = 0.15 * NORG + 4)
+
+ggplot(chemo.df, aes( as.factor(COGs), as.factor(variable), fill = as.factor(cogpres))) +
+        facet_grid( ~ prot, scale = "free", space = "free" ) +
+        geom_tile(colour = "white") +
+        theme(axis.title.y = element_blank(), legend.position = "none", axis.title.x = element_blank(), axis.ticks.y = element_blank()) +
+        scale_fill_manual(values = c("white","black"), name = "")
+
+dev.off()
+
+max_prot <- max(chemo.ai.df\$value, na.rm = T) + 1
+color_scale <- colorRampPalette(c("white","black","blue", "red"), space = "rgb")
+
+pdf("$prjt_nm.color.mcp_signal.pdf", width = 0.3 * NCOGS + 2, height = 0.15 * NORG + 4)
+ggplot(chemo.ai.df, aes( as.factor(COGs), as.factor(variable), fill = as.factor(value))) +
+        facet_grid( ~ prot, scale = "free", space = "free" ) +
+        geom_tile(colour = "white") +
+        theme(axis.title.y = element_blank(), legend.position = "bottom", axis.title.x = element_blank(), axis.ticks.y = element_blank()) +
+        scale_fill_manual(values = color_scale(max_prot), name = "")
+
+dev.off()
+
+
+DELIM
+
+echo "Running R"
+R CMD BATCH ./temp.R
+
+#prepring for building html
+
+cog.dat2json2 chea.latest.s.class.$prjt_nm.cog.dat adap.latest.s.$prjt_nm.hmmtrim.cog.dat mcp.latest.s.class.$prjt_nm.cog.dat -tree $prjt_nm.16S.linsi.gb.phy_phyml_tree.rec.bal.nwk
+
+mv cog.dat2json2.output.json $prjt_nm.summary.json
+
+
+#build phylogenetic html page
+
+cat > ./$prjt_nm.PP.html << DELIM
+
+<!DOCTYPE html>
+<html class="ocks-org do-not-copy">
+<meta charset="utf-8">
+<title>Phylogenetic profiling</title>
+<style>
+
+@import url(http://god.phys.utk.edu/~ortega/style.css?aea6f0a);
+
+.background {
+  fill: #eee;
+}
+
+line {
+  stroke: #fff;
+}
+
+text.active {
+  fill: red;
+}
+
+ele.cell.active {
+  fill: red;
+}
+
+</style>
+<script src="http://d3js.org/d3.v2.min.js?2.8.1"></script>
+
+<header>
+  <aside>May 1st, 2014</aside>
+  <a href="../" rel="author">Davi Ortega</a>
+</header>
+
+<h1>Phylogenetic profiling</h1>
+
+<aside style="margin-top:-100px; ">
+<p>Order: <select id="order_col">
+  <option value="or_co">Column by Original</option>
+  <option value="co">Column by Name</option>
+  <option value="or_sp">Row by Original</option>
+  <option value="sp">Row by Name</option>
+  <option value="sp_phy">Species by r16S</option>
+</select>
+
+<p>Built with <a href="http://d3js.org/">d3.js</a>.
+
+</aside>
+
+
+<script>
+
+var color = d3.scale.ordinal().domain(d3.range(19)).range([ "#E41A1C", "#377EB8", "#4DAF4A", "#984EA3", "#FF7F00", "#999999", "#A65628", "#F781BF", "#17BECF", "#8DD3C7", "#BEBADA", "#FB8072", "#80B1D3", "#B3DE69", "#FCCDE5", "#D9D9D9", "#BC80BD", "#CCEBC5", "#FFED6F"]);
+
+
+var margin = {top: 80, right: 0, bottom: 10, left: 200},
+    width = 1300;
+    height = 720;
+
+var x = d3.scale.ordinal().rangeBands([0, width]),
+    y = d3.scale.ordinal().rangeBands([0, height]),
+    z = d3.scale.linear().domain([0, 5]).clamp(true);
+
+var svg = d3.select("body").append("svg")
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom)
+    .style("margin-left", -margin.left + "px")
+    .append("g")
+    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+d3.json("$prjt_nm.summary.json", function(miserables) {
+  var matrix = [],
+      spe = miserables.row,
+      cog = miserables.col,
+//    links = miserables.links,
+      n = spe.length,
+      m = cog.length;
+  // Compute index per node.
+
+  cog.forEach(function(cog, i) {
+        spe_array = [];
+        spe.forEach(function(spe, j) {
+                //spe.index = j;
+                //spe.count = 0;
+                spe_array[j] = {x: i, y: j, z: 0};
+                });
+        matrix[i] = spe_array;
+  });
+  var group = [];
+  // Convert links to matrix; count character occurrences.
+    miserables.links.forEach(function(link) {
+//  links.forEach(function(link) {
+        matrix[link.target][link.source].z = link.value;
+        matrix[link.target][link.source].g = link.group;
+        spe[link.source].count += link.value;
+        cog[link.target].count += link.value;
+});
+
+  // Precompute the orders.
+      var orders_x= {
+      or_co: d3.range(m).sort(function(a) { return d3.map(cog[a].name); }),
+      or_sp: d3.range(m).sort(function(a) { return d3.map(cog[a].name); }),
+      sp: d3.range(m).sort(function(a) { return d3.map(cog[a].name); }),
+      co: d3.range(m).sort(function(a, b) { return d3.ascending(cog[a].name, cog[b].name); }),
+      };
+      var orders_y= {
+      or_co: d3.range(n).sort(function(a) { return d3.map(cog[a].name); }),
+      sp_phy: d3.range(n).sort(function(a,b) { return d3.ascending(spe[a].phy_ord, spe[b].phy_ord); }),
+      or_sp: d3.range(n).sort(function(a) { return d3.map(spe[a].name); }),
+      sp: d3.range(n).sort(function(a, b) { return d3.ascending(spe[a].name, spe[b].name); }),
+      };
+
+
+  // The default sort order.
+//  x.domain(orders.sp);
+
+x.domain(d3.range(m))
+y.domain(d3.range(n))
+
+var drag = d3.behavior.drag()
+    .origin(function(d) { return d; })
+    .on("dragstart", drags)
+    .on("drag", dragm)
+    .on("dragend", drage);
+
+
+//document.write(matrix[0][0].z) ;
+
+  svg.append("rect")
+      .attr("class", "background")
+      .attr("width", width)
+      .attr("height", height);
+
+  var rowm = svg.selectAll(".row")
+      .data(spe)
+      .enter().append("g")
+      .attr("class", "row")
+      .attr("transform", function(d, i) { return "translate(0, " + y(i) + ")"; });
+//    .each(rowm);
+
+//  rowm.append("line")
+//  .attr("x", width);
+
+  rowm.append("text")
+//   .data(spe)
+      .attr("x", -6)
+      .attr("y", y.rangeBand()/2) //center the text
+//    .attr("dy", ".32em")
+      .attr("text-anchor", "end")
+      .text(function(i) { return i.name; })
+      .style("font-size", y.rangeBand() - 3 + " px")
+//      .on("mouseover", function (d) {
+//            console.log(d.y); })
+      .call(drag);
+//     .on("click", function (d, i) { console.log(i);})
+//     .on("dragstart", function(d, i) { console.log(i);});
+
+  var tmp = 0;
+
+function drags(d,i) {
+        console.log( i );
+        var cur_order = orders_x[v];
+        console.log( function(d,i) {return y( d(this).y );});
+//      d3.select(this).attr("transform", function (d, i) { return i });
+};
+
+function dragm(d, i) {
+        d3.select(this).attr("transform", "translate( 0, " + d3.event[i].y + ")");
+};
+
+
+function drage() {
+
+        console.log( function(d) {return d3.event.y;});
+};
+
+  var column = svg.selectAll(".col")
+      .data(cog)
+      .enter().append("g")
+      .attr("class", "col")
+      .attr("transform", function(d, i) { return "translate(" + x(i) + ")rotate(-90)"; })
+  column.append("line")
+      .attr("y", -width);
+
+  column.append("text")
+      .attr("x", 6)
+      .attr("y", x.rangeBand()/2)
+      .attr("dy", ".32em")
+      .attr("text-anchor", "start")
+      .text(function(i) { return i.name; })
+      .style("font-size", function (d) { return x.rangeBand() < 12 ? x.rangeBand() + "px" : "12px";});
+
+  var ele = svg.selectAll(".ele")
+      .data(matrix)
+      .enter().append("g")
+      .attr("class","ele")
+      .each(ele)
+
+
+  function ele(ele) {
+    var cell = d3.select(this).selectAll(".cell")
+        .data(ele) //.filter(function(d) { return d; }))
+        .enter().append("rect")
+        .attr("class", "cell")
+        .attr("x", function(d) { return x(d.x); })
+        .attr("y", function(d) { return y(d.y); })
+        .attr("width", x.rangeBand())
+        .attr("height", y.rangeBand())
+        .style("fill", function(d) { return color(d.g) })
+        .style("fill-opacity", function(d) { return z(d.z); })
+        //.style("fill", function(d) { return nodes[d.x].group == nodes[d.y].group ? c(nodes[d.x].group) : null; })
+        .on("mouseover", mouseover)
+        .on("mouseout", mouseout)
+//      .call(drag);
+//      .on("click", cell_sel);
+  }
+
+
+  function mouseover(p) {
+    d3.selectAll(".row text").classed("active", function(d, i) { return i == p.y; });
+    d3.selectAll(".col text").classed("active", function(d, i) { return i == p.x; });
+//    d3.selectAll(".cell rect").classed("active", true); //function(d, i ,j) { return i == p.y && j == p.x });
+  };
+
+  function mouseout() {
+    d3.selectAll("text").classed("active", false);
+  };
+
+  var v = "co";
+
+  d3.select("#order_col").on("change", function() {
+    clearTimeout(timeout);
+    v = this.value;
+    order_co(this.value);
+  });
+
+
+
+  function order_co(value) {
+        if (value == "co" || value == "or_co") {
+           x.domain(orders_x[value]); }
+        else if (value == "sp" || value == "or_sp" || value == "sp_phy") {
+           y.domain(orders_y[value]); }
+
+
+    var t = svg.transition().duration(1500);
+
+    t.selectAll(".row")
+//      .delay(function(d, i) { return y(i) * 4; })
+        .attr("transform", function(d, i) { return "translate(0," + y(i) + ")"; })
+
+    t.selectAll(".cell")
+        .delay(function(d) { return x(d.x) * 4; })
+        .attr("x", function(d) { return x(d.x); })
+        .attr("y", function(d) { return y(d.y); });
+
+    t.selectAll(".col")
+        .delay(function(d, i) { return x(i) * 4; })
+        .attr("transform", function(d, i) { return "translate(" + x(i) + ")rotate(-90)"; });
+}
+
+var timeout = setTimeout(function() {
+    order_co("group");
+    d3.select("#order_col").property("selectedIndex", 2).node().focus();
+  }, 5000);
+
+
+});
+
+
+
+
+</script>
+</body>
+</html>
+
+DELIM
+
+
+
+if [ "$3" == '-p' ]; then
+	echo "Pubshing at $4"
+        plubd=$4
+	mkdir -p $plubd/$prjt_nm/
+	cp ../COGs/*json ../COGs/*html ./*json ./*html ../COGs/*bal.nwk ./*pdf $plubd/$prjt_nm/
+fi
+
+

@@ -5,6 +5,51 @@ import numpy
 import md5
 import base64
 import ete2
+import pymongo
+
+
+def get_mist22_client():
+	print "Verifying tunnels"
+	print "Mist"
+	try:
+		client = pymongo.MongoClient('localhost',27019)
+	except:
+		print "You must open a tunnel with ares.bio.utk.edu: ssh -L 27019:localhost:27017 ares.bio.utk.edu"
+		sys.exit()
+	return client.mist22
+
+def get_seqdepot_client():
+	print "Verifying tunnels"
+	print "SeqDepot"
+	try:                                    
+		client = pymongo.MongoClient('localhost',27018)
+	except:                                                         
+		print "You must open a tunnel with ares.bio.utk.edu: ssh -L 27019:localhost:27017 ares.bio.utk.edu"
+		sys.exit()                                                                                      
+	return client.seqdepot
+
+
+def proteinid2bitktag(proteinid_list = []):
+        out_dic = {}
+        mist22 = get_mist22_client()
+        genes = mist22.genes.find({'_id' : { '$in' : proteinid_list }}, {'gid' : 1, 'lo' : 1, '_id' : 1, 'p.ac':1})
+        genomes = []
+        for card in genes:
+                genomes.append(card['gid'])
+		try:
+	                out_dic[card['_id']] = str(card['gid']) + '-' + str(card['lo']) + '-' + str(card['p']['ac'])
+		except KeyError:
+			out_dic[card['_id']] = str(card['gid']) + '-NULL-' + str(card['p']['ac'])
+        genomes = list(set(genomes))
+        genomes_mist = mist22.genomes.find({'_id': {'$in' : genomes}}, {'sp': 1, 'g' : 1})
+        gid_dic = {}
+        for card in genomes_mist:
+                gid_dic[card['_id']] = card['g'][:2] + '.' + card['sp'][:3] + '.'
+#       print gid_dic.keys()
+        for proteinid in proteinid_list:
+#                print out_dic[proteinid]
+                out_dic[proteinid] = gid_dic[int(out_dic[proteinid].split('-')[0])] + out_dic[proteinid]
+        return out_dic
 
 
 def alnreader(datafile, list = 'no', just_name = 'no'):

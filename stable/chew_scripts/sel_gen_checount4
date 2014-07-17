@@ -65,10 +65,10 @@ else:
 	for i in range(1,len(rule_tags)):
 		if rules[i] != 'A':
 			if '+' in rules[i]:
-				query += "'" + rule_tags[i] + "' : { '$gt' : " + rules[i].replace('+','') + " },"
-			if '-' in rules[i]:
-				query += "'" + rule_tags[i] + "' : { '$lt' : " + rules[i].replace('-','') + " },"
-			if '_' in rules[i]:
+				query += "'" + rule_tags[i] + "' : { '$gt' : " + str(int(rules[i].replace('+',''))-1) + " },"
+			elif '-' in rules[i]:
+				query += "'" + rule_tags[i] + "' : { '$lt' : " + str(int(rules[i].replace('-',''))+1) + " },"
+			elif '_' in rules[i]:
 				low, high = rules[i].split('_')
 				ra = str(range(int(low), int(high) + 1))
 				query += "'" + rule_tags[i] + "' : { '$in' : " + ra + " }, "
