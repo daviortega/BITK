@@ -322,6 +322,7 @@ def read_coords(filename, lim = '\t'):
 		try:
 			coords.append([float(s) for s in fields[1:]])
 		except ValueError:
+			print "Error X"
 			print fields
 			sys.exit()
 	if mac_format == 1:
@@ -330,6 +331,7 @@ def read_coords(filename, lim = '\t'):
 	                names.append(fields[0])
 #       	        print names
                 	try:
+				print "Error Y"
                         	coords.append([float(s) for s in fields[1:]])
 	                except ValueError:
         	                print fields
