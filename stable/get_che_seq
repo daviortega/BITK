@@ -1,0 +1,110 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 6/30/2012 
+###################################
+#   version 2 - 03/09/2013
+###################################
+import sys
+import random
+import pymongo
+import ast
+import bitk
+import datetime
+import json
+
+if '-h' in sys.argv:
+	print 'Get chemotaxis sequences from genomes provided in the list file \n Sintax: get_che_seq genomes.mistid.list \n \
+		Options: mcp chea cheb checx ched cher chev chez chew\n \
+ 			 --all 		It will get all of the chemotaxis proteins from all genomes in mist\n \
+			 --debug 	It will save intermediate dictionaries in json format for debug'
+	sys.exit()
+
+
+mist22 = bitk.get_mist22_client()
+
+genomes = []
+
+if '--all' in sys.argv:
+	ge = mist22.genomes.find()
+	for g in ge:
+		genomes.append(g['_id'])
+	ches = ['mcp', 'chea', 'cheb', 'cher', 'chew', 'chev', 'checx', 'ched', 'chez']
+else:
+	with open(sys.argv[1],'r') as f:
+		for line in f:
+			genomes.append(int(line.replace('\n','')))
+	ches = sys.argv[2:]
+
+ches = [ i for i in ches if '--' not in i]
+
+proteinid2chemokind = {}
+ches_output = {}
+for che in ches:
+	ches_output[che] = ''
+
+print ches
+print genomes
+print "{'gid' : { '$in' : " + str(genomes) + " }, 'r' : { '$in' : " + str(ches) + "} }, {'_id': 1, 'r': 1})"
+print "Getting the protein ids from chemotaxis proteins "
+proteins = mist22.signal_genes6.find({'gid' : { '$in' : genomes }, 'r' : { '$in' : ches } }, {'_id': 1, 'r': 1})
+
+proteinid_list = []
+print "Processing..."
+for card in proteins:
+	proteinid_list.append(card['_id'])
+	proteinid2chemokind[card['_id']] = card['r'][1]
+#pint proteinid2chemokind
+if len(proteinid2chemokind.keys()) == 0:
+	print "something is wrong here... there is no sequences selected"
+	sys.exit(1)
+
+if '--debug' in sys.argv:
+	with open('proteinid2chemokind.json', 'w') as f:
+		json.dump(proteinid2chemokind, f, indent = 2)
+
+print "getting the aseqs from protein ids"
+aseqs = mist22.genes.find({'_id': { '$in' : proteinid_list}}, {'p.aid': 1,})
+proteinid2aseq = {}
+print "Processing..."
+for card in aseqs:
+	print card['_id']
+	proteinid2aseq[card['_id']] = card['p']['aid']
+	#aseq2chemokind[card['p']['aid']] = ches_dic[card['_id']]
+
+proteinid2bitktag = bitk.proteinid2bitktag(proteinid_list)
+
+if '--debug' in sys.argv:
+        with open('proteinid2aseq.json', 'w') as f:
+                json.dump(proteinid2aseq, f, indent = 2)
+aseq_list = list(set(proteinid2aseq.values()))
+seqdepot = bitk.get_seqdepot_client()
+# ASEQS are not unique and it will mask some of the sequences. Gotta do it by looking at genes.
+print "Getting sequences from seqdepot"
+seqs = seqdepot.aseqs.find({'_id' : { '$in' : aseq_list }}, {'_id': 1, 's': 1})
+
+print "Processing..."
+aseq2seq = {}
+for card in seqs:
+	print card['_id']
+	aseq2seq[card['_id']] = card['s']
+
+if '--debug' in sys.argv:
+        with open('aseq2seq.json', 'w') as f:
+                json.dump(aseq2seq, f, indent = 2)
+
+print "Separating into chemokind-specific files... "
+for proteinid in proteinid_list:
+	print str(proteinid) + '\t' + str(proteinid_list.index(proteinid)) + '/' + str(len(proteinid_list))
+	ches_output[proteinid2chemokind[proteinid]] += '>' + proteinid2bitktag[proteinid] + '\n' + aseq2seq[proteinid2aseq[proteinid]] + '\n'
+
+if '--all' in sys.argv:
+	ver = datetime.datetime.today().strftime('%b%Y')
+	for che in ches:
+		with open( che + '.' + ver + '.s.fa', 'w') as f:
+			f.write(ches_output[che])
+else:
+	print "Saving results"
+	for che in ches:
+		with open( che + '.' + sys.argv[1] + '.fa', 'w') as f:
+			f.write(ches_output[che])
+

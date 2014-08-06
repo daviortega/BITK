@@ -10,7 +10,7 @@ if '-h' in sys.argv:
 
 try:
         client = pymongo.MongoClient('localhost',27019)
-except Connection:
+except:
         print "You must open a tunnel with ares.bio.utk.edu: ssh -L 27017:are.bio.utk.edu:27017 ares.bio.utk.edu"
         sys.exit()
 mist = client.mist22

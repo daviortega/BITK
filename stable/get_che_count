@@ -1,0 +1,45 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 7/15/2014 
+###################################
+import bitk
+import sys
+import pymongo
+import numpy
+
+if '-h' in sys.argv:
+	print "get_che_count will make a table with the MIST number of chemotaxis proteins per genome in the input list (mistids)"
+	sys.exit()
+
+mist22 = bitk.get_mist22_client()
+
+
+mid_list = []
+
+with open(sys.argv[1], 'r') as f:
+	for line in f:
+		mid_list.append(int(line.replace('\n','')))
+
+mistdata = mist22.genomes.find({ '_id' : { '$in' : mid_list}})
+
+index_table = []
+cards = []
+
+ches = ['mcp','chea','cheb','cher','chew','chev','checx','ched','chez']
+output = 'mist_id\tstrain\tcomplete\tMCPs\tCheA\tCheB\tCheR\tCheW\tCheV\tCheCX\tCheD\tCheZ\n'
+
+for card in mistdata:
+	cards.append(card)
+	for mid in mid_list:
+		if mid == card['_id']:
+			output += str(card['_id']) + '\t' + card['n'] + '\t' + str(card['co'])
+			for field in ches:
+				try:
+					output += '\t' + str(card['stats'][field])
+				except KeyError:
+					output += '\t0'
+	output += '\n'
+			
+
+with open(sys.argv[1] + '.checount.dat', 'w') as f:
+	f.write(output)

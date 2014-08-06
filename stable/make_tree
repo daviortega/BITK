@@ -5,9 +5,21 @@
 import ete2
 import json
 import sys
+import os
+
 if '-h' in sys.argv:
-    print 'Make tree from nwk file using ete2 python module. Input yourtree.nwk and output is a png figure or pop-up figure if -show and with X'
+    print 'Make tree from nwk file using ete2 python module. Input yourtree.nwk \n \
+    	   Options: -pdf  Generate PDF\n \
+	   	    -svg  Outputs SVG\n \
+		    -show Show tree\n \
+		    -bal  Balance tree\n \
+		    -aln  Align leaf names\n \
+		    -c    Circular layout\n \
+		    -c180 Semi-circular layout'
     sys.exit()
+
+
+filename = sys.argv[1]
 
 colors_array = [ '#E41A1C' , '#377EB8' , '#4DAF4A' , '#984EA3' , '#FF7F00' , '#999999' , '#A65628' , '#F781BF', '#17BECF']
 
@@ -16,12 +28,25 @@ T = ete2.Tree(sys.argv[1])
 ts = ete2.TreeStyle()
 
 
+def layout(node):
+	if node.is_leaf():
+		N = ete2.AttrFace("name")
+		ete2.faces.add_face_to_node(N, node, 0, position = "aligned")
+
+
+
 if '-bal' in sys.argv:
+	filename += '.bal'
 	mp = T.get_midpoint_outgroup()
 	T.set_outgroup(mp)
 	T.ladderize()
 
+if '-fbal' in sys.argv:
+	ts.force_topology = True
 
+
+if '-no_top' in sys.argv:
+	T.convert_to_ultrametric(1)
 
 
 #ts.show_leaf_name = False
@@ -45,24 +70,45 @@ ts.branch_vertical_margin = 5
             
 
 if '-c' in sys.argv:
+    filename += '.c'
     ts.mode = 'c'
 
 if '-c180' in sys.argv:
+    filename += '.c180'
     ts.mode = 'c'
-    ts.arc_start = -180 # 0 degrees = 3 o'clock
+    ts.arc_start = 180 # 0 degrees = 3 o'clock
     ts.arc_span = 180		
     
 
 #ts.layout_fn = mylayout
 
-
+if '-aln' in sys.argv:
+	filename += '.aln'
+	ts.layout_fn = layout
+	ts.show_leaf_name = False
 
 if '-show' in sys.argv:
     T.show(tree_style = ts)
-else:
-    T.render('test_tree.png',w=600, tree_style = ts)
+    
+if '-pdf' in sys.argv:
+    print "Making PDF"
+    T.render(filename + '.pdf',w=600, tree_style = ts)
 
+if '-svg' in sys.argv:
+    print "Making SVG"
+    T.render(filename + '.svg', tree_style = ts)
 
+if '-nwk' in sys.argv:
+    T.write(format=1, outfile = filename + '.nwk')
+
+if '-xml' in sys.argv:
+    T.write(format=1, outfile = filename + '.nwk')
+    with open(filename + '.nwk', 'r') as f:
+    	data = f.read()
+	data.replace(' ', '_')
+    os.system('java -cp ~/Downloads/forester_1034.jar org.forester.application.phyloxml_converter -f=sn -ru ' + filename + '.nwk ' + filename + '.xml')
+
+    
 
 
 #for node in T.iter_leaves():

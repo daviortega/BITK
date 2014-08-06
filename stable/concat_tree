@@ -1,0 +1,58 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 7/15/2014 
+###################################
+import bitkTOL
+import sys
+import json
+if '-h' in sys.argv:
+	print 'Build concatenated alignment based on concatenated alignment of 30 cogs recognized as present in all organisms.\n  \
+		Options: --rps    			Runs RPS-BLAST with default paramenters on your dataset\n \
+			 --buildmongo mongo_db_name	Build new mongodb with RPS results from scratch. If mongo_db_name exists, the program will drop it.\n \
+			 --updatemongo mongo_db_name	Update mongo_db_name if necessary (recommended if you are inputing some new sequences\n \
+			 --frommongo mongo_db_name	produce the alignment from current data in the mongo_db_name\n \
+			 --maketree			Make the tree with the info calculated before'
+	sys.exit()
+
+genomes = []
+with open(sys.argv[1], 'r') as f:
+        for line in f:
+                genomes.append(line.replace('\n',''))
+
+notindb = []
+for genome in genomes:
+        if bitkTOL.isinmongoTOL(genome, 'mytol') == False:
+                notindb.append(genome)
+
+if '--rps' in sys.argv:
+	data = bitkTOL.run_rps(notindb)
+	data = bitkTOL.rpsdata2mongocards(data)
+if '--buildmongo' in sys.argv:
+	bitkTOL.new_mongoTOL(data, sys.argv[sys.argv.index('--buildmongo')+1])
+elif '--updatemongo' in sys.argv:
+	bitkTOL.update_mongoTOL(data, sys.argv[sys.argv.index('--updatemongo')+1])
+
+#bitkTOL.check_mongoTOL('mytol')
+if '--frommongo' in sys.argv:
+	data, errors = bitkTOL.load_from_mongoTOL(genomes, sys.argv[sys.argv.index('--frommongo')+1])
+	if errors != []:
+		print "Found errors due to some genomes in the original list was not present in the database. I will try to update the database atuomatically for you"
+		new_data = bitkTOL.run_rps(errors)
+		new_data = bitkTOL.rpsdata2mongocards(new_data)
+		bitkTOL.update_mongoTOL(new_data, sys.argv[sys.argv.index('--frommongo')+1])
+	data, errors = bitkTOL.load_from_mongoTOL(genomes, sys.argv[sys.argv.index('--frommongo')+1])
+	if errors != []:
+		print "Something is really wrong... There are still errors in these genomes:"
+		print errors
+		sys.exit()
+
+if '--maketree' in sys.argv:
+	cog_list = bitkTOL.pre_aligncog(genomes, data)
+	bitkTOL.aligncog(cog_list)
+	name = bitkTOL.concat(cog_list)
+	name = bitkTOL.gb(name)
+	name = bitkTOL.preptree(name)
+	name = bitkTOL.maketree(name)
+	bitkTOL.posttree(name, sys.argv[1] + '.conservedcog.nwk')
+#print data
+

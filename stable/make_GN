@@ -13,7 +13,7 @@ import matplotlib.patches as mpatches
 import numpy
 import bitk
 import pymongo
-import paramiko
+
 if '-h' in sys.argv:
     print 'make_GN fasta_file.fa N \n\n N is window [-N,+N] \n\n Options :\n \
 	-pdf		Makes a pdf instead of printing on screen \n \

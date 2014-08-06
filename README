@@ -19,6 +19,7 @@ scipy
 multiprocessing
 MDAnalysis
 rpy2
+ete2
 
 Enjoy!
 Ps.: Before I started to use git repo I made a backup copy of everything on god

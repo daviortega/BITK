@@ -5,6 +5,51 @@ import numpy
 import md5
 import base64
 import ete2
+import pymongo
+
+
+def get_mist22_client():
+	print "Verifying tunnels"
+	print "Mist"
+	try:
+		client = pymongo.MongoClient('localhost',27019)
+	except:
+		print "You must open a tunnel with ares.bio.utk.edu: ssh -L 27019:localhost:27017 ares.bio.utk.edu"
+		sys.exit()
+	return client.mist22
+
+def get_seqdepot_client():
+	print "Verifying tunnels"
+	print "SeqDepot"
+	try:                                    
+		client = pymongo.MongoClient('localhost',27018)
+	except:                                                         
+		print "You must open a tunnel with ares.bio.utk.edu: ssh -L 27019:localhost:27017 ares.bio.utk.edu"
+		sys.exit()                                                                                      
+	return client.seqdepot
+
+
+def proteinid2bitktag(proteinid_list = []):
+        out_dic = {}
+        mist22 = get_mist22_client()
+        genes = mist22.genes.find({'_id' : { '$in' : proteinid_list }}, {'gid' : 1, 'lo' : 1, '_id' : 1, 'p.ac':1})
+        genomes = []
+        for card in genes:
+                genomes.append(card['gid'])
+		try:
+	                out_dic[card['_id']] = str(card['gid']) + '-' + str(card['lo']) + '-' + str(card['p']['ac'])
+		except KeyError:
+			out_dic[card['_id']] = str(card['gid']) + '-NULL-' + str(card['p']['ac'])
+        genomes = list(set(genomes))
+        genomes_mist = mist22.genomes.find({'_id': {'$in' : genomes}}, {'sp': 1, 'g' : 1})
+        gid_dic = {}
+        for card in genomes_mist:
+                gid_dic[card['_id']] = card['g'][:2] + '.' + card['sp'][:3] + '.'
+#       print gid_dic.keys()
+        for proteinid in proteinid_list:
+#                print out_dic[proteinid]
+                out_dic[proteinid] = gid_dic[int(out_dic[proteinid].split('-')[0])] + out_dic[proteinid]
+        return out_dic
 
 
 def alnreader(datafile, list = 'no', just_name = 'no'):
@@ -147,7 +192,7 @@ def fastareader(datafile, just_name = 'no'):
 		else:
 			while line.find('\n') != -1:
 				line = line[0:line.find('\n')] + line[line.find('\n')+2:]
-			seq_dic[name]= seq_dic[name] + line
+			seq_dic[name]= seq_dic[name] + line.replace(' ','')
 	dataout = ''
 	for k, v in seq_dic.iteritems():
 	 	dataout = dataout + '>' + k + '\n' + v + '\n'
@@ -1044,6 +1089,47 @@ def threeLetter2oneLetter(seq):
 def getmd5(seq):
 	return base64.encodestring(md5.new(seq.replace('-','')).digest()).replace('/','_').replace('=','').replace('+','-').replace('\n','')
 
+def tree_to_phyloxml (ete_tree):
+	"""
+	Convert an Ete2 tree to PhyloXML.
+ 
+	:Parameters:
+	ete_tree
+	An Ete2 format tree
+ 
+	:Returns:
+	PhyloXML markup as text
+ 
+	"""
+	from cStringIO import StringIO
+	buffer = StringIO()
+ 
+	def visit_node (node, buf, indent=0):
+		buf.write (" " * indent)
+		buf.write ("<phy:clade>\n")
+		buf.write (" " * (indent+1))
+		buf.write ("<phy:name>%s</phy:name>\n" % node.name )
+		buf.write (" " * (indent+1))
+		buf.write ("<phy:branch_length>%s</phy:branch_length>\n" % node.dist)
+		buf.write (" " * (indent+1))
+		buf.write ("<phy:confidence type='branch_support'>%s</phy:confidence>\n" % node.support)
+ 
+		for c in node.get_children():
+			visit_node (c, buf, indent=indent+1)
+ 
+		buf.write (" " * indent)
+		buf.write ("</phy:clade>\n")
+ 
+	buffer.write ("<phy:Phyloxml xmlns:phy='http://www.phyloxml.org/1.10/phyloxml.xsd'>\n")
+	buffer.write ("<phy:phylogeny>\n")
+	buffer.write ("<phy:name>test_tree</phy:name>\n")
+ 
+	visit_node (ete_tree.get_tree_root(), buffer)
+ 
+ 	buffer.write ("</phy:phylogeny>\n")
+	buffer.write ("</phy:Phyloxml>\n")
+ 
+	return buffer.getvalue()
 
 
 

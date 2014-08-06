@@ -8,14 +8,14 @@ if '-h' in sys.argv:
 	print 'this will blast mist, it will take all the options for blast format as usual but the db name and the query file (will be the file you provide against mist database). Mist will be in the following format: >organism_mistid-locus-accession. Sintax: blastmist filetobeblasted.fa [optional flags for blast (use \\" for ")  ] '
 	sys.exit()
 
-MISTDB = "/home/ortega/MIST2.2/fasta/all/mistdb"
+MISTDB = "/home/ortegad/MIST2.2/fasta/all/mistdb"
 #os.system('ln -s /home/ortega/MIST2.2/fasta/all/mist* ./')
 
 
 filename = sys.argv[1]
 print len(sys.argv)
 if len(sys.argv) == 2:
-	options = '-num_threads 10 -outfmt "6 qseqid sseqid bitscore evalue qlen length" -evalue 0.001 -max_target_seqs 100000'
+	options = '-num_threads 12 -outfmt "6 qseqid sseqid bitscore evalue qlen length" -evalue 10E-30 -max_target_seqs 100000'
 else:
 	options = " ".join(sys.argv[2:])
 print options
