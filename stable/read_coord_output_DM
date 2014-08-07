@@ -29,9 +29,9 @@ else:
 names, all_coords = fuzzy_davi.read_coords(sys.argv[1], lim = sep_in)
 print names
 print all_coords
+print "Making the distance matrix"
 Dmatrix = fuzzy_davi.DistMtx(all_coords)
 print Dmatrix
-#names, Dmatrix = fuzzy_davi.readDmGENlist(sys.argv[1],';')
 print "File loaded in: " + str(time.time() - start)
 print "Memory load: " + str(fuzzy_davi.memory(m0))
 
