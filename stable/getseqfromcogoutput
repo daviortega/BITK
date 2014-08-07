@@ -5,7 +5,8 @@
 import sys
 import bitk
 if '-h' in sys.argv:
-	print 'make a fasta format file with the sequences from the COG_finder output data. getseqfromcogoutput file.cogout.dat fastafilewithallseq.fa N1 N2 N3 \n Nx are cog numbers'
+	print 'make a fasta format file with the sequences from the COG_finder output data. getseqfromcogoutput file.cogout.dat fastafilewithallseq.fa N1 N2 N3 where Nx are cog numbers. Alternatively you can use "all" which will get all the cogs (normaly used with the --cog-flag option)\n \
+		Options: --cog-flag	Include cog numbers in the tag with "COG" identifier'
 	sys.exit()
 
 def is_int(x):
@@ -20,8 +21,8 @@ COGs = sys.argv[3:]
 
 if "all" in COGs:
 	COGs = 'all'
-
-COGs = [ x for x in sys.argv[3:] if is_int(x) ]
+else:
+	COGs = [ x for x in sys.argv[3:] if is_int(x) ]
 
 seq_dic, seq_list = bitk.fastareader(sys.argv[2])
 
@@ -30,21 +31,24 @@ output = ''
 cogin = open(sys.argv[1],'r')
 for line in cogin:
 	if 'COG ' in line:
-		if COGs == all:
+		if COGs == 'all':
 			N = line
 			for line in cogin:
+				print line
                                 if line != '\n':
                                         tag = line.replace('\n','')
-                                        if '-cogflag' in sys.argv:
+                                        if '--cog-flag' in sys.argv:
                                                 output += '>' + tag + '-' + N.replace(' ','') + seq_dic[tag] + '\n'
 					else:
 						output += '>' + tag + '\n' + seq_dic[tag] + '\n'
+				else:
+					break
 		elif line.replace('\n','').split(' ')[1] in COGs:
 			N = line
 			for line in cogin:
 				if line != '\n':
 					tag = line.replace('\n','')
-					if '-cogflag' in sys.argv:
+					if '--cog-flag' in sys.argv:
 						output += '>' + tag + '-' + N.replace(' ','') + seq_dic[tag] + '\n'
 					else:
 						output += '>' + tag + '\n' + seq_dic[tag] + '\n'
@@ -54,7 +58,7 @@ for line in cogin:
 cogin.close()
 
 if COGs == 'all':
-	dataout = open(sys.argv[1][:-3] + 'cogs.' + '.all.fa', 'w')
+	dataout = open(sys.argv[1][:-3] + 'cogs.all.fa', 'w')
 else:
 	dataout = open(sys.argv[1][:-3] + 'cogs.' + '.'.join(COGs) + '.fa', 'w')
 dataout.write(output)

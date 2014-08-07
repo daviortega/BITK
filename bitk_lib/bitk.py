@@ -6,6 +6,7 @@ import md5
 import base64
 import ete2
 import pymongo
+import time
 
 
 def get_mist22_client():
@@ -27,6 +28,13 @@ def get_seqdepot_client():
 		print "You must open a tunnel with ares.bio.utk.edu: ssh -L 27019:localhost:27017 ares.bio.utk.edu"
 		sys.exit()                                                                                      
 	return client.seqdepot
+
+def insertmethodinfilename(filename, method):
+	filenamenew = filename.split('.')
+        filenamenew.insert(len(filenamenew)-1, method)
+        filenamenew = '.'.join(filenamenew)
+	return filenamenew
+
 
 
 def proteinid2bitktag(proteinid_list = []):
@@ -234,6 +242,16 @@ def alnwriter(seq_dic, list_order = []):
 	#print output
 	return output
 
+def sleep_counter(N):
+	sys.stdout.write('\033[91m' + '\033[1m' + 'Waiting')
+	for i in range(N):
+		sys.stdout.write('...' + str(i+1))
+		time.sleep(1)
+		sys.stdout.flush()
+	print '\033[0m'
+	
+
+
 def pirwriter(seq_dic):
 	output = ''
 	for name, seq in seq_dic.iteritems():
@@ -242,8 +260,7 @@ def pirwriter(seq_dic):
 	return output
 	
 def nogap(seq):
-	while '-' in seq:
-		seq = seq.remove('-')
+	seq = seq.replace('-','')
 	return seq		
 
 def nogaps(seq):
@@ -1089,7 +1106,8 @@ def threeLetter2oneLetter(seq):
 def getmd5(seq):
 	return base64.encodestring(md5.new(seq.replace('-','')).digest()).replace('/','_').replace('=','').replace('+','-').replace('\n','')
 
-def tree_to_phyloxml (ete_tree):
+def tree_to_phyloxml (ete_tree, che_class_list = []):
+	colors_array = [ '#E41A1C' , '#377EB8' , '#4DAF4A' , '#984EA3' , '#FF7F00' , '#999999' , '#A65628' , '#F781BF', '#17BECF']
 	"""
 	Convert an Ete2 tree to PhyloXML.
  
@@ -1113,6 +1131,29 @@ def tree_to_phyloxml (ete_tree):
 		buf.write ("<phy:branch_length>%s</phy:branch_length>\n" % node.dist)
 		buf.write (" " * (indent+1))
 		buf.write ("<phy:confidence type='branch_support'>%s</phy:confidence>\n" % node.support)
+		if 'uri' in list(node.features) or 'desc' in list(node.features):
+			buf.write (" " * (indent+1))
+			buf.write ("<phy:annotation>\n")
+			if 'uri' in list(node.features):
+				buf.write (" " * (indent+2))
+				buf.write ("<phy:uri>%s</phy:uri>\n" % node.uri)
+			if 'desc' in list(node.features):
+                                buf.write (" " * (indent+2))
+                                buf.write ("<phy:desc>%s</phy:desc>\n" % node.desc)
+			buf.write (" " * (indent+1))
+			buf.write ("</phy:annotation>\n")
+		if che_class_list != [] and 'checlass' in list(node.features):
+			buf.write (" " * (indent+1))
+                        buf.write ("<phy:chart>\n")
+			for che in che_class_list:
+				if che in node.checlass:
+					buf.write (" " * (indent+2))
+					buf.write ("<phy:component%s>%s</phy:component%s>\n" % (che_class_list.index(che), che, che_class_list.index(che)))
+				else:
+					buf.write (" " * (indent+2))
+                                        buf.write ("<phy:component%s>none</phy:component%s>\n" % (che_class_list.index(che),che_class_list.index(che)))
+			buf.write (" " * (indent+1))
+                        buf.write ("</phy:chart>\n")
  
 		for c in node.get_children():
 			visit_node (c, buf, indent=indent+1)
@@ -1123,6 +1164,33 @@ def tree_to_phyloxml (ete_tree):
 	buffer.write ("<phy:Phyloxml xmlns:phy='http://www.phyloxml.org/1.10/phyloxml.xsd'>\n")
 	buffer.write ("<phy:phylogeny>\n")
 	buffer.write ("<phy:name>test_tree</phy:name>\n")
+	buffer.write ("<phy:render>\n")
+	buffer.write (" <phy:parameters>\n")
+	buffer.write ("  <phy:circular>\n")
+	buffer.write ("   <phy:bufferRadius>0.5</phy:bufferRadius>\n")
+	buffer.write ("  </phy:circular>\n")
+	buffer.write ("	 <phy:rectangular>\n")
+	buffer.write ("   <phy:alignRight>1</phy:alignRight>\n")
+	buffer.write ("  </phy:rectangular>\n")
+	buffer.write (" </phy:parameters>\n")
+	buffer.write (" <phy:charts>\n")
+	for che in che_class_list:
+		buffer.write ('	 <phy:component%s type="binary" thickness="20" />\n ' % che_class_list.index(che))
+#	buffer.write ('	 <phy:acidity type="binary" thickness="10" disjointed="1" bufferSiblings="0.3" />\n')
+	buffer.write (" </phy:charts>\n")
+	buffer.write (" <phy:styles>\n")
+	buffer.write ("  <phy:caffeine fill='#A93' stroke='#DDD' />\n")
+	buffer.write ("	 <phy:base fill='#8b7100' stroke='#DDD' />\n")
+	buffer.write ("	 <phy:other fill='#333' stroke='#DDD' />\n")
+	buffer.write ("	 <phy:high fill='#666' stroke='#DDD' />\n")
+	buffer.write ("  <phy:mid fill='#999' stroke='#DDD' />\n")
+	buffer.write ("  <phy:low fill='#CCC' stroke='#DDD' />\n")
+	buffer.write ("  <phy:none fill='#FFF' stroke='#CCC' />\n")
+	for che in che_class_list:
+		buffer.write ("  <phy:%s fill='%s' stroke='#DDD' />\n" % (che, colors_array[che_class_list.index(che)]))
+#        buffer.write ("  <phy:ACF fill='#377EB8' stroke='#DDD' />\n")
+	buffer.write (" </phy:styles>\n")
+	buffer.write ("</phy:render>\n")
  
 	visit_node (ete_tree.get_tree_root(), buffer)
  

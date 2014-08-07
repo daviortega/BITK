@@ -33,13 +33,26 @@ def layout(node):
 		N = ete2.AttrFace("name")
 		ete2.faces.add_face_to_node(N, node, 0, position = "aligned")
 
+if '--unroot' in sys.argv:
+    mp = T.get_midpoint_outgroup()
+    T.set_outgroup(mp)
 
+node_id = 0
+for n in T.traverse():
+        if not n.is_leaf():
+                n.name = str(node_id)
+        node_id += 1
 
-if '-bal' in sys.argv:
-	filename += '.bal'
-	mp = T.get_midpoint_outgroup()
-	T.set_outgroup(mp)
-	T.ladderize()
+if '--root' in sys.argv:
+        root_id = sys.argv[sys.argv.index('--root') + 1]
+        for n in T.traverse():
+                if n.name == root_id:
+                        D = n
+                        break
+        T.set_outgroup(D)
+
+if '--balance' in sys.argv:
+        T.ladderize()
 
 if '-fbal' in sys.argv:
 	ts.force_topology = True
@@ -68,6 +81,9 @@ ts.branch_vertical_margin = 5
 #                ete2.faces.add_face_to_node(circle, node, column = i+1, aligned = True)
 #               ete2.faces.add_face_to_node(ete2.faces.CircleFace(5, 'white'), node, column = 2*i+1, aligned = True)
             
+for node in T.traverse():
+	node.img_style["size"] = 0
+
 
 if '-c' in sys.argv:
     filename += '.c'
@@ -77,7 +93,7 @@ if '-c180' in sys.argv:
     filename += '.c180'
     ts.mode = 'c'
     ts.arc_start = 180 # 0 degrees = 3 o'clock
-    ts.arc_span = 180		
+    ts.arc_span = 181		
     
 
 #ts.layout_fn = mylayout

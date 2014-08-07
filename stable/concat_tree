@@ -25,7 +25,18 @@ for genome in genomes:
                 notindb.append(genome)
 
 if '--rps' in sys.argv:
-	data = bitkTOL.run_rps(notindb)
+	if '--autofix' not in sys.argv:
+		data, genomes_new = bitkTOL.run_rps(notindb)
+	else:
+		data, genomes_new = bitkTOL.run_rps(notindb, autofix = True)
+		if list(set(genomes) - set(genomes_new)) != []:
+			print "genomes ignored:"
+			print list(set(genomes) - set(genomes_new))
+			genomes = genomes_new
+	if list(set(genomes) - set(genomes_new)) != []:
+		print "something is wrong with run_rps. It is letting problems pass by"
+		sys.exit()
+	genomes = genomes_new
 	data = bitkTOL.rpsdata2mongocards(data)
 if '--buildmongo' in sys.argv:
 	bitkTOL.new_mongoTOL(data, sys.argv[sys.argv.index('--buildmongo')+1])
@@ -36,7 +47,7 @@ elif '--updatemongo' in sys.argv:
 if '--frommongo' in sys.argv:
 	data, errors = bitkTOL.load_from_mongoTOL(genomes, sys.argv[sys.argv.index('--frommongo')+1])
 	if errors != []:
-		print "Found errors due to some genomes in the original list was not present in the database. I will try to update the database atuomatically for you"
+		print "Found errors due to some genomes in the original list was not present in the database. I will try to update the database automatically for you"
 		new_data = bitkTOL.run_rps(errors)
 		new_data = bitkTOL.rpsdata2mongocards(new_data)
 		bitkTOL.update_mongoTOL(new_data, sys.argv[sys.argv.index('--frommongo')+1])

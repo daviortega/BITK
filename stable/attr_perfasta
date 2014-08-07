@@ -39,13 +39,28 @@ seq_dic, seq_list = bitk.fastareader(sys.argv[1])
 #json_out = {}
 
 classes = {}
+order_dic = {}
 for tag in seq_list:
 	if tag.split('-')[N] not in classes.keys():
 		classes[ tag.split('-')[N] ] = 1
+		order_dic[int(tag.split('-')[N].replace('COG',''))] = tag.split('-')[N]
 	else:
 		classes[ tag.split('-')[N] ] += 1
 
-print classes	
+print classes
+
+
+
+
+class_list = order_dic.keys()
+class_list.sort()
+output = ''
+for i in class_list:
+	print order_dic[i]
+	output += str(classes[order_dic[i]]) + ','
+
+
+print output
 
 #f = open(sys.argv[1][:-4] + '.attribute_pergenomes.json', 'w')
 #json.dump(json_out, f)

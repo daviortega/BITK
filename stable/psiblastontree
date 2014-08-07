@@ -1,0 +1,440 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 9/4/2013 
+###################################
+import matplotlib
+import sys
+import ete2
+if '-pdf' in sys.argv:
+        matplotlib.use('Agg')
+
+import json
+import sys
+import math
+import numpy
+import bitkTOL
+import bitk
+import os
+import time
+
+if '-h' in sys.argv:
+    print 'Blast sequences from fasta file against mist and map the hits on newick tree of life\n \
+    	Options: --psiblast-results psiblastfile.dat	allows to use specific psiblast results\n \
+		 --tree tree.nwk 		 	allows to use specific tree\n \
+		 --highlight-genomes mistid.list	highlight in red the genomes from list\n \
+		 --qcov	N				Number from 0 to 1 percentage of query coverage\n \
+		 --evalue N				Number for evalue cutoff\n \
+		 --multi-evalue N1,N2,N3,...		Numbers of evalues. Must equal number of entries in file.fa\n \
+		 --textface				Print colored squares with identifier numbers\n \
+		 --radius N 				Size of circles\n \
+		 --font N				Font size\n \
+		 --highlight-genomes list1,list2,...	highlight the genomes in different colors. list1 is a file with mist_ids\n \
+		 --db dbname				use precomupted blast db\n \
+		 --psiblast				computer blastp results\n \
+		 --entry-group-color N1,N2,...		Multiple enntries with single color. First N1 with one color, then N2 with other and etc'
+    sys.exit()
+
+#CLASS_IN_ORDER = ['F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9', 'F10', 'F11', 'F12', 'F13', 'F14', 'F15', 'F16', 'F17', 'F18', 'F19', 'F20', 'Tfp', 'ACF', 'Uncat']
+
+#BLAST SETION
+
+if '--psiblast' in sys.argv:
+	psiblast = 1
+else:
+	psiblast = 0
+if '--num_iterations' not in sys.argv:
+	num_iter_psi = 4
+else:
+	num_iter_psi = int(sys.argv[sys.argv.index('--num_iterations') + 1])
+	print "You insert a number of iterations for the psi-blast. That requires to run psi-blast again."
+	print "Are you sure that is what you want? Crtl-C to exit or wait and I will keep moving"
+	bitk.sleep_counter(10)
+	psiblastp = 1
+
+if '--radius' in sys.argv:
+	R = int(sys.argv[sys.argv.index('--radius') + 1])
+else:
+	R = 10
+
+if '--font' in sys.argv:
+	F = int(sys.argv[sys.argv.index('--font') + 1])
+else:
+	F = 20
+
+hlgen_col = []
+if '--highlight-genomes' in sys.argv:
+	hlgenfilenames = sys.argv[sys.argv.index('--highlight-genomes') + 1].split(',')
+	for hlgenfilename in hlgenfilenames:
+		hlgen_list = []	
+		with open(hlgenfilename, 'r') as f:
+			for line in f:
+				hlgen_list.append(line.replace('\n',''))
+		hlgen_col.append(hlgen_list)
+else:
+	hlgen_col.append([])
+	
+
+if '--db' not in sys.argv:
+	db = '/home/ortegad/MIST3/TOL/genomes/mist22'
+else:
+	print "You are signaling that you will use your own database... I hope you know what you are doing. :) "
+	db = sys.argv[sys.argv.index('--db') + 1]
+
+
+
+if '--evalue' in sys.argv:
+	e_coff = float(sys.argv[sys.argv.index('--evalue') + 1])
+else:
+	e_coff = 1
+
+
+
+
+if '--multi-evalue' in sys.argv:
+	
+	me_coff_list = sys.argv[sys.argv.index('--multi-evalue') + 1].split(',')
+	me_coff = []
+	for i in me_coff_list:
+		if '*' in i:
+			me_coff += [ float(i.split('*')[0]) ] * int(i.split('*')[1])
+	#build database
+	print me_coff
+
+
+if psiblast == 1:
+	E = os.system('psiblast -db ' + db + ' -query ' + sys.argv[1] + ' -out ' + sys.argv[1] + '.psiblast.dat -num_threads 12 -outfmt "6 qseqid sseqid bitscore evalue qlen length qcovs" -evalue 0.001 -max_target_seqs 100000 -num_iterations ' + str(num_iter_psi) )
+	if E != 0:
+		print "Psi-blast failed for some reason... can't keep going without blast results... aborting."
+		sys.exit()
+	blastpfile = sys.argv[1] + '.psiblast.dat'
+else:
+	if '--psiblast-results' in sys.argv:
+	        blastpfile = sys.argv[sys.argv.index('--psiblast-results') + 1]
+	else:
+		blastpfile = sys.argv[1] + '.psiblast.dat'
+	if os.path.isfile(blastpfile) == True:
+		print "Skipping BLAST section, using latest blast results: " + sys.argv[1] + '.psiblast.dat'
+	else:
+		print "Can't find the blast results, you must run it again with --blastp flag in it"
+		sys.exit()
+
+#qry_list = []
+a, qry_list = bitk.fastareader(sys.argv[1])
+
+if '--multi-evalue' in sys.argv:
+	if len(me_coff) != len(qry_list):
+		print "Number of queries must have the same number of e-values after --multi-evalues"
+		print "Number of queries: " + str(len(qry_list))
+		print "Number of evalues: " + str(len(me_coff))
+		sys.exit()
+
+
+if '--multi-qcov' in sys.argv:
+	qcov_str = sys.argv[sys.argv.index('--qcov') + 1].split(',')
+	qcov_coff_list = []
+	for i in qcov_str:
+		if '*' in i:
+			qcov_coff_list += [float(i.split('*')[0]) ] * int(i.split('*')[1])
+elif '--qcov' in sys.argv:
+	qcov_coff = float(sys.argv[sys.argv.index('--qcov') + 1])
+
+else:
+	qcov_coff = 0
+
+
+
+
+hits = {}
+
+evalues = {}
+
+
+print "Opening blastpfile and processing it..."
+
+qwerty = 0
+with open(blastpfile, 'r') as f:
+	for line in f:
+		qwerty += 1
+		fields = line.replace('\n', '').split('\t')
+		qry = fields[0]
+		if qry not in hits.keys():
+#			qry_list.append(qry)
+			evalues[qry] = []
+			hits[qry] = {}
+#		print qwerty
+		if fields == [''] or fields == ['Search has CONVERGED!']:
+			print fields
+			print "Found somethin that shouldn't be here... passing"
+			continue
+			print "working ?!"
+#		print fields
+#		print qwerty
+#		print fields
+		hit = fields[1].split('-')[0].split('.')[-1]
+
+		try:
+			qcov = int(fields[6])/float(100)
+		except:
+			qcov = int(fields[5])/float(fields[4])
+		if '--multi-evalue' in sys.argv:
+			e_coff = me_coff[qry_list.index(qry)]
+		if '--multi-qcov' in sys.argv:
+			qcov_coff = qcov_coff_list[qry_list.index(qry)]
+		evalue = float(fields[3])
+		if evalue < e_coff and qcov > qcov_coff:
+			if hit in hits[qry].keys():
+				if evalue == 0:
+					hits[qry][hit] = 300
+					evalues[qry].append(300)
+				elif -1 * numpy.log10(evalue) > hits[qry][hit]:
+					hits[qry][hit] = -1 * numpy.log10(evalue)
+					evalues[qry].append(-1 * numpy.log10(evalue))
+			else:
+				if evalue == 0:
+#					print qry
+#					print hit
+#					print '\n'
+					hits[qry][hit] = 300
+					evalues[qry].append(300)
+				else:
+					hits[qry][hit] = -1 * numpy.log10(evalue)
+					evalues[qry].append(-1 * numpy.log10(evalue))
+
+with open('test.json', 'w') as f:
+	json.dump(hits, f)
+
+emax = {}
+emin = {}
+
+qry_remove = []
+
+for qry in qry_list:
+	try:
+		evalues[qry] = numpy.array(evalues[qry])
+		if len(evalues[qry]) == 0:
+#			print "hi"
+			evalues[qry] = numpy.array([100])
+			hits[qry] = { qry : 100 }
+#		print qry
+#		print evalues[qry]
+		emax[qry], emin[qry] = evalues[qry].max(), evalues[qry].min()
+		print qry + '\t' + str(emax[qry]) + '\t' + str(emin[qry])
+	except KeyError:
+		print "Query not in blastp results... will ignore it"
+		qry_remove.append(qry)
+#	evalues[qry] = (evalues[qry] - emin) / (emax - emin)
+#print numpy.mean(evalues)
+#norm = numpy.linalg.norm(evalues)
+
+if qry_remove != []:
+	print "removing a few queries"
+	print qry_remove
+	bitk.sleep_counter(5)
+
+new_qry_list = []
+for qry in qry_list:
+	if qry not in qry_remove:
+		new_qry_list.append(qry)
+
+qry_list = new_qry_list
+
+
+mist22 = bitkTOL.get_mist22_client()
+#print norm
+
+if '--nogid' in sys.argv:
+	mistcodes = {}
+	print "Getting the mist ids from the tree nodes"
+	for genome in mist22.genomes.find():
+#       print str(genome['_id']) + '\t' + genome['n']
+	        mistcodes[genome['n']] = str(genome['_id'])
+
+
+colors_array = [ '#E41A1C' , '#377EB8' , '#4DAF4A' , '#984EA3' , '#FF7F00' , '#999999' , '#A65628' , '#F781BF', '#17BECF', "#8DD3C7", "#BEBADA", "#FB8072", "#80B1D3", "#B3DE69", "#FCCDE5", "#D9D9D9", "#BC80BD", "#CCEBC5", "#FFED6F" ]
+
+if '--entry-group-color' in sys.argv:
+	num_entry_list = [ int(x) for x in sys.argv[sys.argv.index('--entry-group-color') + 1].split(',')]
+	new_color_array = []
+	for i in range(len(num_entry_list)):
+		ic = int(math.fmod(i, len(colors_array)))
+		new_color_array += [colors_array[ic]]*num_entry_list[i]
+#		new_color_array += [colors_array[i]]*num_entry_list[i]
+	colors_array = new_color_array
+
+
+if '--tree' in sys.argv:
+	treefile = sys.argv[sys.argv.index('--tree') + 1]
+else:
+	treefile = '/home/ortegad/MIST3/TOL/MistComplete.conservedcog.nwk'
+
+T = ete2.Tree(treefile)
+ts = ete2.TreeStyle()
+#s.branch_vertical_margin = 10
+
+
+features = []
+
+#node_id = 0
+
+def mylayout(node):
+    node.img_style["size"] = 0
+#    global node_id
+    if node.is_leaf():
+#   	mid = str(node.name.split('|')[0])
+#   	ete2.faces.add_face_to_node(ete2.faces.TextFace(node.name, fsize = 50), node, column = 0, position = "aligned") 
+        if 1:
+	    if '--nogid' in sys.argv:
+		    try:
+			    mid = mistcodes[node.name.split('|')[-1]]
+		    except KeyError:
+		    	    print " I can't find the " + node.name + ". Skipping"
+	    		    mid = str(0)
+	    else:
+	    	    mid = str(node.name.split('|')[0])
+#	    print mid + '\t' + node.name
+	  #           if '-mistid' not in sys.argv:
+#               if len(node.name.split('|')) != 2:
+#                   if '|' not in node.name:
+#                       node.name = node.name + '|X Error'
+#                   else:
+#                       node.name = node.name.split('|')[0] + '|Error'
+#          feature = node.name.split('-')[N]
+#          if feature not in features:
+#  	   eatures.append(feature)
+	    for qry in qry_list:	   
+	        color = int(math.fmod(qry_list.index(qry), len(colors_array)))
+#               Face.add_face_to_node(Face.TextFace(node.name), node, column = 0)
+# 	        Face.margin_top = 3
+#               Face.margin_bottom = 3
+#	        Face.margin_left = 3
+#	        Face.margin_right = 20
+
+	        if mid in hits[qry].keys():
+		
+#		    Face = ete2.faces.TextFace(str(hits[qry][mid]))
+		    if '--textface' not in sys.argv:
+		        Face = ete2.faces.CircleFace(R, color = colors_array[color])
+#			if mid == qry.split('-')[0].split('.')[-1]:
+#				Face.border.width = 1
+#				Face.border.color = 'black'
+		    else:
+#			    if mid == qry.split('-')[0].split('.')[-1]:
+#			       	text = str(qry_list.index(qry) + 1 ) + '*'
+#			    else:
+  	    	 	    text = str(qry_list.index(qry) + 1 )
+			    Face = ete2.faces.TextFace(text, fsize = R, fgcolor = 'black')
+			    Face.background.color = colors_array[color]
+			    Face.margin_top = 3
+			    Face.margin_bottom = 3
+			    Face.margin_left = 3
+			    Face.margin_right = 3
+		    if mid == qry.split('-')[0].split('.')[-1]:
+		    	Face.border.width = 2
+			Face.border.color = 'black'
+#		    print str(hits[qry][mid]/norm) + '\t' + str(hits[qry][mid]) + '\t' + str(hits[qry][mid]/max(evalues))
+#		    Face.opacity = hits[qry][mid]/max(evalues[qry])
+		    if emax[qry] - emin[qry] < 10E-50:
+		    	Face.opacity = 1
+		    else:
+		        Face.opacity = min(1, (hits[qry][mid] - emin[qry]) / ( emax[qry] - emin[qry]) + 0.1)
+#		    print str(hits[qry][mid]/max(evalues[qry]))
+#	            Face.background.color = colors_array[color]
+         	    ete2.faces.add_face_to_node(Face, node, column = qry_list.index(qry) , aligned = True)
+                else:
+#		    print mid
+#		    print hits[qry].keys()
+	            ete2.faces.add_face_to_node(ete2.faces.TextFace(' ', fgcolor = 'black'), node, column = qry_list.index(qry) , aligned = True)
+	found = False
+	for hlgen_list in hlgen_col:
+		hl_color = int(math.fmod(hlgen_col.index(hlgen_list), len(colors_array)))
+		if str(mid) in hlgen_list:
+			print "Found one"
+			print mid
+			ete2.faces.add_face_to_node(ete2.faces.TextFace(node.name, fsize = F, fgcolor = colors_array[hl_color]), node, column = len(qry_list) + 1, position = "aligned")
+			found = True
+			break
+	if found == False:
+		ete2.faces.add_face_to_node(ete2.faces.TextFace(node.name, fsize = F, fgcolor = 'black'), node, column = len(qry_list) + 1, position = "aligned")
+#   else:
+#  	node.name = str(node_id)
+#	node_id += 1
+#   print qry_list
+
+
+if '--unroot' in sys.argv:
+    mp = T.get_midpoint_outgroup()
+    T.set_outgroup(mp)
+
+node_id = 0
+for n in T.traverse():
+	if not n.is_leaf():
+		n.name = str(node_id)
+	node_id += 1
+
+
+
+if '--root' in sys.argv:
+	root_id = sys.argv[sys.argv.index('--root') + 1]
+	for n in T.traverse():
+		if n.name == root_id:
+			D = n
+			break
+	T.set_outgroup(D)
+
+if '--balance' in sys.argv:
+	T.ladderize()
+
+if '-c' in sys.argv:
+    ts.mode = 'c'
+
+if '-c180' in sys.argv:
+    ts.mode = 'c'
+    ts.arc_start = 180 # 0 degrees = 3 o'clock
+    ts.arc_span = 180		
+
+if '--no-top' in sys.argv:
+        T.convert_to_ultrametric(1)
+
+
+print len(T.get_leaves())
+ts.layout_fn = mylayout
+ts.show_leaf_name = False
+
+print qry_list
+
+#ts.optimal_scale_level = "full"
+ts.root_opening_factor = 1
+
+
+if '-show' in sys.argv:
+    T.show(tree_style = ts)
+if '--newick' in sys.argv:
+    T.write( outfile = sys.argv[1] + 'blastontree.nwk')
+if '-pdf' in sys.argv:
+    T.render(sys.argv[1] + '.pdf', tree_style = ts)
+if '-jpg' in sys.argv:
+    T.render(sys.argv[1] + '.jpg', tree_style = ts)
+if '--svg' in sys.argv:
+    T.render(sys.argv[1] + '.svg', h = 1000, tree_style = ts)
+if '--png' in sys.argv:
+    T.render(sys.argv[1] + '.png', tree_style = ts)
+
+
+
+
+
+#for node in T.iter_leaves():
+#    for che in cla['allcla']:
+#        Face.add_face_to_node(node.
+#        if che in cla[node.name.split('|')[0]]:
+           
+
+#   nstyle = NodeStyle()
+#   nstyle["fgcolor"] = "red"
+#   nstyle["size"] = 15
+#   n.set_style(nstyle)
+
+
+
+
+

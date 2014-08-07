@@ -12,7 +12,36 @@ import ast
 cdds_path = '/home/ortegad/MIST3/TOL/cdds/'
 genomes_path = '/home/ortegad/MIST3/TOL/genomes/'
 TOLdb_path = '/home/ortegad/MIST3/TOL/TOLdb/'
-
+TOL_cog_list = [ "gnl|CDD|223091",
+        "gnl|CDD|223095",
+        "gnl|CDD|223126",
+        "gnl|CDD|223127",
+        "gnl|CDD|223130",
+        "gnl|CDD|223158",
+        "gnl|CDD|223159",
+        "gnl|CDD|223165",
+        "gnl|CDD|223169",
+        "gnl|CDD|223170",
+        "gnl|CDD|223171",
+        "gnl|CDD|223172",
+        "gnl|CDD|223174",
+        "gnl|CDD|223175",
+        "gnl|CDD|223176",
+        "gnl|CDD|223178",
+        "gnl|CDD|223180",
+        "gnl|CDD|223181",
+        "gnl|CDD|223250",
+        "gnl|CDD|223262",
+        "gnl|CDD|223264",
+        "gnl|CDD|223275",
+        "gnl|CDD|223278",
+        "gnl|CDD|223279",
+        "gnl|CDD|223280",
+        "gnl|CDD|223334",
+        "gnl|CDD|223569",
+        "gnl|CDD|223596",
+        "gnl|CDD|223607"
+	]
 
 print "Verifying tunnels"
 print "Mist"
@@ -70,8 +99,7 @@ def job_rps(commands):
 
 
 
-def run_rps(mid_list = [], dbname = 'CogTOL2', autofix = False, NPrps = 20):
-	cog_list = []
+def run_rps(mid_list = [], dbname = 'CogTOL2', autofix = False, NPrps = 20, cog_list = TOL_cog_list):
 	mongo_card = []
 	problems = []
 	dbname = TOLdb_path + dbname
@@ -89,15 +117,14 @@ def run_rps(mid_list = [], dbname = 'CogTOL2', autofix = False, NPrps = 20):
 	        pool = multip.Pool(processes=NPrps)
         	pool.map(job_rps, rpscommands)
 
+	problem_gid_list = []
         for mid in mid_list:
                 fin = open('rps.mist22.' + mid + '.json', 'r')
                 seq_dic = json.load(fin)
                 fin.close()
-                if cog_list == []:
-                        cog_list = [x for x in seq_dic['cog_list']]
-                        problem = None
-                elif cog_list != seq_dic['cog_list']:
+                if len(set(cog_list)) != len(set(seq_dic['cog_list'])):
                         problem = mid + ": The genome " + mid + " does not have the following hits: " + ' '.join(list(set(cog_list) - set(seq_dic['cog_list'])))
+			problem_gid_list.append(mid)
                 else:
                         problem = None
 
@@ -124,16 +151,20 @@ def run_rps(mid_list = [], dbname = 'CogTOL2', autofix = False, NPrps = 20):
                         print "Saving the prelim data at data.json"
                         with open('data.json','w') as f:
                                 json.dump(mongo_card, f, sort_keys=True, indent = 4)
+			for p in problem_gid_list:
+				mid_list.remove(p)
         else:
                 print "Saving the prelim data at data.json"
                 with open('data.json','w') as f:
                         json.dump(mongo_card, f, sort_keys=True, indent = 4)
 
-	return mongo_card
+	return mongo_card, mid_list
 
-def rpsdata2mongocards(mongo_card):
+
+def rpsdata2mongocards(mongo_cards):
         pacs = []
-        for card in mongo_card:
+        mongo_card, errors = mongo_cards
+	for card in mongo_card:
                 for key, value in card.iteritems():
                         if key != 'gid' and key != 'cog_list':
                                 pacs.append(value[0].split('-')[-1])
@@ -244,21 +275,19 @@ def load_from_mongoTOL(mid_list, colname, update = False):
 
 def ErrorTest(datajson):
 	for card in datajson:
+		print card
 		if 'Error' in card.keys():
 			print card
 			return True
 	return False
 
-def pre_aligncog(mid_list, new_mongo):
+def pre_aligncog(mid_list, new_mongo, ignore_problems = False):
         # building alignments fasta files
-	if ErrorTest == True:
-		print "Aborting execution during initialization of prep_aln function"
-		sys.exit()
-
+	error = False
 	aln_dic = {}
-
+	print "Loading and processing cards..."
         for card in new_mongo:
-		print card['gid']
+#		print card['gid']
                 if card['gid'] in mid_list:
                         for cog, info in card.iteritems():
                                 if cog not in ['gid', '_id']:
@@ -275,6 +304,18 @@ def pre_aligncog(mid_list, new_mongo):
                 alnout = open( 'cdd.' + cog.split('|')[-1] + '.fa', 'w')
                 alnout.write(aln_dic[cog])
                 alnout.close()
+		if aln_dic[cog].count('>') != len(mid_list):
+			lines = aln_dic[cog].split('\n')
+			mids = []
+			for line in lines:
+				if '>' in line:
+					mids.append(line.replace('>',''))
+			print "Genome(s) " + ' '.join(list(set(mid_list) - set(mids))) + ' is(are) missing the cog ' + cog
+			print "Let's keep going to see if there is any more problems, but I will exit with error at the end"
+			error = True
+	if error == True and ignore_problems == False:
+		print "There is a problem with the dataset. Aborting execution."
+		sys.exit()
 	cog_list.sort()
 	return cog_list
 
@@ -309,7 +350,11 @@ def concat(cog_list, filename = 'concat.fa'):
                 elif max_len != len(concat[tag]):
                         print "Something is wrong with the genome: " + tag
                         print len(concat[tag])
-#                       sys.exit()
+			fout = open(filename + '.debug.fa', 'w')
+		        fout.write(output)
+		        fout.close()
+                        sys.exit()
+		print len(concat[tag])
 
         fout = open(filename, 'w')
         fout.write(output)
@@ -324,13 +369,16 @@ def gb(filename = 'concat.fa', par = '-b3=8 -b4=2 -b5=h') :
         os.system('mv ' + filename + '-gb ' + filenamenew)
 	return filenamenew
 
-def preptree(filename = 'concat.gb.fa'):
+def preptree(filename = 'concat.gb.fa', nogid = False):
         seq_dic, tags = bitk.fastareader('concat.gb.fa')
         tags = [ int(i) for i in tags]
-        names = mist.genomes.find({'_id' :  { '$in' : tags }}, {'n' : 1})
+        names = mist.genomes.find({'_id' :  { '$in' : tags }}, {'n' : 1, '_id':1})
         names_dic = {}
         for name in names:
-                names_dic[name['_id']] = name['n']
+		if nogid == True:
+			names_dic[name['_id']] = name['n']
+		else:
+	                names_dic[name['_id']] = str(name['_id']) + '|' + name['n']
 
         output = ''
         for tag in tags:
@@ -368,6 +416,6 @@ def posttree(filename = 'concat.gb.names.besttree_raxml.nwk', treefilename = 'bi
         filename.insert(len(filename)-1, 'rec')
         filename = '.'.join(filename)
         os.system('cp ' + filename + ' ' + treefilename)
-        print "Tree is ready under the name: " + treefilename + 'nwk'
+        print "Tree is ready under the name: " + treefilename
 
 

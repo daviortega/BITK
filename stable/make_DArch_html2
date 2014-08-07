@@ -17,7 +17,7 @@ try:
 except Connection:
     print "You must open a tunnel with ares.bio.utk.edu: ssh -L 27017:are.bio.utk.edu:27017 ares.bio.utk.edu"
     sys.exit()
-mist = client.mist22
+mist = bitk.get_mist22_client()
 #END MONGO 
 
 
@@ -43,9 +43,11 @@ for tag in seq_list:
 	if moreinfo and mist_info != None:
 		print mist_info['p']['aid']
 		genome = mist.genomes.find_one({'_id':mist_info['gid']}, {'ta':1})
+		print genome['ta']
+
 		hout += '\t<tr>\n'
 		hout += '\t\t <td style="width:400px;"> <a name="' + tag + '" href="http://mistdb.com/proteins/view/' + str(mist_info['_id']) + '">' + tag + '</a></td>\n'
-		hout += '\t\t <td style="width:800px;"> ' + str(genome['ta'][1:4]) + '</td>\n'
+		hout += '\t\t <td style="width:800px;"> ' + str(genome['ta']) + '</td>\n'
 		hout += '\t\t <td style="width:800px;" align="right"> <embed align="right" src="http://seqdepot.net/api/v1/aseqs/' + mist_info['p']['aid'] + '.svg" width="1000px" height="30px" type="image/svg" /></td>\n\t</tr>\n'
 #		hout += '\t\t <td style="width:400px;" align="right"> <img align="right" src="http://seqdepot.net/api/v1/aseqs/' + mist_info['p']['aid'] + '.png" ></td>\n\t</tr>\n'
 

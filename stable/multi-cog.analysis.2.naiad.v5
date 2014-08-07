@@ -12,7 +12,7 @@ if [ "$3" == '-p' ]; then
         fi
 fi
 #configuration
-mistd="/home/ortega/MIST2.2"
+mistd="/home/ortega/MIST2.3"
 cogpreid="COGperorgid"
 make_GN_flags="7 -pdf -org -order_st"
 
@@ -21,26 +21,27 @@ prjt_nm=${1%.*}
 echo $prjt_nm
 
 echo "Copying necessary files"
-cp ./$prjt_nm/COGs/*.pdf ./$prjt_nm/COGs/*cog.dat ./$prjt_nm/COGs/*bal.nwk ./$prjt_nm/COGs/chea.latest.s.class.$prjt_nm.linsi.fa ./$prjt_nm/COGs/$prjt_nm.16S.fa ./$prjt_nm/merge
+cp ./$prjt_nm/COGs/*.pdf ./$prjt_nm/COGs/*cog.dat ./$prjt_nm/COGs/*.nwk ./$prjt_nm/COGs/chea.latest.s.class.$prjt_nm.linsi.fa ./$prjt_nm/merge
 echo "changing directory"
 cd ./$prjt_nm/merge
 echo "Sorting the org_id list by the tree"
-#sortfabytree chea.latest.s.class.$prjt_nm.linsi.fa chea.latest.s.class.$prjt_nm.linsi.phy_phyml_tree.rec.bal.nwk
-sortfabytree $prjt_nm.16S.fa $prjt_nm.16S.linsi.gb.phy_phyml_tree.rec.bal.nwk
-echo "Saving list"
-#getorganism chea.latest.s.class.$prjt_nm.linsi.sorted.fa
-getmistid_16S $prjt_nm.16S.sorted.fa
-mistid2orgtag mistid.16S.list chea.latest.s.class.$prjt_nm.linsi.fa
+sortfabytree chea.latest.s.class.$prjt_nm.linsi.fa chea.latest.s.class.$prjt_nm.linsi.phy_phyml_tree.rec.bal.nwk
+#sortfabytree concat.gb.names.fa $prjt_nm.list.conservedcog.bal.nwk
+#echo "Saving list"
+#getorganism concat.gb.names.sorted.fa
+#getmistid_16S $prjt_nm.16S.sorted.fa
+#mistid2orgtag mistid.16S.list chea.latest.s.class.$prjt_nm.linsi.fa
 
 
-if [ "$2" == '-chea' ]; then
+if [ "$2" == '--chea-tree' ]; then
 	echo "Using CheA to order"
 	mv organism.list $prjt_nm.sorted.list
-elif [ "$2" == '-r16' ]; then
-	echo "Using r16 to order"
-	mv mistid.16S.orgtag.list $prjt_nm.sorted.list
+elif [ "$2" == '--tol-tree' ]; then
+	echo "Using TOL to order"
+	get_mistid_from_toltree $prjt_nm.list.conservedcog.bal.nwk
+	mv $prjt_nm.list.conservedcog.bal.nwk.mistid.list $prjt_nm.sorted.list
 else
-	echo "CheA or r16 ?!"
+	echo "CheA or TOL ?!"
 	exit 1	
 fi
 
@@ -155,7 +156,7 @@ R CMD BATCH ./temp.R
 
 #prepring for building html
 
-cog.dat2json2 chea.latest.s.class.$prjt_nm.cog.dat adap.latest.s.$prjt_nm.hmmtrim.cog.dat mcp.latest.s.class.$prjt_nm.cog.dat -tree $prjt_nm.16S.linsi.gb.phy_phyml_tree.rec.bal.nwk
+cog.dat2json2 chea.latest.s.class.$prjt_nm.cog.dat adap.latest.s.$prjt_nm.hmmtrim.cog.dat mcp.latest.s.class.$prjt_nm.cog.dat -tree $prjt_nm.list.conservedcog.bal.nwk
 
 mv cog.dat2json2.output.json $prjt_nm.summary.json
 
@@ -440,13 +441,52 @@ var timeout = setTimeout(function() {
 
 DELIM
 
+mapfeature2phyloxml $prjt_nm.list.conservedcog.nwk --che_class -bal --use-fa chea.latest.s.class.$prjt_nm.fa
+
+cat > ./$prjt_nm.tree_TOL.html << DELIM
+<html>
+<head>
+        <script type="text/javascript" src="//ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js" ></script>
+        <script type="text/javascript" src="/js/jquery/jquery.simplemodal.1.4.4.min.js" ></script>
+        <script type="text/javascript" src="/jsphylosvg-1.55/raphael-min.js" ></script>
+        <script type="text/javascript" src="/jsphylosvg-1.55/jsphylosvg-min.js"></script>
+        <link rel="stylesheet" type="text/css" href="/css/unitip.css" >
+        <script type="text/javascript" src="/js/unitip.js"></script>
+
+        <script type="text/javascript">
+        \$(document).ready(function(){
+                \$.get("./$prjt_nm.list.conservedcog.nwk.xml", function(data) {
+                        var dataObject = {
+                                xml: data,
+                                fileSource: true
+                        };
+                        Smits.PhyloCanvas.Render.Style.text["font-size"] = 10;
+                        Smits.PhyloCanvas.Render.Style.line["stroke-width"] = 0.5;
+                        phylocanvas = new Smits.PhyloCanvas(
+                                dataObject,
+                                'svgCanvas',
+                                2000, 2000,
+                                'circular'
+                        );
+                        init();
+                });
+        });
+        </script>
+
+</head>
+<body>
+        <div id="svgCanvas"> </div>
+</body>
+</html>
+DELIM
+
 
 
 if [ "$3" == '-p' ]; then
 	echo "Pubshing at $4"
         plubd=$4
 	mkdir -p $plubd/$prjt_nm/
-	cp ../COGs/*json ../COGs/*html ./*json ./*html ../COGs/*bal.nwk ./*pdf $plubd/$prjt_nm/
+	cp ../COGs/*json ../COGs/*html ./*json ./*html ../COGs/*bal.nwk ./*xml ./*pdf $plubd/$prjt_nm/
 fi
 
 

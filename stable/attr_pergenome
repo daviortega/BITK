@@ -26,7 +26,7 @@ gen_data = open(sys.argv[1],'r')
 for line in gen_data:
 	genomes.append(line.replace('\n',''))
 
-seq_dic, seq_list = bitk.fastareader(sys.argv[2])
+seq_dic, seq_list = bitk.fastareader(sys.argv[3])
 
 output = ''
 

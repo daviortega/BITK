@@ -37,6 +37,11 @@ else:
 
 ches = [ i for i in ches if '--' not in i]
 
+if '--debug' in sys.argv:
+	with open('genomes.json','w') as f:
+		json.dump(genomes, f, indent = 2)
+
+
 proteinid2chemokind = {}
 ches_output = {}
 for che in ches:
@@ -53,6 +58,20 @@ print "Processing..."
 for card in proteins:
 	proteinid_list.append(card['_id'])
 	proteinid2chemokind[card['_id']] = card['r'][1]
+
+print len(proteinid_list)
+proteins = mist22.signal_genes5.find({'gid' : { '$in' : genomes }, 'r' : { '$in' : ches }, '_id' : { '$nin' : proteinid_list}}, {'_id': 1, 'r': 1})
+for card in proteins:
+	if card['_id'] not in proteinid_list:
+		proteinid_list.append(card['_id'])
+		proteinid2chemokind[card['_id']] = card['r'][1]
+	else:
+		print "Tried to bring repeated proteinid, check the mongo query"
+		print card['_id']
+		sys.exit()
+
+print len(proteinid_list)
+
 #pint proteinid2chemokind
 if len(proteinid2chemokind.keys()) == 0:
 	print "something is wrong here... there is no sequences selected"

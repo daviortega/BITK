@@ -18,7 +18,7 @@ dic_aln2phy = {}
 for line in dic:
 	phy_name = line[:line.find(';')]
 	real_name = line[line.find(';')+1:-1]
-	dic_aln2phy[phy_name] = real_name
+	dic_aln2phy[phy_name] = real_name.replace('(','|').replace(')','|')
 
 rec_taxon_tree = ''
 

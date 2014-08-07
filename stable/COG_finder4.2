@@ -147,7 +147,7 @@ if "-skip" not in sys.argv:
 	outfiletmp = open(sys.argv[1][:-3] + '.align.tmp.fa','w')
 	outfiletmp.write(out_tmp)
 	outfiletmp.close()
-	os.system('blastp -db ' + dbname + ' -query ' + sys.argv[1][:-3] + '.align.tmp.fa -out ' + blastname + ' -num_threads 10 -outfmt "6 qseqid sseqid bitscore evalue qlen length" -evalue 0.001 -max_target_seqs 100000' )
+	os.system('blastp -db ' + dbname + ' -query ' + sys.argv[1][:-3] + '.align.tmp.fa -out ' + blastname + ' -num_threads 10 -outfmt "6 qseqid sseqid bitscore evalue qlen length qcovs" -evalue 0.001 -max_target_seqs 100000' )
 	os.system('rm ' + sys.argv[1][:-3] + '.align.tmp.fa')
 
 
@@ -168,7 +168,11 @@ for line in datafile:
 	qry = field[0]
 	hit = field[1]
 	
-	qcov = int(field[5])/float(field[4])
+	qcov = min(int(field[5]),int(field[4]))/float(max(int(field[4]),(int(field[5]))))
+#	try:
+#		qcov = field[6]/float(100)
+#	except:
+#		qcov = int(field[5])/float(field[4])
 	if hit != qry and qry in seq_list:
 		if qcov > Qth and float(field[3]) < Ec:
 			if qry not in data_dic:
@@ -250,7 +254,7 @@ for qry in data_list:
 				grp = groups.index(group)
 				# The new qry should be added to the group grp right now!
 				groups[grp].append(qry)
-				break 
+				break
 	
 	if grp == -1:
 		groups.append([qry])

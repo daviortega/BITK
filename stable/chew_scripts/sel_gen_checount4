@@ -8,6 +8,7 @@ import sys
 import random
 import pymongo
 import ast
+import bitkTOL
 
 if '-h' in sys.argv:
 	print 'select the genomes (by mist_id) that contains the specific number of che sequences\n Sintax: sel_gen_checount2 table.dat  -t taxonomic_group -r complete mcps    chea    cheb     checx    ched   cher    chev    chez    chew   adap=(cheW + CheV)'
@@ -82,7 +83,7 @@ genomes = []
 output = ''
 
 
-if '-nr' in sys.argv:
+if '-nr' in sys.argv or '-nr_genus':
 	sp_dict = {}
 
 for genome in mist.genomes.find(ast.literal_eval(query)):
@@ -94,10 +95,17 @@ for genome in mist.genomes.find(ast.literal_eval(query)):
 			sp_dict[name] = [ genome['_id'] ]
 		else:
 			sp_dict[name].append(genome['_id'])
+
+	elif '-nr_genus' in sys.argv:
+		name = genome['g']
+		if name not in sp_dict.keys():
+			sp_dict[name] = [ genome['_id'] ]
+		else:
+			sp_dict[name].append(genome['_id'])
 	else:
 		output += str(genome['_id']) + '\n'
 
-if '-nr' in sys.argv:
+if '-nr' in sys.argv or '-nr_genus' in sys.argv:
 	for sp, ls in sp_dict.iteritems():
 		output += str(random.choice(ls)) + '\n'
 		print sp

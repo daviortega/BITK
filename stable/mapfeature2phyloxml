@@ -1,0 +1,85 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 9/4/2013 
+###################################
+import ete2
+import json
+import sys
+import os
+import bitk
+
+
+chea_path = '/home/ortegad/MIST2.3/fasta/latest/chea.latest.s.class.fa'
+
+def get_che_class(gid, chea_list):
+	che_class = []
+	for chea in chea_list:
+		if chea.split('-')[0].split('.')[-1] == gid:
+			che_class.append(chea.split('-')[-1])	
+	print str(gid) + '\t' + str(che_class)
+	return che_class
+
+if '-h' in sys.argv:
+    print 'Make tree from nwk file using ete2 python module. Input yourtree.nwk \n \
+    	   Options: -pdf  Generate PDF\n \
+	   	    -svg  Outputs SVG\n \
+		    -show Show tree\n \
+		    -bal  Balance tree\n \
+		    -aln  Align leaf names\n \
+		    -c    Circular layout\n \
+		    -c180 Semi-circular layout\n \
+		    --che_class to map chemotaxis classes '
+    sys.exit()
+
+if '--che_class' in sys.argv:
+	print "Reading Chemotaxis info"
+	chea_dic, chea_list = bitk.fastareader(chea_path)
+
+print "Done"
+
+filename = sys.argv[1]
+
+
+colors_array = [ '#E41A1C' , '#377EB8' , '#4DAF4A' , '#984EA3' , '#FF7F00' , '#999999' , '#A65628' , '#F781BF', '#17BECF']
+
+T = ete2.Tree(sys.argv[1])
+
+if '-bal' in sys.argv:
+	filename += '.bal'
+	mp = T.get_midpoint_outgroup()
+	T.set_outgroup(mp)
+	T.ladderize()
+
+if '-fbal' in sys.argv:
+	ts.force_topology = True
+
+
+if '-no_top' in sys.argv:
+	T.convert_to_ultrametric(1)
+
+che_class_list = []
+for node in T.traverse():
+	if node.name != 'NoName':
+		gid = node.name.split('|')[0]
+		node.add_features(uri = 'http://mistdb.com/bacterial_genomes/summary/' + gid)
+		if '--che_class' in sys.argv:
+			che_classes = get_che_class(gid, chea_list)
+			che_class = []
+			for chea in che_classes:
+				che_class.append(chea)
+				if chea not in che_class_list:
+					che_class_list.append(chea)
+			node.add_features( checlass = che_class)
+			
+if '--debug' in sys.argv:
+	for node in T.traverse():
+		if node.name != 'NoName':
+			print node.features
+
+
+
+with open(sys.argv[1] + '.xml' , 'w') as f:
+	f.write(bitk.tree_to_phyloxml(T,che_class_list))
+
+
+
