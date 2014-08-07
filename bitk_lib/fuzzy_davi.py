@@ -322,6 +322,7 @@ def read_coords(filename, lim = '\t'):
 		try:
 			coords.append([float(s) for s in fields[1:]])
 		except ValueError:
+			print "Error X"
 			print fields
 			sys.exit()
 	if mac_format == 1:
@@ -330,6 +331,7 @@ def read_coords(filename, lim = '\t'):
 	                names.append(fields[0])
 #       	        print names
                 	try:
+				print "Error Y"
                         	coords.append([float(s) for s in fields[1:]])
 	                except ValueError:
         	                print fields
@@ -633,13 +635,18 @@ def coord(names, Dmatrix, datafile):
 	return Final, Final_2D
 
 def DistMtx(G):
+	print "Reshaping"
 	gg = zeros((G.shape[0],G.shape[0]))
 	for i in range(G.shape[0]):
+		t0 = time.time()
+		print "Working on loop " + str(i) + " out of " + str(G.shape[0])
 		for j in range(G.shape[0]):
 			ggij = 0
 			for k in range(G.shape[1]):
 				ggij  = ggij + (G[i][k] - G[j][k]) ** 2
 			gg[i][j] = ggij ** 0.5
+		print "done in " + str( time.time() - t0) + " seconds"
+	print gg.shape
 	return gg
 
 def readtable(datafile):
