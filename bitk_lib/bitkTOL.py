@@ -12,6 +12,7 @@ import ast
 cdds_path = '/home/ortegad/MIST3/TOL/cdds/'
 genomes_path = '/home/ortegad/MIST3/TOL/genomes/'
 TOLdb_path = '/home/ortegad/MIST3/TOL/TOLdb/'
+TOLdb_name = 'CogTOL2'
 TOL_cog_list = [ "gnl|CDD|223091",
         "gnl|CDD|223095",
         "gnl|CDD|223126",
@@ -99,7 +100,7 @@ def job_rps(commands):
 
 
 
-def run_rps(mid_list = [], dbname = 'CogTOL2', autofix = False, NPrps = 20, cog_list = TOL_cog_list):
+def run_rps(mid_list = [], dbname = TOLdb_name,TOLdb_path = TOLdb_path, autofix = False, NPrps = 20, cog_list = TOL_cog_list):
 	mongo_card = []
 	problems = []
 	dbname = TOLdb_path + dbname
@@ -163,7 +164,7 @@ def run_rps(mid_list = [], dbname = 'CogTOL2', autofix = False, NPrps = 20, cog_
 
 def rpsdata2mongocards(mongo_cards):
         pacs = []
-        mongo_card, errors = mongo_cards
+        mongo_card = mongo_cards
 	for card in mongo_card:
                 for key, value in card.iteritems():
                         if key != 'gid' and key != 'cog_list':
@@ -361,6 +362,101 @@ def concat(cog_list, filename = 'concat.fa'):
         fout.close()
 	return filename
 
+def aligncogbykingdom(cog_list):
+        def submit_to_linsi(fasta = ''):
+                os.system(' linsi --quiet --thread 12 ' + fasta + ' > ' + fasta[:-3] + '.linsi.fa')
+		return fasta[:-3] + '.linsi.fa'
+
+	sets = {}
+	kingdic = {}
+	kinglist = []
+	for cog in cog_list:
+		seq_dic, tags = bitk.fastareader('cdd.' + cog.split('|')[-1] + '.fa')
+		if kingdic == {}:
+			tagsI = [ int(tag) for tag in tags ]
+			taxinfo = mist.genomes.find({'_id' :  { '$in' : tagsI }}, { 'ta' : 1, 'n' : 1 })
+			for i in taxinfo:
+				kingdic[i['_id']] = i['ta'][0]
+			kinglist = list(set(kingdic.values()))
+			print kinglist
+		for kingdom in kinglist:
+			print "Aligning " + cog + ' from kingdom ' + kingdom
+			if kingdom not in kinglist:
+				kinglist.append(kingdom)
+			output = ''
+			for tag in tags:
+				if kingdic[int(tag)] == kingdom:
+					output += '>' + str(tag) + '\n' + seq_dic[str(tag)] + '\n'
+			with open('cdd.' + cog.split('|')[-1] + '.' + kingdom + '.fa', 'w' ) as f:
+				f.write(output)
+			submit_to_linsi( 'cdd.' + cog.split('|')[-1] + '.' + kingdom + '.fa')
+
+	return kinglist
+
+
+def concatbykingdom(cog_list, kinglist = [], filename = 'concat.fa'):
+	kingdic = {}
+        print "Concatenating the alignments"
+	filenames = []
+	for kingdom in kinglist:
+		concat = {}
+	        for cog in cog_list:
+        	        seq_dic, tags = bitk.fastareader('cdd.' + cog.split('|')[-1] + '.' + kingdom + '.linsi.fa', 'r')
+                	for tag in tags:
+                        	if tag not in concat.keys():
+                                	concat[tag] = seq_dic[tag]
+	                        else:
+        	                        concat[tag] += seq_dic[tag]
+
+	        print "Saving the full alignment and checking for bugs"
+
+	        output = ''
+        	max_len = 0
+
+	        for tag in tags:
+        	        output += '>' + tag + '\n' + concat[tag] + '\n'
+                	if max_len == 0:
+	                        max_len = len(concat[tag])
+        	        elif max_len != len(concat[tag]):
+                	        print "Something is wrong with the genome: " + tag
+                        	print len(concat[tag])
+	                        fout = open(filename + '.debug.fa', 'w')
+        	                fout.write(output)
+                	        fout.close()
+                        	sys.exit()
+	                print len(concat[tag])
+
+		fname = filename[:-3] + '.' + kingdom + '.fa'
+        	fout = open(fname, 'w')
+	        fout.write(output)
+        	fout.close()
+		filenames.append(fname)
+        return filenames
+
+def gbbykingdom(filenames = [], par = '-b3=8 -b4=2 -b5=h') :
+	profile = []
+	for filename in filenames:
+	        os.system('Gblocks ' + filename + ' ' + par)
+        	filenamenew = filename.split('.')
+	        filenamenew.insert(len(filenamenew)-1, 'gb')
+        	filenamenew = '.'.join(filenamenew)
+        	os.system('mv ' + filename + '-gb ' + filenamenew)
+		profile.append(filenamenew)
+
+	for i in range(len(profile)-1):
+		if i == 0:
+			os.system('mafft-profile ' + profile[i] + ' ' + profile[i+1] + ' > profile_concat_tmp.fa')
+			os.system('mv profile_concat_tmp.fa pctmp.fa')
+		else:
+			os.system('mafft-profile pctmp.fa' + profile[i+1] + ' > profile_concat_tmp.fa')
+			os.system('mv profile_concat_tmp.fa pctmp.fa')
+
+	filenamenew = 'concat.gb.mafftprofile.fa'
+	os.system('mv pctmp.fa ' + filenamenew)
+        return filenamenew
+
+
+
 def gb(filename = 'concat.fa', par = '-b3=8 -b4=2 -b5=h') :
         os.system('Gblocks ' + filename + ' ' + par)
 	filenamenew = filename.split('.')
@@ -370,7 +466,7 @@ def gb(filename = 'concat.fa', par = '-b3=8 -b4=2 -b5=h') :
 	return filenamenew
 
 def preptree(filename = 'concat.gb.fa', nogid = False):
-        seq_dic, tags = bitk.fastareader('concat.gb.fa')
+        seq_dic, tags = bitk.fastareader(filename)
         tags = [ int(i) for i in tags]
         names = mist.genomes.find({'_id' :  { '$in' : tags }}, {'n' : 1, '_id':1})
         names_dic = {}
@@ -400,11 +496,26 @@ def maketree(filename = 'concat.gb.names.fa', bootstrap = 0, NPraxml = 20):
 	filenamenew = '.'.join(filename[:-1])
 	filename = '.'.join(filename[:-1] + ['phy'])
 
-        if bootstrap != 0:
+	if bootstrap != 0:
 		os.system('raxmlHPC-PTHREADS-AVX -T ' + str(NPraxml) + ' -m PROTGAMMAJTTF -p 12345 -# ' + str(bootstrap) + ' -s ' + filename + ' -n ' + filenamenew + '.besttree_raxml.nwk')
         else:
                 os.system('raxmlHPC-PTHREADS-AVX -T ' + str(NPraxml) + ' -m PROTGAMMAJTTF -p 12345 -s ' + filename + ' -n ' + filenamenew + '.besttree_raxml.nwk')
 	return filenamenew + '.besttree_raxml.nwk'
+
+
+def maketreephyml(filename = 'concat.gb.names.fa', bootstrap = 0, NP = 20):
+        os.system('fa2phy ' + filename)
+        filename = filename.split('.')
+        filenamenew = '.'.join(filename[:-1])
+        filename = '.'.join(filename[:-1] + ['phy'])
+
+        if bootstrap == 0:
+                os.system('phyml -i ' + filename + ' -q -d aa -m JTT -c 4 -a e -v e -s SPR --no_memory_check')
+        else:
+                os.system('mpirun -n ' + str(NP) + 'phyml-mpi -i ' + filename + ' -q -d aa -m JTT -c 4 -a e -v e -s SPR --no_memory_check -b ' + bootstrap )
+        return filenamenew + '.phy_phyml_tree.txt'
+
+
 
 def posttree(filename = 'concat.gb.names.besttree_raxml.nwk', treefilename = 'bitkTOL.tree.nwk'):
 #	E = os.system('cp RAxML_result.concat.tree ' + filename')
@@ -418,4 +529,33 @@ def posttree(filename = 'concat.gb.names.besttree_raxml.nwk', treefilename = 'bi
         os.system('cp ' + filename + ' ' + treefilename)
         print "Tree is ready under the name: " + treefilename
 
+def posttreephyml(filename = 'concat.gb.names.phy_phyml_tree.txt', treefilename = 'bitkTOL.tree.nwk'):
+	os.system('rectaxontree3 ' + filename)
+	filename = filename[:-4] + '.rec.nwk'
+	os.system('cp ' + filename + ' ' + treefilename)
+        print "Tree is ready under the name: " + treefilename
+
+
+def mktreeengine(cog):
+	print "Working with cog " + cog
+	t = cog.split('|')[-1]
+	print "here"
+#	fn = gb('cdd.' + t + '.linsi.fa')
+	fn = preptree('cdd.' + t + '.linsi.fa') # fn)
+	fn = maketreephyml(fn)
+	os.system(' rectaxontree3 ' + fn)
+
+
+
+def maketreeofeachcogaln(cog_list):
+	aligncog(cog_list)
+	N = len(cog_list)
+	if N > 20:
+		N = 20
+	print "making the trees"
+	pool = multip.Pool(processes=N)
+        pool.map(mktreeengine, cog_list)
+	
+
+	
 

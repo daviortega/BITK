@@ -1,0 +1,78 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 9/4/2013 
+###################################
+import ete2
+import json
+import sys
+import os
+import bitkTOL
+
+if '-h' in sys.argv:
+    print 'Include Taxonomic classification in tree. Tree name must include mistid|nameoforganism.\n \
+    	   Options: first argument is the taxonomic level.\n \
+	   	    -svg  Outputs SVG\n \
+		    -show Show tree\n \
+		    -bal  Balance tree\n \
+		    -aln  Align leaf names\n \
+		    -c    Circular layout\n \
+		    -c180 Semi-circular layout'
+    sys.exit()
+
+
+filename = sys.argv[1]
+tax_level = int(sys.argv[2])
+T = ete2.Tree(filename)
+
+mist22 = bitkTOL.get_mist22_client()
+
+node_id = 0
+for n in T.traverse():
+        if n.is_leaf():
+		try:
+			mid = int(n.name.split('|')[0])
+		except ValueError:
+			mid = int(n.name.split('-')[0].split('.')[-1])
+			
+		tax = mist22.genomes.find_one({'_id' : mid})
+		print tax
+		try:
+			tax = tax['ta'][tax_level]
+		except IndexError:
+			tax = "----Not Available----"
+		try:
+			n.name = str(mid) + '|' + tax + '|' + n.name.split('|')[1]
+		except IndexError:
+			n.name = str(mid) + '|' + tax + '|' + n.name
+	else:
+		n.name = ''
+
+T.write(format=1, outfile = filename + '.tax_' + str(tax_level) + '.nwk')
+sys.exit()
+
+
+if '-xml' in sys.argv:
+    T.write(format=1, outfile = filename + '.nwk')
+    with open(filename + '.nwk', 'r') as f:
+    	data = f.read()
+	data.replace(' ', '_')
+    os.system('java -cp ~/Downloads/forester_1034.jar org.forester.application.phyloxml_converter -f=sn -ru ' + filename + '.nwk ' + filename + '.xml')
+
+    
+
+
+#for node in T.iter_leaves():
+#    for che in cla['allcla']:
+#        ete2.faces.add_face_to_node(node.
+#        if che in cla[node.name.split('|')[0]]:
+           
+
+#   nstyle = NodeStyle()
+#   nstyle["fgcolor"] = "red"
+#   nstyle["size"] = 15
+#   n.set_style(nstyle)
+
+
+
+
+

@@ -55,6 +55,8 @@ rule_tags = [ 'co', 'stats.mcp', 'stats.chea','stats.cheb','stats.checx','stats.
 rules = sys.argv[sys.argv.index('-r') + 1].split(',')
 
 if len(rules) != len(rule_tags):
+	print rules
+	print rule_tags
 	print " Rules are not complete, please fix and run the program again"
 	sys.exit()
 else:

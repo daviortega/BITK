@@ -9,13 +9,14 @@ import os
 
 if '-h' in sys.argv:
     print 'Make tree from nwk file using ete2 python module. Input yourtree.nwk \n \
-    	   Options: -pdf  Generate PDF\n \
-	   	    -svg  Outputs SVG\n \
-		    -show Show tree\n \
-		    -bal  Balance tree\n \
-		    -aln  Align leaf names\n \
-		    -c    Circular layout\n \
-		    -c180 Semi-circular layout'
+    	   Options: -pdf    Generate PDF\n \
+	   	    -svg    Outputs SVG\n \
+		    -show   Show tree\n \
+		    -bal    Balance tree\n \
+		    -aln    Align leaf names\n \
+		    -c      Circular layout\n \
+		    -c180   Semi-circular layout\n \
+		    --image N1,N2 Insert image with name in bmp. Ni are index of features that should be deleted to match image name. N1 = -1 for name in tree == name in image '
     sys.exit()
 
 
@@ -62,25 +63,30 @@ if '-no_top' in sys.argv:
 	T.convert_to_ultrametric(1)
 
 
+
+
 #ts.show_leaf_name = False
 ts.branch_vertical_margin = 5
 
-#def mylayout(node):
-#    if node.is_leaf():
-#        ete2.faces.add_face_to_node(ete2.faces.TextFace(node.name.split('|')[1]), node, column = 0)
-#        for i in range(len(cla['allcla'])):
-#            che = cla['allcla'][i]
-#            if che in cla[node.name.split('|')[0]]:
-#                circle = ete2.faces.CircleFace(5, colors_array[i])
-#                circle.margin_left = 2
-#                ete2.faces.add_face_to_node(circle, node, column = i+1, aligned = True)
-#               ete2.faces.add_face_to_node(ete2.faces.CircleFace(5, 'white'), node, column = 2*i+2, aligned = True)
-#            else:
-#                circle = ete2.faces.CircleFace(5, 'white')
-#                circle.margin_left = 2
-#                ete2.faces.add_face_to_node(circle, node, column = i+1, aligned = True)
-#               ete2.faces.add_face_to_node(ete2.faces.CircleFace(5, 'white'), node, column = 2*i+1, aligned = True)
-            
+
+if "--image" in sys.argv:
+	ts.show_leaf_name = False
+	if sys.argv[sys.argv.index("--image") + 1] == '-1':
+		N = []
+	else:
+		N = [ int(i) for i in sys.argv[sys.argv.index("--image") + 1].split(',') ]
+	N.sort()
+	N.reverse()
+	def mylayout(node):
+		if node.is_leaf():
+			ete2.faces.add_face_to_node(ete2.faces.TextFace(node.name), node, column = 0, aligned = True )
+			img_name_l = node.name.split('-')
+			for n in N:
+				img_name_l.pop(n+1)
+#			print '-'.join(img_name_l) + '.png'
+			ete2.faces.add_face_to_node(ete2.faces.ImgFace( '-'.join(img_name_l) + '.png'), node, column = 1, aligned = True)
+	ts.layout_fn = mylayout
+
 for node in T.traverse():
 	node.img_style["size"] = 0
 
@@ -96,7 +102,6 @@ if '-c180' in sys.argv:
     ts.arc_span = 181		
     
 
-#ts.layout_fn = mylayout
 
 if '-aln' in sys.argv:
 	filename += '.aln'

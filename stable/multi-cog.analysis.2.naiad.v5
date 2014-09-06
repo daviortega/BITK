@@ -156,7 +156,7 @@ R CMD BATCH ./temp.R
 
 #prepring for building html
 
-cog.dat2json2 chea.latest.s.class.$prjt_nm.cog.dat adap.latest.s.$prjt_nm.hmmtrim.cog.dat mcp.latest.s.class.$prjt_nm.cog.dat -tree $prjt_nm.list.conservedcog.bal.nwk
+cog.dat2json2 chea.latest.s.class.$prjt_nm.cog.dat adap.latest.s.$prjt_nm.hmmtrim.cog.dat mcp.latest.s.class.$prjt_nm.hmmtrim.cog.dat -tree $prjt_nm.list.conservedcog.bal.nwk
 
 mv cog.dat2json2.output.json $prjt_nm.summary.json
 
@@ -486,7 +486,8 @@ if [ "$3" == '-p' ]; then
 	echo "Pubshing at $4"
         plubd=$4
 	mkdir -p $plubd/$prjt_nm/
-	cp ../COGs/*json ../COGs/*html ./*json ./*html ../COGs/*bal.nwk ./*xml ./*pdf $plubd/$prjt_nm/
+	rm $plubd/$prjt_nm/*
+	cp ../COGs/*json ../COGs/*html ./*html ./*json ../COGs/*bal.nwk ./*xml ./*pdf $plubd/$prjt_nm/
 fi
 
 

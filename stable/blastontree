@@ -250,6 +250,13 @@ ts = ete2.TreeStyle()
 
 features = []
 
+if '--textface' in sys.argv:
+	feat_text = sys.argv[sys.argv.index('--textface') + 1]
+	if feat_text.isdigit():
+		feat_text = int(feat_text)
+	else:
+		feat_text = False
+
 #node_id = 0
 
 def mylayout(node):
@@ -297,7 +304,10 @@ def mylayout(node):
 #			    if mid == qry.split('-')[0].split('.')[-1]:
 #			       	text = str(qry_list.index(qry) + 1 ) + '*'
 #			    else:
-  	    	 	    text = str(qry_list.index(qry) + 1 )
+			    if feat_text == False: 
+	  	    	 	    text = str(qry_list.index(qry) + 1 )
+			    else:
+			    	    text = qry.split('-')[feat_text]
 			    Face = ete2.faces.TextFace(text, fsize = R, fgcolor = 'black')
 			    Face.background.color = colors_array[color]
 			    Face.margin_top = 3
@@ -351,6 +361,7 @@ for n in T.traverse():
 
 if '--root' in sys.argv:
 	root_id = sys.argv[sys.argv.index('--root') + 1]
+	D = 1
 	for n in T.traverse():
 		if n.name == root_id:
 			D = n

@@ -21,8 +21,8 @@ for line in datafile:
 		os.system("wget http://seqdepot.net/api/v1/aseqs/" + md5 + ".png -O " + tag + ".svg")
 	else:
 		os.system("wget http://seqdepot.net/api/v1/aseqs/" + md5 + ".png -O " + tag + ".png")
-		os.system("convert " + tag + ".png " + tag + ".bmp")
-		os.system("rm " + tag + ".png")
+#		os.system("convert " + tag + ".png " + tag + ".bmp")
+#		os.system("rm " + tag + ".png")
 
 print("Done")
 
