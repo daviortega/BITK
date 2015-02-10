@@ -1,0 +1,53 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 9/4/2013 
+###################################
+import ete2
+import json
+import sys
+import os
+import bitkTOL
+import glob
+
+if '-h' in sys.argv:
+    print 'Outputs genomes with same name but different gids. -u automatically pick one observing the following criteria: complete, basepairs.'
+    sys.exit()
+
+
+mist22 = bitkTOL.get_mist22_client()
+
+fname = sys.argv[1]
+gids = []
+
+with open(fname, 'r') as f:
+	for line in f:
+		gids.append(int(line.replace('\n','')))
+
+cards = mist22.genomes.find({'_id' :  { '$in' : gids }})
+	
+names2gid = {}	
+for card in cards:
+	name = card['n'] 
+	gid = str(card['_id'])
+	co = card['co']
+	
+	if name not in names2gid.keys():
+		names2gid[name] = [gid, co]
+	else:
+		if co == 1 and names2gid[name][1] != co:
+			print "Excluding: " + names2gid[name] + '\t' + gid
+			names2gid[name] = [gid, co]
+		else:
+			print "Excluding: " + gid + '\t' + name
+
+output = ''
+for name, info in names2gid.iteritems():
+	print str(info[0]) + '\t' + name
+	output += str(info[0]) + '\n'
+
+with open(sys.argv[1] + '.new.list', 'w') as f:
+	f.write(output)
+
+a = names2gid.keys()
+a.sort()
+print a 

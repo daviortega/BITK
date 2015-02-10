@@ -1,0 +1,110 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 10/13/2014 
+###################################
+import sys
+import bitk
+import json
+if '-h' in sys.argv:
+	print " Sometimes it is hard to make a CheABR concatenated alignment. fixcheABR_json will try to find if there is only 1 of the missing molecule(s) in the fasta files in CheB and CheR. Here we bet a lot in the idea that CheB and CheR always evolve with CheA\n \
+		Sintax: fixcheabr_json buildcheabr.json chea.fa cheb.fa cher.fa"
+	sys.exit()
+
+
+chea_list, chea_dic = bitk.fastareader(sys.argv[2])
+cheb_list, cheb_dic = bitk.fastareader(sys.argv[3])
+cher_list, cher_dic = bitk.fastareader(sys.argv[4])
+
+
+che_tag_list = [ chea_list, cheb_list, cher_list]
+
+with open(sys.argv[1], 'r') as f:
+	data_json = json.load(f)
+
+
+
+results = data_json['data']
+errors = data_json['errors']
+
+inires = len(results)
+inierrors = len(errors)
+
+def check_ches(data):
+	che_array = ['chea', 'cheb', 'cher' ]
+	che_res = {}
+	missing = []
+	values = [ i.split(':')[0] for i in data ]
+	for che in che_array:
+		if che in [ i.split(':')[1] for i in data ]:
+			i = [ i.split(':')[1] for i in data ].index(che)
+			che_res[che] = data[i].split(':')[0]
+		else:
+			missing.append(che_array.index(che))
+	if che_res == {}:
+		che_res = { 'any' : data[0].split(':')[0] }
+	return che_res, missing
+
+
+che_array = ['chea', 'cheb', 'cher' ]
+
+print "\n\n\n\n"
+
+new_errors = []
+
+
+for error in errors:
+	print "Dealing with :" + str(error['locus'])
+	if error['reason'] == 'Missing A,B or R':
+		data, miss = check_ches(error['locus'])
+		if miss != []:
+			#Finding the CheA locus
+			try:
+				ref_locus = data['chea']
+			except KeyError:
+				ref_locus = data['any']
+				print "Still have problems with " + str(error)
+				new_errors.append(error)
+				continue
+
+			#Getting organism id
+			try:
+				ref_org = [ t for t in chea_list if ref_locus in t][0].split('-')[0].split('.')[-1]
+			except IndexError:
+				print "PROBLEMS"
+				print ref_locus
+				print t
+				sys.exit()
+			#try to get the CheB and/or CheR if there is only one in the given fasta
+			for i in miss:
+				candidates = []
+				for tag in che_tag_list[i]:
+					org = tag.split('-')[0].split('.')[-1]
+					lo = tag.split('-')[1]
+					if org == ref_org:
+						candidates.append(lo)
+				if len(candidates) == 1:
+					data[che_array[i]] = candidates[0]
+			print data
+		if len(data.keys()) == 3:
+			print error
+			print "FIXED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+			results.append(data)
+#			errors.remove(error)
+		else:
+			print "Still have problems with " + str(error)
+			new_errors.append(error)
+
+errors = new_errors
+
+				
+data_output = { 'data' : results, 'errors' : errors }
+with open(sys.argv[1][:-4] + 'tryfix.json', 'w') as f:
+	json.dump( data_output, f, indent = 2)
+
+print inires
+print inierrors
+print "Now is: "
+print len(results)
+print len(errors)
+			
+	

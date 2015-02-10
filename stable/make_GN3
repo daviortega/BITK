@@ -1,0 +1,264 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 11/25/2013 
+###################################
+import matplotlib
+import sys
+if '-pdf' in sys.argv:
+	matplotlib.use('Agg')
+
+
+import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
+import numpy
+import bitk
+import pymongo
+if '-h' in sys.argv:
+    print 'make_GN fasta_file.fa N \n\n N is window [-N,+N] \n\n Options :\n \
+	-pdf		Makes a pdf instead of printing on screen \n \
+	-name		Include the name of the chemotaxis genes \n \
+	-locus		Include name of the locus number of each gene (it is messy, but you should be able to disentangle the info in post-production)\n \
+	-org		Reference name will be Name of the strain  -  locus number - GN\n \
+	--prod		Product descreption (TODO)\n \
+	--refseq	RefSeq gene name (TODO)\n \
+	--order_st	Correct the direction of the genes by the central gene direction poiting to the right \n \
+	--sort		Sort list of sequnces by alphabetical order \n \
+	--svg		output svg file\n \
+	--che_color	color chemotaxis proteins if any\n \
+	--output	output table with locus info of the genes represented in the plot\n \
+	--show		Show GN in window\n '
+
+    sys.exit()
+
+
+
+
+che_array = [ 'mcp',  'chea',  'cheb',  'checx', 'ched', 'cher', 'chev', 'chez','chew', 'other', '' ]
+che_dic = {'mcp':'MCP',  'chea': 'CheA',  'cheb' : 'CheB',  'checx' : 'CheCX', 'ched':'CheD', 'cher':'CheR', 'chev':'CheV', 'chez':'CheZ','chew':'CheW', 'other':'Other','':''}
+
+che_colors = [ '#6C5735', '#ED1C24', '#006F3B', '#2E3192', '#8DC63F', '#F392BD', '#92278F', '#231F20', '#FFF200', '#F7941E', '#FFFFFF']
+
+N = int(sys.argv[2]) 
+
+
+
+#MONGO
+mist = bitk.get_mist22_client()
+#END MONGO 
+
+
+seq_dic, seq_list = bitk.fastareader(sys.argv[1])
+col = len(seq_list)
+
+if '--sort' in sys.argv:
+	seq_list.sort()
+
+fig = plt.figure(figsize=(40,1*col), facecolor = 'w')
+coords_list = []
+largest_operon = 0
+
+output = ''
+
+
+mistake = []
+
+for i in range(len(seq_list)):
+	print "\n\n Starting new..."
+	tag = seq_list[i]
+	print tag
+	if '-org' in sys.argv:
+		mistid = int(tag.split('-')[0].split('.')[-1])
+		new_tag = mist.genomes.find_one({'_id':mistid})
+		if new_tag:
+			print new_tag
+			print new_tag['n']
+	#		new_tag = new_tag['n'] + ' - ' + tag.split('-')[1]
+			ax = fig.add_subplot(col,3,3*(i)+1)
+#			ax.text(0,0.25,new_tag['n'], verticalalignment = 'bottom', horizontalalignment = 'left', fontsize = 10)
+			ax.text(0,0.5,new_tag['n'], verticalalignment = 'center')
+			ax.axis('off')
+#		        ax.autoscale_view()
+#			ax.figure.canvas.draw()
+
+			ax = fig.add_subplot(col,3,3*(i)+2)
+			ax.text(0,0.5, tag.split('-')[1], verticalalignment = 'center')
+			ax.axis('off')
+#		        ax.autoscale_view()
+#			ax.figure.canvas.draw()
+
+			
+	else:
+		ax = fig.add_subplot(col,2,2*(i)+1)
+		ax.text(0,0,tag, verticalalignment = 'center', horizontalalignment = 'left', fontsize = 10)
+		ax.axis('off')
+		ax.autoscale_view()
+		ax.figure.canvas.draw()
+
+	ac = tag.split('-')[2]
+	print ac
+	geneinfo = mist.genes.find_one({'p.ac':ac})
+	print geneinfo
+	cid = geneinfo['cid']
+	pos = geneinfo['pos']
+	pro = geneinfo['p']['pd']
+	if pos - N > 0:
+		pos = pos - N - 1
+	else:
+		pos = 0
+	GN = {}
+	pos_list = []
+	for g in mist.genes.find({'cid': cid, 'pos':{ '$gt': pos }}).limit(2*N+1):
+		GN[g['pos']] = g
+		pos_list.append(g['pos'])
+	pos_list.sort()
+	ax = fig.add_subplot(col,2,2*i+2)
+	coords = []
+	for pos in pos_list:
+		chemo_info = mist.signal_genes5.find_one({'cid':cid, '_id':GN[pos]['_id']})
+		che = ''
+		try:
+			lo = GN[pos]['lo']
+		except KeyError:
+			lo = 'NULL'
+		try:
+			pro = GN[pos]['p']['pd']
+		except KeyError:
+			pro = 'NULL'
+#		if '-locus' in sys.argv:
+#			che = GN[pos]['lo']
+#			print che
+#		else:
+		if chemo_info:
+			if 'r' in chemo_info.keys():
+#               	        print chemo_info
+              			if chemo_info['r'][0] == 'chemotaxis':
+                               		che = chemo_info['r'][1]
+		print lo + ':' + che
+
+		aa = GN[pos]['aa']
+		ab = GN[pos]['ab']
+		st = GN[pos]['st']
+		coords.append([aa,ab,st,che,lo,pro])
+	
+	operon_size = max(coords[-1][:2]) - min(coords[0][:2])
+	if operon_size > largest_operon:
+		largest_operon = operon_size
+	if len(coords) == 2*N+1:
+		coords_list.append(coords)
+		print tag
+	else:
+		print 'This did not work well and it will be excluded: ' + tag
+		mistake.append(tag)
+	print "All done here"
+
+sf = 1/float(largest_operon+100)
+ 
+print "\nStarting plotting"
+for i in range(len(coords_list)):
+	print str(i) + "/" + str(len(coords_list))
+	print coords_list[i]
+	coords = coords_list[i]
+#	if '-org' not in sys.argv:
+#		ax = fig.add_subplot(col,3,3*i+3)
+#		ax.axis('off')
+#	else:
+	ax = fig.add_subplot(col,2,2*i+2)
+#	ax.axis('off')
+#	sf = 1/float(ab - coords[0][0])
+	
+	if '--order_st' in sys.argv and coords[N][2] == '-':
+		beg = coords[0][0]
+		coords.reverse()
+		new_coords = []
+		for i in range(len(coords)-1):
+			end = beg + coords[i][1] - coords[i][0]
+			if coords[i][2] == '-':
+				new_coords.append([ beg, end , '+', coords[i][3], coords[i][4], coords[i][5]])
+			else:
+				new_coords.append([ beg, end , '-', coords[i][3], coords[i][4], coords[i][5]])
+			beg = end + coords[i][0] - coords[i+1][1]
+		end = beg + coords[-1][1] - coords[-1][0]
+                if coords[i][2] == '-':
+                        new_coords.append([ beg, end , '+', coords[-1][3], coords[i][4], coords[i][5]])
+                else:
+                        new_coords.append([ beg, end , '-', coords[-1][3], coords[i][4], coords[i][5]])
+		coords = new_coords
+	
+	
+
+	beg = coords[0][0]
+
+	W = 2
+
+	for coord in coords:
+#		start = coord[0]*sf
+#		end = (coord[0] - coord[1])*sf
+		start = (coord[0]-beg)*sf
+		dx = (coord[1] - coord[0])*sf
+#		ax.add_patch(mpatches.Arrow(start,1.5,dx,0,width = W,color = colors_array[coords.index(coord)]))
+		output += coord[4] + ':' + coord[3] + ';'
+		if '--che_color' in sys.argv:
+			color_str = che_colors[che_array.index(coord[3])]
+		else:
+			color_str = 'white'
+
+		if '-locus' in sys.argv:
+			ax.text(start+dx/2, 0.5, coord[4], ha = 'center', size = 10)
+			if coord[2] == '+':
+	                        ax.add_patch(mpatches.Arrow(start,0.5,dx-0.001,0,width = W,ec = 'black', color = color_str))
+        	                ax.axis('off')
+                	else:
+                        	ax.add_patch(mpatches.Arrow(start+dx,0.5,0.001-dx,0,width = W,ec = 'black',  color = color_str))
+	                        ax.axis('off')
+		if '--pro' in sys.argv:
+			ax.text(start+dx/2, 1, coord[5], ha = 'center', size = 10)
+			if coord[2] == '+':
+				ax.add_patch(mpatches.Arrow(start,0.5,dx-0.001,0,width = W,ec = 'black', color = color_str))
+				ax.axis('off')
+			else:
+				ax.add_patch(mpatches.Arrow(start+dx,0.5,0.001-dx,0,width = W,ec = 'black',  color = color_str))
+				ax.axis('off')
+
+		elif '-name' in sys.argv:
+			print coord
+			ax.text(start+dx/2, 0.8, che_dic[coord[3]], ha = 'center', size = 10)
+			if coord[2] == '+':
+				ax.add_patch(mpatches.Arrow(start,0.5,dx-0.001,0,width = W,ec = 'black', color = che_colors[che_array.index(coord[3])]))
+				ax.axis('off')
+			else:
+				ax.add_patch(mpatches.Arrow(start+dx,0.5,0.001-dx,0,width = W,ec = 'black', color = che_colors[che_array.index(coord[3])]))
+				ax.axis('off')
+		else:
+			if coord[2] == '+':
+                	        ax.add_patch(mpatches.Arrow(start,0.5,dx-0.001,0,width = W,ec = 'black',  color = color_str))
+        	                ax.axis('off')
+	                else:
+                        	ax.add_patch(mpatches.Arrow(start+dx,0.5,0.001-dx,0,width = W,ec = 'black',  color = color_str))
+	                        ax.axis('off')
+
+	output = output[:-1] + '\n'
+
+#	ax.axis('off')
+#       ax.autoscale_view()
+        ax.figure.canvas.draw()
+
+if '--output' in sys.argv:
+        with open(sys.argv[1][:-3] + '.GN.dat', 'w') as f:
+	                f.write(output)
+			#plt.xticks([])
+print '\n'
+if '-pdf' in sys.argv:
+	plt.savefig(sys.argv[1][:-3] + '.GN.pdf')
+
+if '--svg' in sys.argv:
+	plt.savefig(sys.argv[1][:-3] + '.GN.svg')
+
+if '--show' in sys.argv:
+	plt.show()
+
+print mistake
+
+
+
+	
+

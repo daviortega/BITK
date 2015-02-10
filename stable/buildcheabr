@@ -1,0 +1,174 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 7/21/2014 
+###################################
+import sys
+import bitk
+import json
+if '-h' in sys.argv:
+	print 'buildcheabr make_GN2_outputdata.dat --aln chea.fa cheb.fa cher.fa\n \
+		Options: --json-out	   Export json output with locus numbers and error list\n \
+			 --json-in	   Start from json output instead of parsing the data again (useful for corrected sets) \n'
+	sys.exit()
+
+
+ches_list = ['chea', 'cheb', 'cher']
+
+
+def get_cheabr(fields):
+	chea = ''
+	cheb = ''
+	cher = ''
+	error = False
+	for field in fields:
+		print field
+                if field.split(':')[1] == 'chea':
+        	        if chea == '':
+                	        chea = field.split(':')[0]
+                        else:
+                                error = True
+				break
+                elif field.split(':')[1] == 'cheb':
+                        if cheb == '':
+                                cheb = field.split(':')[0]
+			else:
+                                error = True
+				break
+                elif field.split(':')[1] == 'cher':
+                	if cher == '':
+                                cher = field.split(':')[0]
+			else:
+				error = True
+				break
+	return { 'data' : { 'chea' : chea, 'cheb' : cheb, 'cher' : cher }, 'error' : error }
+
+
+cheabr = {'data':[]}
+output_error = []
+
+if '--json-in' not in sys.argv:
+	with open(sys.argv[1], 'r') as f:
+		for line in f:
+			fields = line.replace('\n','').split(';')
+			chea = ''
+			cheb = ''
+			cher = ''
+			lo_list = []
+			for field in fields:
+				lo_list.append(field)
+				if field.split(':')[1] == 'chea':
+					if chea == '':				
+						chea = field.split(':')[0]
+					else:
+						chea = '2+CheA'
+				elif field.split(':')[1] == 'cheb':
+					if cheb == '':
+						cheb = field.split(':')[0]
+					else:
+						cheb = '2+CheB'
+				elif field.split(':')[1] == 'cher':
+					if cher == '':
+						cher = field.split(':')[0]
+					else:
+						cher = '2+CheR'
+			if chea == '' or cheb == '' or cher == '':
+				output_error.append( {'locus' : lo_list, 'reason' : 'Missing A,B or R'})
+			elif chea == '2+CheA' or cheb == '2+CheB' or cher == '2+CheR':
+				output_error.append( {'locus' : lo_list, 'reason' : 'More than one A, B or R'})
+			else:
+				cheabr['data'].append({'chea':chea, 'cheb' : cheb, 'cher' : cher})
+	cheabr['errors'] = output_error
+	cheabr['stats'] = {'ok' : len(cheabr['data']), 'errors' : len(cheabr['errors'])}
+	if '--json-out' in sys.argv:
+		with open(sys.argv[1] + '.json', 'w') as f:
+			json.dump(cheabr, f, indent = 2)
+else:
+	with open(sys.argv[1], 'r') as f:
+		cheabr = json.load(f)
+	recover_error = []
+	new_data = []
+	for error in cheabr['errors']:
+		print error
+		if error['reason'] == 'fixed':
+			print "let's fix it"
+			data = get_cheabr(error['locus'])
+			print data
+			if data['error'] == False:
+				new_data.append(data['data'])
+				recover_error.append(error)
+	
+	for ndata in new_data:
+		cheabr['data'].append(ndata)
+	for error in recover_error:
+		cheabr['errors'].remove(error)
+		
+	cheabr['stats'] = {'ok' : len(cheabr['data']), 'errors' : len(cheabr['errors'])}
+#				recover_error.append(error)
+#	for error in recover_error:
+#		cheabr['errors'].remove(error)
+	if '--json-out' in sys.argv:
+                with open(sys.argv[1], 'w') as f:
+                        json.dump(cheabr, f, indent = 2)
+
+
+
+cheas, chea_list = bitk.fastareader(sys.argv[2])
+chebs, cheb_list = bitk.fastareader(sys.argv[3])
+chers, cher_list = bitk.fastareader(sys.argv[4])
+lo2tag = {}
+for tag in chea_list + cheb_list + cher_list:
+	lo2tag[tag.split('-')[1]] = tag
+
+cheabr_fasta = ''
+chea_fasta = ''
+cheb_fasta = ''
+cher_fasta = ''
+
+
+locus_problem = [ [], [], [] ]
+
+print "Concatenating the alignments"
+for data in cheabr['data']:
+#	print lo2tag[data['chea']]
+	t = 0
+	for c in ches_list:
+		if data[c] not in lo2tag.keys():
+			print "This locus is not in the alignment and it will be ignored"
+			print "The problem here is " + c
+			print data
+			locus_problem[ches_list.index(c)].append(data[c])
+			t = 1
+	if t == 1:
+		continue
+	else:			#sys.exit()
+#	print lo2tag[data['cher']]
+		cheabr_fasta += '>' + lo2tag[data['chea']] + '\n' + cheas[lo2tag[data['chea']]] + chebs[lo2tag[data['cheb']]] + chers[lo2tag[data['cher']]] + '\n'
+		chea_fasta += '>' + lo2tag[data['chea']] + '\n' + cheas[lo2tag[data['chea']]] + '\n'
+		cheb_fasta += '>' + lo2tag[data['cheb']] + '\n' + chebs[lo2tag[data['cheb']]] + '\n'
+		cher_fasta += '>' + lo2tag[data['cher']] + '\n' + chers[lo2tag[data['cher']]] + '\n'
+
+with open(sys.argv[1] + '.cheabr.fa', 'w') as f:
+	f.write(cheabr_fasta)
+
+with open(sys.argv[1] + '.cheA.fa', 'w') as f:
+        f.write(chea_fasta)
+
+with open(sys.argv[1] + '.cheB.fa', 'w') as f:
+        f.write(cheb_fasta)
+
+with open(sys.argv[1] + '.cheR.fa', 'w') as f:
+        f.write(cher_fasta)
+
+
+for i in range(len(ches_list)):
+	if locus_problem[i] != []:
+		with open('buildchabr_locus_problem.' + ches_list[i] + '.locus', 'w') as f:
+			f.write('\n'.join(locus_problem[i]))
+
+
+
+
+	
+
+
+

@@ -1,0 +1,89 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 1/30/2014 
+###################################
+import sys
+import pymongo
+import numpy
+import bitk
+
+if '-h' in sys.argv:
+	print 'By request, this script takes two entries, blastmistdb output and query coverage cutoff, to perform two tasks: 1:) separate the hits for each sequence from query into independent files, 2) presence and abscence table of a hits for each query sequence per genome'
+	sys.exit()
+
+mist22 = bitk.get_mist22_client()
+
+
+
+Qc = float(sys.argv[2])
+
+Ev = float(sys.argv[3])
+
+
+if sys.argv[4] == 'all':
+	N = 1000000
+else:
+	N = int(sys.argv[4])
+
+
+data_dic = {}
+hit_list = []
+
+datafile = open(sys.argv[1],'r')
+
+dt = numpy.dtype([('tag', numpy.str_, 255), ('evalue', numpy.float64)])
+print "Reading original file..."
+
+for line in datafile:
+	field = line.replace('\n','').split('\t')
+	qry = field[0]
+	hit = field[1]
+	Evalue = float(field[3])
+	qcov = float(field[5])/float(field[4])
+	if qry not in data_dic.keys():
+		data_dic[qry] = numpy.array([], dtype = dt)
+	if qcov > Qc and Evalue < Ev:
+		data_dic[qry] = numpy.hstack([data_dic[qry], numpy.array([(hit, float(field[3]))], dtype = dt)])
+
+datafile.close()
+hit_list.sort()
+
+print "Sorting results and writing the files..."
+
+print data_dic.keys()
+bitk.sleep_counter(5)
+
+for qry in data_dic.keys():
+	print qry
+	data_dic[qry] = numpy.sort(data_dic[qry], order='evalue')
+	if N > len(data_dic[qry]):
+		N = len(data_dic[qry])
+	ac_list = []
+	for data in data_dic[qry][:N]:
+		try:
+			ac_list.append(data['tag'].split('-')[2])
+		except IndexError:
+			print "There was an error... are you sure you want to work with this?"
+			pass
+
+	ac2seq = bitk.accession2seq(ac_list)
+	ac2tag, err_ac2tag = bitk.accession2bitktag(ac_list)
+	if len(err_ac2tag) != 0:
+		print "There are errors: "
+		print err_ac2tag
+		bitk.sleep_counter(5)
+	output = ''
+	for data in data_dic[qry][:N]:
+		ac = data['tag'].split('-')[2]
+		if '--new-tag' in sys.argv:
+			output += '>' + ac2tag[ac] + '\n' + ac2seq[ac] + '\n'
+		else:
+			output += '>' + data['tag'] + '\n' + ac2seq[ac] + '\n'
+	with open( qry + '.fa', 'w') as f:
+		f.write(output)
+
+
+	
+
+
+

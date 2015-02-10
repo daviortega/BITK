@@ -1,0 +1,38 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 9/11/2014 
+###################################
+import sys
+import bitk
+if '-h' in sys.argv:
+	print 'fastawithaccession2fastabitktag fastafile.fa N (where N is the position of accession in the tag split by "-" (default 2 starting from 0) '
+	sys.exit()
+
+seq_dic, tag_list = bitk.fastareader(sys.argv[1], 'r')
+
+try:
+	N = int(sys.argv[2])
+except:
+	N = 2
+
+acc_list = []
+
+for tag in tag_list:
+	acc_list.append(tag.split('-')[N])
+
+dicout = bitk.accession2bitktag(acc_list)[0]
+
+output = ''
+for tag in tag_list:
+	tag_ac = tag.split('-')[N]
+	print tag
+	print tag_ac
+	output += '>' + dicout[tag_ac] + '\n' + seq_dic[tag] + '\n'
+
+if '-u' in sys.argv:
+	with open(sys.argv[1], 'w') as f:
+		f.write(output)
+else:
+	with open(sys.argv[1][:-3] + '.bitktag.fa', 'w') as f:
+        	f.write(output)
+

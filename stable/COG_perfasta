@@ -1,0 +1,72 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 10/3/2013 
+###################################
+import sys
+import bitk
+import numpy
+import json
+
+
+if '-h' in sys.argv:
+	print 'attr_pergenomes will tell the statistics of the distribution of the attribute in certain position in the tag per organism and output json with mistid and list of attributes\n count_class_pergenome mistid.list fastafile.fa N \n\nN is the position of the attribute in the tag (separated by - and starting from 0)'
+	sys.exit()
+
+#if '-mcp' in sys.argv:
+#	N = 4
+#else:
+#	N = 3
+
+N = int(sys.argv[2])
+
+
+
+#genomes = []
+#gen_data = open(sys.argv[1],'r')
+#for line in gen_data:
+#	genomes.append(line.replace('\n',''))
+
+seq_dic, seq_list = bitk.fastareader(sys.argv[1])
+
+#output = ''
+
+#lapergen = []
+#Uncat = 0
+#cla1 = 0
+#allcla = []
+
+
+#json_out = {}
+
+classes = {}
+order_dic = {}
+for tag in seq_list:
+	if tag.split('-')[N] not in classes.keys():
+		classes[ tag.split('-')[N] ] = 1
+		order_dic[int(tag.split('-')[N].replace('COG',''))] = tag.split('-')[N]
+	else:
+		classes[ tag.split('-')[N] ] += 1
+
+print classes
+
+
+
+
+class_list = order_dic.keys()
+class_list.sort()
+output = ''
+for i in class_list:
+	print order_dic[i]
+	output += str(classes[order_dic[i]]) + ','
+
+
+print output
+
+#f = open(sys.argv[1][:-4] + '.attribute_pergenomes.json', 'w')
+#json.dump(json_out, f)
+#f.close()
+
+#f = open(sys.argv[1][:-3] + '.class_pergenomes.list', 'w')
+#f.write(json.dump(json_out))
+#f.close()
+

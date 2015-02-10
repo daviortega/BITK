@@ -1,0 +1,32 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 4/8/2011 
+###################################
+import sys
+import bitk
+
+if '-h' in sys.argv:
+	print "Clean alignment from duplicates. It does not check sequence, it checks tags."
+	sys.exit()
+
+
+print "Reading file"
+seq_dic, seq_list = bitk.fastareader(sys.argv[1])
+
+print "Sequences in original: " + str(len(seq_list))
+
+tag_list =list(set(seq_list))
+output = ''
+
+print "Sequences in new: " + str(len(tag_list))
+
+
+for tag in tag_list:
+	output += '>' + tag + '\n' + seq_dic[tag] + '\n'
+	
+
+with open(sys.argv[1][:-3] + '.nodup.fa', 'w') as f:
+	f.write(output)
+
+	
+

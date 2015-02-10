@@ -1,0 +1,94 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 7/23/2014 
+###################################
+import bitk
+import sys
+import math
+
+if '-h' in sys.argv:
+	print 'Input hhsearch domain table output. \n \
+		Options: \n \
+			--lencut N  only sequences with hits larger than N amino-acids \n \
+			--trim      Trim sequences by the domain hit edges'
+	sys.exit()
+
+mist22 = bitk.get_mist22_client()
+seqdepot = bitk.get_seqdepot_client()
+output = ''
+tagdic = {}
+aclist = []
+
+error = []
+
+
+
+if '--lencut' in sys.argv:
+	Lcut = int(sys.argv[sys.argv.index('--lencut')+1])
+else:
+	Lcut = 0
+
+
+count = 0
+with open(sys.argv[1], 'r') as f:
+	for line in f:
+		if line[0] != '#':
+			name = line.split(' ')[0]
+			F = int(line[205:210])
+			S = int(line[199:204])
+			L = F - S 
+			if L > Lcut:
+				if name not in tagdic.keys():
+					tagdic[name] = [ L, S, F ]
+				elif L > tagdic[name][0]:
+					tagdic[name] = [ L, S, F ]
+			count += 1
+
+print "Number of hits read: " + str(count)
+print "Number of sequences selected: " + str(len(tagdic.keys()))
+print "Finding sequences"
+
+for tag in tagdic.keys():
+	aclist.append(tag.split('-')[2])
+
+cards = mist22.genes.find({ 'p.ac' : { '$in' : aclist }})
+ac2aseq = {}
+for card in cards:
+	ac2aseq[card['p']['ac']] = card['p']['aid']
+
+cards = mist22.aseqs.find({'_id' :  { '$in' : ac2aseq.values() }})
+aseq2seq = {}
+count = 0
+for card in cards:
+	if count % 1000 == 0:
+		print count
+	aseq2seq[card['_id']] = card['s']
+	count += 1
+
+
+print "Writing results"
+
+for tag in tagdic.keys():
+	try:
+		if '--trim' in sys.argv:
+			seq = aseq2seq[ac2aseq[tag.split('-')[2]]][tagdic[tag][1]:tagdic[tag][2]+1]
+		else:
+			seq = aseq2seq[ac2aseq[tag.split('-')[2]]]
+
+		output += '>' + tag + '\n' + seq + '\n'
+	except KeyError:
+		error.append(tag)		
+if '--trim' in sys.argv:
+	filename = sys.argv[1] + '.trimmed.fa'
+else:
+	filename = sys.argv[1] + '.fa'
+
+with open(filename, 'w') as f:
+	f.write(output)
+
+if len(error) != 0:
+	with open(sys.argv[1] + '.error', 'w') as f:
+		f.write(str(error))
+
+
+

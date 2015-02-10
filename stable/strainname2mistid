@@ -1,0 +1,134 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 9/8/2014 
+###################################
+import sys
+import bitk
+import random
+if '-h' in sys.argv:
+	print 'Reads a list of names of strain and outputs a list of mist organism id'
+	sys.exit()
+
+genomes = []
+with open(sys.argv[1], 'r') as f:
+	for line in f:
+		genomes.append(line.replace('\n',''))
+	
+mist = bitk.get_mist22_client()
+
+output = ''
+orgsin = []
+orgnodeal = []
+
+
+def firsttry(name, orgsin, output):
+	print name
+	data = [ d for d in mist.genomes.find({ 'n' : { '$regex' : name, '$options' : 'i'}}, {'_id' : 1 , 'n' : 1 })]
+	if len(data) == 0:
+		return None
+	else:
+		d = random.choice(data)
+		print str(d['_id']) + ' - ' + str(d['n'])
+		output += str(d['_id']) + '\n'
+		orgsin.append(d['_id'])
+		return orgsin, output
+
+def secondtry(name, orgsin, output):
+	newname = ".*".join(name.split(' '))
+	print newname
+	data = [ d for d in mist.genomes.find({ 'n' : { '$regex' : newname, '$options' : 'i'}}, {'_id' : 1 , 'n' : 1 })]
+	if len(data) == 0:
+		return None
+	else:
+		random.shuffle(data)
+		for d in data:
+			if d['_id'] not in orgsin:
+				break
+		if d['_id'] in orgsin:
+			return None
+		else:
+			print str(d['_id']) + ' - ' + str(d['n'])
+			output += str(d['_id']) + '\n'
+			orgsin.append(d['_id'])
+
+	return orgsin, output
+
+def thirdtry(name, orgsin, output):
+	newname = ".*".join(name.split(' ')[:2])
+	print newname
+	data = [ d for d in mist.genomes.find({ 'co' : True, 'n' : { '$regex' : newname, '$options' : 'i'}}, {'_id' : 1 , 'n' : 1 })]
+        if len(data) == 0:
+		print "Nothing found"
+		return None
+	else:
+		random.shuffle(data)
+		for d in data:
+			if d['_id'] not in orgsin:
+				break
+		if d['_id'] in orgsin:
+			print "Found osmething but it were already selected"
+			return None
+		else:
+			print str(d['_id']) + ' - ' + str(d['n'])
+			output += str(d['_id']) + '\n'
+			orgsin.append(d['_id'])
+		return orgsin, output
+
+def fourthtry(name, orgsin, output):
+        newname = ".*".join(name.split(' ')[:2])
+        print newname
+        data = [ d for d in mist.genomes.find({ 'n' : { '$regex' : newname, '$options' : 'i'}}, {'_id' : 1 , 'n' : 1 })]
+        if len(data) == 0:
+                print "Nothing found"
+                return None
+        else:
+                random.shuffle(data)
+                for d in data:
+                        if d['_id'] not in orgsin:
+                                break
+                if d['_id'] in orgsin:
+                        print "Found osmething but it were already selected"
+                        return None
+                else:
+                        print str(d['_id']) + ' - ' + str(d['n'])
+                        output += str(d['_id']) + '\n'
+                        orgsin.append(d['_id'])
+                return orgsin, output
+
+
+
+
+
+if 1 == 1:
+	print "Matching strain names to mistid the best we can."
+	for name in genomes:
+		data = firsttry(name, orgsin, output)
+		if data:
+			orgsin, output = data
+		else:
+			data = secondtry(name, orgsin, output)
+			if data:
+				orgsin, output = data
+			else:
+				data = thirdtry(name, orgsin, output)
+				if data:
+					orgsin, output = data
+				else:
+					data = fourthtry(name, orgsin, output)
+					if data:
+						orgsin, output = data
+					else:
+						orgnodeal.append(name)
+					
+				
+
+if len(orgnodeal) !=0:
+	print "\n\n\nThis genomes could not be found"
+	for i in orgnodeal:
+		print i
+
+#print [ d for d in mist.genomes.find({ 'n' : { '$regex' : 'Salmo' }})]
+
+
+with open('mistid.list', 'w') as f:
+	f.write(output)

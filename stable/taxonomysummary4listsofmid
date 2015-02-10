@@ -1,0 +1,80 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 9/4/2013 
+###################################
+import ete2
+import json
+import sys
+import os
+import bitkTOL
+import glob
+
+if '-h' in sys.argv:
+    print 'Summary of taxonomic information. list.list N (N is the taxonomic level)'
+    sys.exit()
+
+
+tax_level = int(sys.argv[2])
+mist22 = bitkTOL.get_mist22_client()
+
+results = {}
+files = glob.glob(str(sys.argv[1]))
+alltax = {}
+gid2tax = {}
+
+allgenomes = []
+
+for fname in files:
+	genomes = []
+	with open(fname, 'r') as f:
+		for line in f:
+			try:
+				genomes.append(int(line.replace('\n','')))
+			except ValueError:
+				genomes.append(int(line.split('-')[0].split('.')[-1]))
+	allgenomes += genomes
+	cards = mist22.genomes.find({'_id' :  { '$in' : genomes }})
+
+	tax = { 'notaxa' : [ 0, ''] }
+	for card in cards:
+		if '--show-mid' in sys.argv:
+			print str(card['_id']) + '|' +  card['n'] + '|' + str(card['ta'])
+		if len(card['ta']) > tax_level:
+			if card['ta'][tax_level] in alltax.keys():
+				alltax[card['ta'][tax_level]] = card['ta']
+			if card['ta'][tax_level] not in tax.keys():
+				tax[card['ta'][tax_level]] = [ 0, card['ta'][:tax_level]]
+			tax[card['ta'][tax_level]][0] += 1
+			gid2tax[card['_id']] = card['ta'][tax_level]
+		else:
+			tax['notaxa'][0] += 1
+			print card['n']
+			print card['_id']
+			gid2tax[card['_id']] = 'No info'
+
+	print "\n\n\n############# Printing the results for " + fname + " ############\n"
+	results[fname] = {}
+	for t in tax.keys():
+		print str(tax[t][1]) + '\t' + t  + '\t' + str(tax[t][0])
+		results[fname][t] = [tax[t]]
+
+	alltaxsum = sum([ i[0] for i in tax.values()])
+	print alltaxsum
+
+output = 'Taxonomy\tTaxonomy group\t' + '\t'.join(files) + '\n' 
+
+with open('taxsum.dat', 'w') as f:
+	for t in alltax.keys():
+		print alltax[t]
+		output += alltax[t][:tax_level] + '\t' + t
+		for fname in files:
+			output += '\t' + str(results[fname][t][0])
+		output += '\n'
+	f.write(output)
+
+output = ''
+with open('gid2tax.' + str(tax_level) + '.dat', 'w') as f:
+	for g in allgenomes:
+		output += str(g) + '\t' + gid2tax[g] + '\n'
+	f.write(output)
+

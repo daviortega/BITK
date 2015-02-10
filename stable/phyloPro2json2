@@ -1,0 +1,142 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 10/17/2014 
+###################################
+import sys
+import bitk
+import json
+import numpy
+
+if '-h' in sys.argv:
+	print 'Input is: genomeids.list query.fa psiblasted.dat\nOutput is the query.list.json presence and abscence'
+	sys.exit()
+
+if '--evalue' in sys.argv:
+	Ecoff = float(sys.argv[sys.argv.index('--evalue') + 1])
+else:
+	Ecoff = 10E-25
+
+print Ecoff
+
+genomes = []
+out_json = {'hmap' : [], 'names' : [], 'gids' : [], 'genes' : [] }  
+
+mist22 = bitk.get_mist22_client()
+
+gid2name = {}
+
+
+with open(sys.argv[1], 'r') as f:
+	for l in f:
+		gid = l.replace('\n','')
+		genomes.append(int(gid))
+
+orgname = mist22.genomes.find({'_id':  { '$in' : genomes}}, {'n':1})
+for card in orgname:
+	gid2name[card['_id']] = card['n']
+
+for g in genomes:
+	out_json['names'].append(gid2name[g])
+	out_json['gids'].append(g)
+
+
+
+query_dic, query_list = bitk.fastareader(sys.argv[2])
+
+tag_only = []
+
+for q in query_list:
+	if '--gene-names' in sys.argv:
+		out_json['genes'].append(q.split('-')[-1])
+	else:
+		out_json['genes'].append(q)
+	tag_only.append('-'.join(q.split('-')[:3]))
+
+print tag_only
+
+tmp_dic = {}
+evalues = {}
+with open(sys.argv[3], 'r') as f:
+	for line in f:
+		fields = line.split('\t')
+		if len(fields) > 1:
+			gid = int(fields[1].split('-')[0].split('.')[-1])
+			gen = fields[0]
+			gen = '-'.join(gen.split('-')[:3])
+			if gid not in tmp_dic.keys():
+				tmp_dic[gid] = {}
+
+#			if gid == genomes[17]:
+#				print line
+#				print gen
+#				print 'done'
+
+			if float(fields[3]) == 0:
+				E = 300
+			else:
+				E = -numpy.log10(float(fields[3]))
+
+			if gen not in tmp_dic[gid].keys():
+				tmp_dic[gid][gen] = E
+			elif tmp_dic[gid][gen] < E:
+				tmp_dic[gid][gen] = E
+
+#print gid2name[genomes[17]]
+#for q in tag_only:
+#	try:
+#		print q + '\t' + str(tmp_dic[genomes[17]][q])
+#	except KeyError:
+#		print q + '\tNone'
+
+emax = {}
+emin = {}
+for q in tag_only:
+	for g in genomes:
+		try:
+			E = tmp_dic[g][q]
+		except KeyError:
+			E = 0
+		if q not in emax.keys():
+			emax[q] = E
+			emin[q] = E
+		else:
+			if E > emax[q]:
+				emax[q] = E
+			elif E < emin[q]:
+				emin[q] = E
+
+
+
+count = 0
+
+Ecoff = -numpy.log10(Ecoff)
+
+
+for q in tag_only:
+	for g in genomes:
+		if '--pa' in sys.argv:
+			try:
+				if tmp_dic[g][q] > Ecoff:
+					out_json['hmap'].append({'q': tag_only.index(q), 'g' : genomes.index(g), 'v' : 1, 'c' : 1})
+					count += 1
+				else:
+					out_json['hmap'].append({'q': tag_only.index(q), 'g' : genomes.index(g), 'v' : 0, 'c' : 0})
+			except KeyError:
+				out_json['hmap'].append({'q': tag_only.index(q), 'g' : genomes.index(g), 'v' : 0})
+		else:
+			try:
+				out_json['hmap'].append({'q': tag_only.index(q), 'g' : genomes.index(g), 'v' : (tmp_dic[g][q] - emin[q]) / ( emax[q] - emin[q]) + 0.3, 'c' : 1})
+			#	out_json['hmap'].append({'q': tag_only.index(q), 'g' : genomes.index(g), 'v' : tmp_dic[g][q] , 'c' : 1})
+				count += 1
+			except KeyError:
+				out_json['hmap'].append({'q': tag_only.index(q), 'g' : genomes.index(g), 'v' : 0, 'c' : 0})
+
+
+with open('psidata.json', 'w') as f:
+	json.dump(out_json,f, indent = 2)
+
+print count
+			
+			
+			
+		

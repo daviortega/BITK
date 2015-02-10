@@ -1,0 +1,43 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 1/30/2014 
+###################################
+import sys
+import os
+import datetime
+
+if '-h' in sys.argv:
+	print 'this will blast selected genomes from mist. Input: queryfile.fa selecte_genomes.list (or "all" for all genomes in mist) N (number of iterations or nothing to default 4). It will take all the options for blast format as usual but the db name and the query file (will be the file you provide against mist database). The database will be built on the fly according to the genomes selected in the list.  Mist will be in the following format: >organism_mistid-locus-accession. Sintax: psiblastmist filetobeblasted.fa genomes.list N [optional flags for blast (use \\" for ")  ], N is the number of iterations '
+	print 'This is the default: -num_threads 12 -outfmt "6 qseqid sseqid bitscore evalue qlen length qcovs slen" -evalue 10E-30 -max_target_seqs 100000'
+	sys.exit()
+
+ref_tag = datetime.datetime.now().strftime('%Y%m%d%H%M%s')
+genomes_pwd = '/home/ortegad/MIST3/TOL/genomes'
+
+if sys.argv[2] == 'all':
+	MISTDB = "/home/ortegad/MIST2.2/fasta/all/mistdb"
+else:
+	genomes = []
+	with open(sys.argv[2], 'r') as f:
+		for l in f:
+			os.system('ln -s ' + genomes_pwd + '/mist22.' + l.replace('\n','') + '.fa ./mist22.' + l.replace('\n','') + '.' + ref_tag + '.fa')
+	os.system('cat mist22.*.' +ref_tag+ '.fa > mist.selected.' + ref_tag + '.fa')
+	os.system('formatdb -i mist.selected.' + ref_tag + '.fa -n mist.' +ref_tag + '.db')
+	MISTDB = './mist.' +ref_tag + '.db'
+
+#try:
+#	num_iter_psi = int(sys.argv[3])
+#except:
+#	num_iter_psi = 4
+
+filename = sys.argv[1]
+if len(sys.argv) < 4:
+	options = '-num_threads 12 -outfmt "6 qseqid sseqid bitscore evalue qlen length qcovs slen" -evalue 10E-30 -max_target_seqs 100000'
+else:
+	options = sys.argv[3]
+print options
+
+print 'blastp -db ' + MISTDB + ' -query ' + sys.argv[1] + ' -out ' + sys.argv[1][:-3] + '.blastedvsmistdb.selected.' + ref_tag + '.dat ' +  options
+
+os.system('blastp -db ' + MISTDB + ' -query ' + sys.argv[1] + ' -out ' + sys.argv[1][:-3] + '.blastedvsmistdb.selected.' + ref_tag + '.dat ' +  options )
+

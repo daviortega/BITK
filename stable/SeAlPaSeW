@@ -1,0 +1,60 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 12/9/2014 
+###################################
+import sys
+import os
+if '-h' in sys.argv:
+	print 'Pipeline to build weblogos of top N COG_finder groups. PASE cog.dat fasta.fa N \n \
+		1) Se - Separate the sequences of each group in fasta files \n \
+		2) Al - Align each file using linsi \n \
+		3) Pa - Sequential profile alignment \n \
+		4) Se - Separate the files again \n \
+		5) W - Weblogo \n '
+	sys.exit()
+
+
+N = int(sys.argv[3])
+
+fastainfile = sys.argv[2]
+cogdatinfile = sys.argv[1]
+
+os.system('fa2fa ' + fastainfile + ' -u')
+os.system('getseqfromcogoutput ' + cogdatinfile + ' ' + fastainfile + ' all --cog-flag')
+fastainfile = cogdatinfile[:-4] + ".cogs.all.fa"
+os.system('IIintag ' + fastainfile + ' 0 spaceholder')
+fastainfile = cogdatinfile[:-4] + ".cogs.all.IIintag.fa"
+
+print "Phase 1 and 2 - Se + Al "
+print fastainfile
+for i in range(1,N+1):
+	print "grep 'COG" + str(i) + "-spaceholder' -A1 " + fastainfile + " > " + fastainfile[:-3] + ".cluster" + str(i) + ".fa"
+	os.system("grep 'COG" + str(i) + "-spaceholder' -A1 " + fastainfile + " > " + fastainfile[:-3] + ".cluster" + str(i) + ".fa")
+	os.system("linsi --thread 12 " + fastainfile[:-3] + ".cluster" + str(i) + ".fa > " + fastainfile[:-3] + ".cluster" + str(i) + ".linsi.fa")
+#	os.system("fa2fa " + fastainfile[:-3] ".cluster" + str(i) + ".linsi.fa -u")
+
+print "Phase 3 - Pr"
+tmpprof = "PASEfile.tmp.0.fa"
+os.system("mafft-profile " + fastainfile[:-3] + ".cluster1.linsi.fa " + fastainfile[:-3] + ".cluster2.linsi.fa > " + tmpprof)
+
+
+for i in range(3,N+1):
+	newtmp = "PASEfile.tmp." + str(i-2) + ".fa"
+	os.system("mafft-profile " + tmpprof + " " + fastainfile[:-3] + ".cluster" + str(i) + ".linsi.fa > " + newtmp)
+	tmpprof = newtmp
+
+
+os.system('fa2fa ' + newtmp + ' -u')
+os.system('cp ' + newtmp + ' ' + fastainfile[:-3] + '.fullprofile.fa')
+
+print "Phase 4 and 5 - Se + We"
+for i in range(1,N+1):
+        os.system("grep 'COG" + str(i) + "-spaceholder' -A1 " + newtmp + " > " + fastainfile[:-3] + ".profile" + str(i) + ".fa")
+	os.system("weblogo -f " + fastainfile[:-3] + ".profile" + str(i) + ".fa -o " + fastainfile[:-3] + ".profile" + str(i) + ".pdf -A protein -s large -F pdf -c chemistry --errorbars NO --resolution 300")
+
+print "DONE"
+
+
+	
+
+

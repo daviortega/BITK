@@ -1,0 +1,51 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 10/20/2014 
+###################################
+import bitk
+import sys
+if '-h' in sys.argv:
+	print 'Input list of organism. It will check for duplicates by name'
+	sys.exit()
+
+gids = []
+
+with open(sys.argv[1], 'r') as f:
+	for l in f:
+		gids.append(int(l.replace('\n','')))
+
+
+mist22 = bitk.get_mist22_client()
+
+cards = mist22.genomes.find({'_id' : { '$in' : gids }})
+
+gid2name = {}
+name2gid = {}
+for card in cards:
+	gid2name[card['_id']] = card['n']
+	if card['n'] not in name2gid.keys():
+		name2gid[card['n']] = []
+	name2gid[card['n']].append(card['_id'])
+
+output = ''
+new_genomes = ''
+
+for name in name2gid.keys():
+	output += name + '\t' + str(name2gid[name]) + '\n'
+	new_genomes += str(min(name2gid[name])) + '\n'
+
+with open('newgids.list', 'w') as f:
+	f.write(new_genomes)
+
+with open('output_checkduplicates.dat', 'w') as f:
+	f.write(output)
+
+
+
+
+
+
+
+
+
+
