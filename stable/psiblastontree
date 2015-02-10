@@ -31,6 +31,8 @@ if '-h' in sys.argv:
 		 --highlight-genomes list1,list2,...	highlight the genomes in different colors. list1 is a file with mist_ids\n \
 		 --db dbname				use precomupted blast db\n \
 		 --psiblast				computer blastp results\n \
+		 --num-iterations			self-explanatories\n \
+		 --psiblast-par	"..."			parameters to be passed to psiblast. Default: -num_threads 12 -outfmt "6 qseqid sseqid bitscore evalue qlen length qcovs slen" -evalue 0.001 -max_target_seqs 100000 \n \
 		 --entry-group-color N1,N2,...		Multiple enntries with single color. First N1 with one color, then N2 with other and etc'
     sys.exit()
 
@@ -42,12 +44,12 @@ if '--psiblast' in sys.argv:
 	psiblast = 1
 else:
 	psiblast = 0
-if '--num_iterations' not in sys.argv:
+if '--num-iterations' not in sys.argv:
 	num_iter_psi = 4
 else:
-	num_iter_psi = int(sys.argv[sys.argv.index('--num_iterations') + 1])
+	num_iter_psi = int(sys.argv[sys.argv.index('--num-iterations') + 1])
 	print "You insert a number of iterations for the psi-blast. That requires to run psi-blast again."
-	print "Are you sure that is what you want? Crtl-C to exit or wait and I will keep moving"
+	print "Are you sure that is what you want? Ctrl-C to exit or wait and I will keep moving"
 	bitk.sleep_counter(10)
 	psiblastp = 1
 
@@ -97,12 +99,19 @@ if '--multi-evalue' in sys.argv:
 	for i in me_coff_list:
 		if '*' in i:
 			me_coff += [ float(i.split('*')[0]) ] * int(i.split('*')[1])
+		else:
+			me_coff += [ float(i) ]
 	#build database
 	print me_coff
 
+if '--psiblast-par' in sys.argv:
+	par = sys.argv[sys.argv.index('--psiblast-par') + 1]
+else:
+	par = '-num_threads 12 -outfmt "6 qseqid sseqid bitscore evalue qlen length qcovs slen" -evalue 0.001 -max_target_seqs 100000 '
+
 
 if psiblast == 1:
-	E = os.system('psiblast -db ' + db + ' -query ' + sys.argv[1] + ' -out ' + sys.argv[1] + '.psiblast.dat -num_threads 12 -outfmt "6 qseqid sseqid bitscore evalue qlen length qcovs" -evalue 0.001 -max_target_seqs 100000 -num_iterations ' + str(num_iter_psi) )
+	E = os.system('psiblast -db ' + db + ' -query ' + sys.argv[1] + ' -out ' + sys.argv[1] + '.psiblast.dat ' + par + ' -num_iterations ' + str(num_iter_psi) )
 	if E != 0:
 		print "Psi-blast failed for some reason... can't keep going without blast results... aborting."
 		sys.exit()
@@ -130,11 +139,14 @@ if '--multi-evalue' in sys.argv:
 
 
 if '--multi-qcov' in sys.argv:
-	qcov_str = sys.argv[sys.argv.index('--qcov') + 1].split(',')
+	qcov_str = sys.argv[sys.argv.index('--multi-qcov') + 1].split(',')
 	qcov_coff_list = []
 	for i in qcov_str:
 		if '*' in i:
 			qcov_coff_list += [float(i.split('*')[0]) ] * int(i.split('*')[1])
+		else:
+			qcov_coff_list += [float(i)]
+	
 elif '--qcov' in sys.argv:
 	qcov_coff = float(sys.argv[sys.argv.index('--qcov') + 1])
 
@@ -142,6 +154,20 @@ else:
 	qcov_coff = 0
 
 
+if '--multi-hcov' in sys.argv:
+        hcov_str = sys.argv[sys.argv.index('--multi-hcov') + 1].split(',')
+	hcov_coff_list = []
+	for i in hcov_str:
+		if '*' in i:
+			hcov_coff_list += [float(i.split('*')[0]) ] * int(i.split('*')[1])
+		else:
+			hcov_coff_list += [float(i)]
+			
+
+elif '--hcov' in sys.argv:
+	hcov_coff = float(sys.argv[sys.argv.index('--hcov') + 1])
+else:
+	hcov_coff = 0
 
 
 hits = {}
@@ -176,12 +202,22 @@ with open(blastpfile, 'r') as f:
 			qcov = int(fields[6])/float(100)
 		except:
 			qcov = int(fields[5])/float(fields[4])
+		hcov = int(fields[5])/float(fields[7])
 		if '--multi-evalue' in sys.argv:
-			e_coff = me_coff[qry_list.index(qry)]
+			e_coff = float(me_coff[qry_list.index(qry)])
 		if '--multi-qcov' in sys.argv:
-			qcov_coff = qcov_coff_list[qry_list.index(qry)]
+			qcov_coff = float(qcov_coff_list[qry_list.index(qry)])
+		if '--multi-hcov' in sys.argv:
+			hcov_coff = float(hcov_coff_list[qry_list.index(qry)])
+
 		evalue = float(fields[3])
-		if evalue < e_coff and qcov > qcov_coff:
+		if evalue < e_coff and qcov > qcov_coff and hcov > hcov_coff:
+#			if 'MCP' in qry:
+#				print line
+#				print evalue
+#				print e_coff
+#				bitk.sleep_counter(2)
+
 			if hit in hits[qry].keys():
 				if evalue == 0:
 					hits[qry][hit] = 300
@@ -384,10 +420,10 @@ if '--root' in sys.argv:
 if '--balance' in sys.argv:
 	T.ladderize()
 
-if '-c' in sys.argv:
+if '--c' in sys.argv:
     ts.mode = 'c'
 
-if '-c180' in sys.argv:
+if '--c180' in sys.argv:
     ts.mode = 'c'
     ts.arc_start = 180 # 0 degrees = 3 o'clock
     ts.arc_span = 180		
@@ -406,13 +442,13 @@ print qry_list
 ts.root_opening_factor = 1
 
 
-if '-show' in sys.argv:
+if '--show' in sys.argv:
     T.show(tree_style = ts)
 if '--newick' in sys.argv:
     T.write( outfile = sys.argv[1] + 'blastontree.nwk')
-if '-pdf' in sys.argv:
+if '--pdf' in sys.argv:
     T.render(sys.argv[1] + '.pdf', tree_style = ts)
-if '-jpg' in sys.argv:
+if '--jpg' in sys.argv:
     T.render(sys.argv[1] + '.jpg', tree_style = ts)
 if '--svg' in sys.argv:
     T.render(sys.argv[1] + '.svg', h = 1000, tree_style = ts)

@@ -14,6 +14,8 @@ output = ''
 taglist = []
 aclist = []
 
+error = []
+
 with open(sys.argv[1], 'r') as f:
 	for line in f:
 		taglist.append(line.replace('\n',''))
@@ -31,10 +33,17 @@ for card in cards:
 	aseq2seq[card['_id']] = card['s']
 
 for tag in taglist:
-	output += '>' + tag + '\n' + aseq2seq[ac2aseq[tag.split('-')[2]]] + '\n'
+	try:
+		output += '>' + tag + '\n' + aseq2seq[ac2aseq[tag.split('-')[2]]] + '\n'
+	except KeyError:
+		error.append(tag)		
 
 with open(sys.argv[1] + '.fa', 'w') as f:
 	f.write(output)
+
+if len(error) != 0:
+	with open(sys.argv[1] + '.error', 'w') as f:
+		f.write(str(error))
 
 
 

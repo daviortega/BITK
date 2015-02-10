@@ -11,7 +11,7 @@ if '-h' in sys.argv:
 MSA = bitk3.read_seq(sys.argv[1])
 res = bitk3.p_sector5(MSA)
 
-output = '\t' + '\t'.join( ["PCA" + str(i+1) for i in range(MSA.num)]) + '\n'
+output = 'SEQ\t' + '\t'.join( ["PCA" + str(i+1) for i in range(MSA.num)]) + '\n'
 
 for i in range(MSA.num):
 	try:

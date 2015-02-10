@@ -59,6 +59,123 @@ def proteinid2bitktag(proteinid_list = []):
                 out_dic[proteinid] = gid_dic[int(out_dic[proteinid].split('-')[0])] + out_dic[proteinid]
         return out_dic
 
+def accession2bitktag(accession_list = [],):
+        out_dic = {}
+	preout_dic = {}
+        mist22 = get_mist22_client()
+        genes = mist22.genes.find({'p.ac' : { '$in' : accession_list }}, {'gid' : 1, 'lo' : 1, '_id' : 1, 'p.ac':1})
+        genomes = []
+	print "\tProcessing cards..."
+        for card in genes:
+		try:
+                	genomes.append(int(card['gid']))
+		except:
+			print "Found exception"
+			print card
+			sys.exit()
+                try:
+                        preout_dic[card['p']['ac']] = str(card['gid']) + '-' + str(card['lo']) + '-' + str(card['p']['ac'])
+                except KeyError:
+                        preout_dic[card['p']['ac']] = str(card['gid']) + '-NULL-' + str(card['p']['ac'])
+        genomes = list(set(genomes))
+        genomes_mist = mist22.genomes.find({'_id': {'$in' : genomes}}, {'sp': 1, 'g' : 1})
+        gid_dic = {}
+        for card in genomes_mist:
+                gid_dic[card['_id']] = card['g'][:2] + '.' + card['sp'][:3] + '.'
+#       print gid_dic.keys()
+	errors = []
+
+        for accession in accession_list:
+#                print out_dic[proteinid]
+		try:
+#			print preout_dic[accession]
+        	       	out_dic[accession] = gid_dic[int(preout_dic[accession].split('-')[0])] + preout_dic[accession]
+        	except KeyError:
+			print "This sequence has - in the name and is messing up the data collection"
+			print accession
+#			sleep_counter(10)
+			errors.append(accession)
+			pass
+#		except ValueError:
+#			print "Something is weird here"
+#			print accession
+#			print preout_dic[accession]
+#			sleep_counter(1)
+#			errors.append(accession)
+#			pass
+	return out_dic, errors
+
+def aseq2bitktaglist(aseqs):
+	print "If this is breaking your program, notice that the output value of the dictionary is a list not a string"
+	mist22 = get_mist22_client()
+	cards = mist22.genes.find( {'p.aid' : { '$in' :  aseqs}},)
+	aseq2ac = {}
+	aclist = []
+	for card in cards:
+		aclist.append(card['p']['ac'])
+		if card['p']['aid'] not in aseq2ac.keys():
+			aseq2ac[card['p']['aid']] = [ card['p']['ac'] ]
+		else:
+			aseq2ac[card['p']['aid']].append( card['p']['ac'] )
+			
+	ac2tag = accession2bitktag(aclist)[0]
+	result = {}
+	for aseq in aseqs:
+		try:
+			for ac in aseq2ac[aseq]:
+				if aseq not in result.keys():
+					result[aseq] = [ ac2tag[ac] ]
+				else:
+					result[aseq].append(ac2tag[ac])
+		except KeyError:
+			result[aseq] = ['None']
+	return result
+
+def accession2seq(aclist = []):
+	out_dic = {}
+	mist22 = get_mist22_client()
+	sd = get_seqdepot_client()
+	cards = mist22.genes.find({'p.ac' : { '$in' : aclist }})
+	aseq2ac = {}
+	cards = [card for card in cards]
+	for card in cards:
+		if card['p']['aid'] not in aseq2ac.keys():
+			aseq2ac[card['p']['aid']] = [card['p']['ac']]
+		else:
+			aseq2ac[card['p']['aid']].append(card['p']['ac'])
+	if len(cards) != len(set(aclist)):
+	        print "There are " + str(len(aclist)) + " accession numbers but only " + str(len(cards)) + " in the database"
+	        print set(aclist).difference(set([ ac['p']['ac'] for ac in cards]))
+		sleep_counter(10)
+
+	cards = sd.aseqs.find({'_id': { '$in' : aseq2ac.keys() }})
+	cards = [card for card in cards]
+	ac2seq = {}
+	for card in cards:
+		for ac in aseq2ac[card['_id']]:
+			ac2seq[ac] = card['s']
+	return ac2seq
+
+def accession2md5(aclist = []):
+        out_dic = {}
+        mist22 = get_mist22_client()
+        sd = get_seqdepot_client()
+        cards = mist22.genes.find({'p.ac' : { '$in' : aclist }})
+        ac2aseq = {}
+        cards = [card for card in cards]
+        for card in cards:
+                if card['p']['aid'] not in ac2aseq.keys():
+                        ac2aseq[card['p']['ac']] = [card['p']['aid']]
+                else:
+                        ac2aseq[card['p']['ac']].append(card['p']['aid'])
+        if len(cards) != len(aclist):
+                print "There are " + str(len(aclist)) + " accession numbers but only " + str(len(cards)) + " in the database"
+                print set(aclist).difference(set([ ac['p']['ac'] for ac in cards]))
+                sleep_counter(10)
+	return ac2aseq
+
+
+
 
 def alnreader(datafile, list = 'no', just_name = 'no'):
 #	"""Reads a clustalw format file and returns the information in a dictionary name:sequences"""

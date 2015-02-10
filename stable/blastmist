@@ -6,6 +6,7 @@ import sys
 import os
 if '-h' in sys.argv:
 	print 'this will blast mist, it will take all the options for blast format as usual but the db name and the query file (will be the file you provide against mist database). Mist will be in the following format: >organism_mistid-locus-accession. Sintax: blastmist filetobeblasted.fa [optional flags for blast (use \\" for ")  ] '
+	print 'This is the default: -num_threads 12 -outfmt "6 qseqid sseqid bitscore evalue qlen length" -evalue 10E-30 -max_target_seqs 100000'
 	sys.exit()
 
 MISTDB = "/home/ortegad/MIST2.2/fasta/all/mistdb"

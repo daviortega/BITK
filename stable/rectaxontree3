@@ -10,22 +10,34 @@ if '-h' in sys.argv:
 
 filename = sys.argv[1][:-19]
 
-dic = open( 'dic_fa2phy.' + filename + '.dat', 'r')
+try:
+	dicname = sys.argv[2]
+except IndexError:
+	dicname = 'dic_fa2phy.' + filename + '.dat'
+
+try:
+	outname = sys.argv[3]
+except IndexError:
+	outname = sys.argv[1][:-3] + 'rec.nwk'
+
+
+dic = open( dicname, 'r')
 
 dic_aln2phy = {}
 
 for line in dic:
 	phy_name = line[:line.find(';')]
 	real_name = line[line.find(';')+1:-1]
-	dic_aln2phy[phy_name] = real_name.replace('(','|').replace(')','|').replace(':','|').replace(',','|').replace("'", "")
+	dic_aln2phy[phy_name] = real_name.replace('(','|').replace(')','|').replace(':','|').replace(',','|').replace("'", "").replace('[','').replace(']','').replace('/','|')
 
 dic.close()
 
-os.system("cp " + sys.argv[1] + " " + sys.argv[1][:-3] + 'rec.nwk')
+os.system("cp " + sys.argv[1] + " " + outname)
 
 for phy_name in dic_aln2phy.keys():
-	print phy_name
-	print "sed -i 's/" + phy_name + "/" + dic_aln2phy[phy_name] + "/g' " + sys.argv[1][:-3] + "rec.nwk"
-	os.system("sed -i 's/" + phy_name + "/" + dic_aln2phy[phy_name] + "/g' " + sys.argv[1][:-3] + "rec.nwk")
+	#print phy_name
+	#print "sed -i 's/" + phy_name + "/" + dic_aln2phy[phy_name] + "/g' " + sys.argv[1][:-3] + "rec.nwk"
+	print dic_aln2phy[phy_name]
+	os.system("sed -i 's/" + phy_name + "/" + dic_aln2phy[phy_name] + "/g' " + outname)
 
-
+print outname

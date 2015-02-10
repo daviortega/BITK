@@ -26,6 +26,8 @@ else:
 
 qry_list = []
 
+
+print "reading the input file"
 datafile = open(sys.argv[1],'r')
 for line in datafile:
 	field = line.replace('\n','').split('\t')
@@ -51,6 +53,7 @@ for line in datafile:
 			else:
 				seq = mist.gseqs.find_one({"_id":_id},{"s":1})
 			if seq:
+				print "Adding sequence: " + field[1]
 				output[qry_list.index(qry)] += '>' + field[1] + '\n' + seq['s'] + '\n'
 			else:
 				print line
@@ -58,6 +61,8 @@ for line in datafile:
 			print "No _id: " + line
 			print "|" + hit_ac + "|"
 datafile.close()
+
+
 
 for qry in qry_list:
 	if '-dna' not in sys.argv:

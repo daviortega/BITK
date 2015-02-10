@@ -3,18 +3,12 @@
 #    Davi Ortega 1/30/2014 
 ###################################
 import sys
-import pymongo
+import bitk
 if '-h' in sys.argv:
         print 'Mist id to strain: just list of mist_id and output is the mist_id [tab] strain name'
         sys.exit()
 
-try:
-        client = pymongo.MongoClient('localhost',27017)
-except Connection:
-        print "You must open a tunnel with ares.bio.utk.edu: ssh -L 27017:are.bio.utk.edu:27017 ares.bio.utk.edu"
-        sys.exit()
-
-mist = client.mist22
+mist = bitk.get_mist22_client()
 
 
 output = ''

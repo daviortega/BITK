@@ -41,7 +41,7 @@ elif [ "$2" == '--tol-tree' ]; then
 	get_mistid_from_toltree $prjt_nm.list.conservedcog.bal.nwk
 	mv $prjt_nm.list.conservedcog.bal.nwk.mistid.list $prjt_nm.sorted.list
 else
-	echo "CheA or TOL ?!"
+	echo "CheA (--chea-tree) or TOL (--tol-tree) ?!"
 	exit 1	
 fi
 
@@ -483,7 +483,7 @@ DELIM
 
 
 if [ "$3" == '-p' ]; then
-	echo "Pubshing at $4"
+	echo "Publishing at $4"
         plubd=$4
 	mkdir -p $plubd/$prjt_nm/
 	rm $plubd/$prjt_nm/*

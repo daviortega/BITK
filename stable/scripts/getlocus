@@ -17,7 +17,7 @@ output = ''
 list = []
 #print seq_dic.keys()
 for name in seq_list:
-	organism = name.split('-')[0]+'-'+name.split('-')[1]
+	organism = name.split('-')[1]
 	if organism not in list:
 		list.append(organism)
 		output += organism + '\n'

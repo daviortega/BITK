@@ -10,7 +10,16 @@ if '-h' in sys.argv:
 	print 'Insert info in tag\nSintaxe: IIintag fasta_file.fa N info\n\tN is the position of info in tag fields (separated by "-"), 0 for last position\n\tinfo is any string to be placed in all tags in fastafile.fa\n\n-removelast remove the last field\n-subst Changes the Nth field info to the new info\n-u to update the file and to not make a copy (use at your own risk)'
 	sys.exit()
 
-seq_dic, seq_list = bitk.fastareader(sys.argv[1])
+isList = False
+
+try:
+	seq_dic, seq_list = bitk.fastareader(sys.argv[1])
+except:
+	seq_list = []
+	isList = True
+	with open(sys.argv[1]) as f:
+		for line in f:
+			seq_list.append(line.replace('\n',''))
 
 output = ''
 
@@ -39,9 +48,15 @@ else:
 			new_tag = '-'.join(tag.split('-')[:N-1]) + '-' + info + '-' + '-'.join(tag.split('-')[N:])
 		if new_tag[-1] == '-':
 			new_tag = new_tag[:-1]
-		output += '>' + new_tag + '\n' + seq_dic[tag] + '\n'
+		if isList == False:
+			output += '>' + new_tag + '\n' + seq_dic[tag] + '\n'
+		else:
+			output += new_tag + '\n' 
 	if '-u' not in sys.argv:
-		outfile = open(sys.argv[1][:-2] + 'IIintag.fa', 'w')
+		if isList == False:
+			outfile = open(sys.argv[1][:-2] + 'IIintag.fa', 'w')
+		else:
+			outfile = open(sys.argv[1][:-4] + 'IIintag.list', 'w')
 	else:
 		outfile = open(sys.argv[1], 'w')
         outfile.write(output)

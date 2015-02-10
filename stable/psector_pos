@@ -19,12 +19,15 @@ if len(sys.argv) > 2:
         if seqref not in MSA.tag:
                 print "Tag invalid"
                 sys.exit()
-	
+else:
+	seqref = MSA.tag[0]	
+
+print bias
 
 res = bitk3.p_sector5(MSA, 'pos')
 
 
-output = '\t' + '\t'.join( ["PCA" + str(i+1) for i in range(len(MSA.seq[0]))]) + '\n'
+output = 'POS\t' + '\t'.join( ["PCA" + str(i+1) for i in range(len(MSA.seq[0]))]) + '\n'
 
 gap = 0
 pos = []

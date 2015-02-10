@@ -31,7 +31,9 @@ if '-h' in sys.argv:
 		 --highlight-genomes list1,list2,...	highlight the genomes in different colors. list1 is a file with mist_ids\n \
 		 --db dbname				use precomupted blast db\n \
 		 --blastp				computer blastp results\n \
-		 --entry-group-color N1,N2,...		Multiple enntries with single color. First N1 with one color, then N2 with other and etc'
+		 --blastp-par "..."			parameters for blastp. Default: -num_threads 12 -outfmt "6 qseqid sseqid bitscore evalue qlen length qcovs slen" -evalue 0.001 -max_target_seqs 100000\n \
+		 --entry-group-color N1,N2,...		Multiple enntries with single color. First N1 with one color, then N2 with other and etc \n \
+		 --balance				Balance tree'
     sys.exit()
 
 #CLASS_IN_ORDER = ['F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9', 'F10', 'F11', 'F12', 'F13', 'F14', 'F15', 'F16', 'F17', 'F18', 'F19', 'F20', 'Tfp', 'ACF', 'Uncat']
@@ -84,12 +86,19 @@ if '--multi-evalue' in sys.argv:
 	for i in me_coff_list:
 		if '*' in i:
 			me_coff += [ float(i.split('*')[0]) ] * int(i.split('*')[1])
+		else:
+			me_coff += [ float(i) ]
 	#build database
 	print me_coff
 
+if '--blastp-par' in sys.argv:
+	par = sys.argv[sys.argv.index('--blastp-par') + 1]
+else:
+	par = '-num_threads 12 -outfmt "6 qseqid sseqid bitscore evalue qlen length qcovs slen" -evalue 0.001 -max_target_seqs 100000'
+
 
 if '--blastp' in sys.argv:
-	E = os.system('blastp -db ' + db + ' -query ' + sys.argv[1] + ' -out ' + sys.argv[1] + '.blastp.dat -num_threads 12 -outfmt "6 qseqid sseqid bitscore evalue qlen length qcovs" -evalue 0.001 -max_target_seqs 100000')
+	E = os.system('blastp -db ' + db + ' -query ' + sys.argv[1] + ' -out ' + sys.argv[1] + '.blastp.dat ' +  par)
 	if E != 0:
 		print "Blast failed for some reason... can't keep going without blast results... aborting."
 		sys.exit()
@@ -109,24 +118,46 @@ else:
 a, qry_list = bitk.fastareader(sys.argv[1])
 
 if '--multi-evalue' in sys.argv:
+	print me_coff
 	if len(me_coff) != len(qry_list):
-		print "Number of queries must have the same number of e-values after --multi-evalues"
+		print "Number of queries must have the same number of e-values after --multi-evalue"
 		print "Number of queries: " + str(len(qry_list))
 		print "Number of evalues: " + str(len(me_coff))
 		sys.exit()
 
 
 if '--multi-qcov' in sys.argv:
-	qcov_str = sys.argv[sys.argv.index('--qcov') + 1].split(',')
+	qcov_str = sys.argv[sys.argv.index('--multi-qcov') + 1].split(',')
 	qcov_coff_list = []
 	for i in qcov_str:
 		if '*' in i:
 			qcov_coff_list += [float(i.split('*')[0]) ] * int(i.split('*')[1])
+		else:
+			qcov_coff_list += [float(i)]
+	print qcov_coff_list
 elif '--qcov' in sys.argv:
 	qcov_coff = float(sys.argv[sys.argv.index('--qcov') + 1])
 
 else:
 	qcov_coff = 0
+
+
+
+
+
+if '--multi-hcov' in sys.argv:
+        hcov_str = sys.argv[sys.argv.index('--multi-hcov') + 1].split(',')
+	hcov_coff_list = []
+	for i in hcov_str:
+		if '*' in i:
+			hcov_coff_list += [float(i.split('*')[0]) ] * int(i.split('*')[1])
+		else:
+			hcov_coff_list += [float(i)]
+elif '--hcov' in sys.argv:
+        hcov_coff = float(sys.argv[sys.argv.index('--hcov') + 1])
+else:
+        hcov_coff = 0
+
 
 
 
@@ -152,12 +183,15 @@ with open(blastpfile, 'r') as f:
 			qcov = int(fields[6])/float(100)
 		except:
 			qcov = int(fields[5])/float(fields[4])
+		hcov = int(fields[5])/float(fields[7])
 		if '--multi-evalue' in sys.argv:
 			e_coff = me_coff[qry_list.index(qry)]
 		if '--multi-qcov' in sys.argv:
 			qcov_coff = qcov_coff_list[qry_list.index(qry)]
+		if '--multi-hcov' in sys.argv:
+			hcov_coff = qcov_coff_list[qry_list.index(qry)]
 		evalue = float(fields[3])
-		if evalue < e_coff and qcov > qcov_coff:
+		if evalue < e_coff and qcov > qcov_coff and hcov > hcov_coff:
 			if hit in hits[qry].keys():
 				if evalue == 0:
 					hits[qry][hit] = 300
@@ -360,21 +394,26 @@ for n in T.traverse():
 
 
 if '--root' in sys.argv:
-	root_id = sys.argv[sys.argv.index('--root') + 1]
-	D = 1
-	for n in T.traverse():
-		if n.name == root_id:
-			D = n
-			break
+	try:
+		root_id = sys.argv[sys.argv.index('--root') + 1]
+		D = -1
+	except IndexError:
+		D = T.get_midpoint_outgroup()
+	if D == -1:
+		D = 1
+		for n in T.traverse():
+			if n.name == root_id:
+				D = n
+				break
 	T.set_outgroup(D)
 
 if '--balance' in sys.argv:
 	T.ladderize()
 
-if '-c' in sys.argv:
+if '--c' in sys.argv:
     ts.mode = 'c'
 
-if '-c180' in sys.argv:
+if '--c180' in sys.argv:
     ts.mode = 'c'
     ts.arc_start = 180 # 0 degrees = 3 o'clock
     ts.arc_span = 180		
@@ -393,13 +432,13 @@ print qry_list
 ts.root_opening_factor = 1
 
 
-if '-show' in sys.argv:
+if '--show' in sys.argv:
     T.show(tree_style = ts)
 if '--newick' in sys.argv:
     T.write( outfile = sys.argv[1] + 'blastontree.nwk')
-if '-pdf' in sys.argv:
+if '--pdf' in sys.argv:
     T.render(sys.argv[1] + '.pdf', tree_style = ts)
-if '-jpg' in sys.argv:
+if '--jpg' in sys.argv:
     T.render(sys.argv[1] + '.jpg', tree_style = ts)
 if '--svg' in sys.argv:
     T.render(sys.argv[1] + '.svg', h = 1000, tree_style = ts)

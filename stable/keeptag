@@ -6,7 +6,7 @@ import bitk
 import sys
 
 if '-h' in sys.argv:
-	print 'Reads tags from one alignment (or list) and keeps only those from the second alignment\n\n\tSintaxe: python keeptag list_align.fa (or .list) alignment.fa'
+	print 'Reads tags from one alignment (or list) and keeps only those from the second alignment\n\n\tSintaxe: python keeptag alignment.fa list_align.fa (or .list)'
 	sys.exit()
 
 try:
@@ -20,13 +20,16 @@ except:
 orign_dic, orign_list = bitk.fastareader(sys.argv[2])
 
 output = ''
-for tag in filel_list:
+for oldtag in filel_list:
+	tag = '-'.join(oldtag.split('-')[:3])
 	try:
-		output += '>' + tag + '\n' + orign_dic[tag] + '\n'
-	except IndexError:
+		output += '>' + oldtag + '\n' + orign_dic[tag] + '\n'
+		print oldtag
+	except KeyError:
+		print "\033[91m" + oldtag + '\033[0m'
 		pass
 
-datafile = open(sys.argv[2][:-3] + '.new.fa', 'w')
+datafile = open(sys.argv[1][:-3] + '.new.fa', 'w')
 datafile.write(output)
 datafile.close()
 	

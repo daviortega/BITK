@@ -32,20 +32,27 @@ for n in T.traverse():
 		try:
 			mid = int(n.name.split('|')[0])
 		except ValueError:
-			mid = int(n.name.split('-')[0].split('.')[-1])
-			
-		tax = mist22.genomes.find_one({'_id' : mid})
-		print tax
-		try:
-			tax = tax['ta'][tax_level]
-		except IndexError:
-			tax = "----Not Available----"
-		try:
-			n.name = str(mid) + '|' + tax + '|' + n.name.split('|')[1]
-		except IndexError:
-			n.name = str(mid) + '|' + tax + '|' + n.name
+			try:
+				print n.name
+				mid = int(n.name.split('-')[0].split('.')[-1])
+			except ValueError:
+				mid = 'None'
+			tax = None
+			tax = mist22.genomes.find_one({'_id' : mid})
+			if tax != None:
+				print tax
+				try:
+					tax = tax['ta'][tax_level]
+				except IndexError:
+					tax = "----Not Available----"
+				try:
+					n.name = str(mid) + '|' + tax + '|' + n.name.split('|')[1]
+				except IndexError:
+					n.name = str(mid) + '|' + tax + '|' + n.name
+			else:
+				n.name = '|XXX|----NOT IN MIST----|' + n.name
 	else:
-		n.name = ''
+		n.name = n.support
 
 T.write(format=1, outfile = filename + '.tax_' + str(tax_level) + '.nwk')
 sys.exit()

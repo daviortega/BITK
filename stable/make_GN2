@@ -19,7 +19,7 @@ if '-h' in sys.argv:
 	-name		Include the name of the chemotaxis genes \n \
 	-locus		Include name of the locus number of each gene (it is messy, but you should be able to disentangle the info in post-production)\n \
 	-org		Reference name will be Name of the strain  -  locus number - GN\n \
-	-order_st	Correct the direction of the genes by the central gene direction poiting to the right \n \
+	--order_st	Correct the direction of the genes by the central gene direction poiting to the right \n \
 	--sort		Sort list of sequnces by alphabetical order \n \
 	--svg		output svg file\n \
 	--che_color	color chemotaxis proteins if any\n \
@@ -57,8 +57,13 @@ largest_operon = 0
 
 output = ''
 
+
+mistake = []
+
 for i in range(len(seq_list)):
+	print "\n\n Starting new..."
 	tag = seq_list[i]
+	print tag
 	if '-org' in sys.argv:
 		mistid = int(tag.split('-')[0].split('.')[-1])
 		new_tag = mist.genomes.find_one({'_id':mistid})
@@ -135,12 +140,16 @@ for i in range(len(seq_list)):
 		coords_list.append(coords)
 		print tag
 	else:
-		print 'This did not work well and it will be excluded: ' + tag 
+		print 'This did not work well and it will be excluded: ' + tag
+		mistake.append(tag)
+	print "All done here"
 
 sf = 1/float(largest_operon+100)
  
-
+print "\nStarting plotting"
 for i in range(len(coords_list)):
+	print str(i) + "/" + str(len(coords_list))
+	print coords_list[i]
 	coords = coords_list[i]
 #	if '-org' not in sys.argv:
 #		ax = fig.add_subplot(col,3,3*i+3)
@@ -150,7 +159,7 @@ for i in range(len(coords_list)):
 	ax.axis('off')
 #	sf = 1/float(ab - coords[0][0])
 	
-	if '-order_st' in sys.argv and coords[N][2] == '-':
+	if '--order_st' in sys.argv and coords[N][2] == '-':
 		beg = coords[0][0]
 		coords.reverse()
 		new_coords = []
@@ -179,7 +188,7 @@ for i in range(len(coords_list)):
 		dx = (coord[1] - coord[0])*sf
 #		ax.add_patch(mpatches.Arrow(start,1.5,dx,0,width = 1,color = colors_array[coords.index(coord)]))
 		output += coord[4] + ':' + coord[3] + ';'
-		if '--che-color' in sys.argv:
+		if '--che_color' in sys.argv:
 			color_str = che_colors[che_array.index(coord[3])]
 		else:
 			color_str = 'white'
@@ -230,7 +239,7 @@ if '--svg' in sys.argv:
 if '--show' in sys.argv:
 	plt.show()
 
-
+print mistake
 
 
 

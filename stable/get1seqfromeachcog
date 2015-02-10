@@ -59,12 +59,14 @@ for line in cogin:
 				else:
 					break
 
+print "output"
+print output 
 cogin.close()
 
 if COGs == 'all':
-	dataout = open(sys.argv[1][:-3] + 'cogs.all.fa', 'w')
+	dataout = open(sys.argv[1][:-3] + 'cogs.1seq.all.fa', 'w')
 else:
-	dataout = open(sys.argv[1][:-3] + 'cogs.' + '.'.join(COGs) + '.fa', 'w')
+	dataout = open(sys.argv[1][:-3] + 'cogs.1seq.' + '.'.join(COGs) + '.fa', 'w')
 dataout.write(output)
 dataout.close()
 

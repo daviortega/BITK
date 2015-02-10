@@ -43,24 +43,20 @@ order_dic = {}
 for tag in seq_list:
 	if tag.split('-')[N] not in classes.keys():
 		classes[ tag.split('-')[N] ] = 1
-		order_dic[int(tag.split('-')[N].replace('COG',''))] = tag.split('-')[N]
 	else:
 		classes[ tag.split('-')[N] ] += 1
 
 print classes
 
-
-
-
-class_list = order_dic.keys()
+class_list = classes.keys()
 class_list.sort()
 output = ''
 for i in class_list:
-	print order_dic[i]
-	output += str(classes[order_dic[i]]) + ','
+	output += i + ' - ' + str(classes[i]) +'\n'
 
 
 print output
+print len(class_list)
 
 #f = open(sys.argv[1][:-4] + '.attribute_pergenomes.json', 'w')
 #json.dump(json_out, f)

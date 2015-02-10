@@ -13,7 +13,7 @@ phyml_flags="-q -d aa -m JTT -c 4 -a e -s SPR --no_memory_check"
 #phyml_flags_16S="-q -m GTR -c 20 -a e -s SPR --no_memory_check"
 r16Sfile="16S.latest.json.fa"
 Gblocks_flags=" -t=d -b5=h -b4=2"
-make_GN_flags="7 -pdf -org -order_st --che_color --svg"
+make_GN_flags="7 -pdf -org --order_st --che_color --svg --sort"
 
 prjt_nm=${1%.*}
 

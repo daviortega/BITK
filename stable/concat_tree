@@ -11,8 +11,20 @@ if '-h' in sys.argv:
 			 --buildmongo mongo_db_name	Build new mongodb with RPS results from scratch. If mongo_db_name exists, the program will drop it.\n \
 			 --updatemongo mongo_db_name	Update mongo_db_name if necessary (recommended if you are inputing some new sequences\n \
 			 --frommongo mongo_db_name	produce the alignment from current data in the mongo_db_name\n \
-			 --maketree			Make the tree with the info calculated before'
+			 --maketree			Make the tree with the info calculated before\n \
+			 --bydomain			perform alignments separately per domain\n \
+			 --algo (linsi,einsi,muscle)	choose the alignment algorithm ( default = linsi)\n'
 	sys.exit()
+
+
+if '--algo' in sys.argv:
+	algo = sys.argv[sys.argv.index('--algo')+1]
+	if algo not in ['linsi', 'einsi', 'muscle']:
+		print "The " + algo + " alignment algorithm is not available. Try: linsi, einsi or muscle"
+		sys.exit()
+else:
+	algo = 'linsi'
+
 
 genomes = []
 with open(sys.argv[1], 'r') as f:
@@ -26,7 +38,7 @@ for genome in genomes:
 
 if '--rps' in sys.argv:
 	if '--autofix' not in sys.argv:
-		data, genomes_new = bitkTOL.run_rps(notindb)
+		data, genomes_new = bitkTOL.run_rps(notindb, )
 	else:
 		data, genomes_new = bitkTOL.run_rps(notindb, autofix = True)
 		if list(set(genomes) - set(genomes_new)) != []:
@@ -48,7 +60,7 @@ if '--frommongo' in sys.argv:
 	data, errors = bitkTOL.load_from_mongoTOL(genomes, sys.argv[sys.argv.index('--frommongo')+1])
 	if errors != []:
 		print "Found errors due to some genomes in the original list was not present in the database. I will try to update the database automatically for you"
-		new_data = bitkTOL.run_rps(errors)
+		new_data, updatedtodb = bitkTOL.run_rps(errors)
 		new_data = bitkTOL.rpsdata2mongocards(new_data)
 		bitkTOL.update_mongoTOL(new_data, sys.argv[sys.argv.index('--frommongo')+1])
 	data, errors = bitkTOL.load_from_mongoTOL(genomes, sys.argv[sys.argv.index('--frommongo')+1])
@@ -59,11 +71,21 @@ if '--frommongo' in sys.argv:
 
 if '--maketree' in sys.argv:
 	cog_list = bitkTOL.pre_aligncog(genomes, data)
-	bitkTOL.aligncog(cog_list)
-	name = bitkTOL.concat(cog_list)
-	name = bitkTOL.gb(name)
+	if '--bydomain' in sys.argv:
+		domainlist = bitkTOL.aligncogbykingdom(cog_list, algo = algo)
+		name = bitkTOL.concatbykingdom(cog_list, domainlist)
+		name = bitkTOL.gbbykingdom(name)
+	else:
+		bitkTOL.aligncog(cog_list)
+		name = bitkTOL.concat(cog_list)
+		name = bitkTOL.gb(name)
+	
 	name = bitkTOL.preptree(name)
-	name = bitkTOL.maketree(name)
-	bitkTOL.posttree(name, sys.argv[1] + '.conservedcog.nwk')
+	if '--supertree' in sys.argv:
+		name = bitkTOL.maketree(name, supertree = 'Y')
+		bitkTOL.posttree(name, sys.argv[1] + '.conservedcog.supertree.nwk')
+	else:
+		name = bitkTOL.maketree(name)
+		bitkTOL.posttree(name, sys.argv[1] + '.conservedcog.nwk')
 #print data
 

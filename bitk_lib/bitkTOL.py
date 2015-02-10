@@ -11,8 +11,8 @@ import ast
 #########################################################
 cdds_path = '/home/ortegad/MIST3/TOL/cdds/'
 genomes_path = '/home/ortegad/MIST3/TOL/genomes/'
-TOLdb_path = '/home/ortegad/MIST3/TOL/TOLdb/'
-TOLdb_name = 'CogTOL2'
+TOLdb_path = '/home/ortegad/MIST3/TOL/31COGs_MIST/31COGsdb/'
+TOLdb_name = '31COGs'
 TOL_cog_list = [ "gnl|CDD|223091",
         "gnl|CDD|223095",
         "gnl|CDD|223126",
@@ -35,12 +35,14 @@ TOL_cog_list = [ "gnl|CDD|223091",
         "gnl|CDD|223262",
         "gnl|CDD|223264",
         "gnl|CDD|223275",
+	"gnl|CDD|223177",
         "gnl|CDD|223278",
         "gnl|CDD|223279",
         "gnl|CDD|223280",
         "gnl|CDD|223334",
         "gnl|CDD|223569",
         "gnl|CDD|223596",
+	"gnl|CDD|223599",
         "gnl|CDD|223607"
 	]
 
@@ -106,6 +108,7 @@ def run_rps(mid_list = [], dbname = TOLdb_name,TOLdb_path = TOLdb_path, autofix 
 	dbname = TOLdb_path + dbname
 	#preparing list of commands
 	rpscommands = []
+	mid_list = set(mid_list)
 	for mid in mid_list:
 		rpscommands.append('rpsblast -query ' + genomes_path + 'mist22.' + mid + '.fa -db ' + dbname + ' -evalue 0.1 -outfmt 6 -out rps.mist22.' + mid + '.dat :' + mid )
 
@@ -166,6 +169,7 @@ def rpsdata2mongocards(mongo_cards):
         pacs = []
         mongo_card = mongo_cards
 	for card in mongo_card:
+#		print card
                 for key, value in card.iteritems():
                         if key != 'gid' and key != 'cog_list':
                                 pacs.append(value[0].split('-')[-1])
@@ -200,6 +204,7 @@ def rpsdata2mongocards(mongo_cards):
         for card in mongo_card:
                 seq_dic = {'gid' : card['gid']}
 #               print card['gid']
+#		print card
                 for key, value in card.iteritems():
                         if key != 'gid' and key != 'cog_list':
                                 pac = value[0].split('-')[-1]
@@ -320,19 +325,35 @@ def pre_aligncog(mid_list, new_mongo, ignore_problems = False):
 	cog_list.sort()
 	return cog_list
 
-def aligncog(cog_list):
+def aligncog(cog_list, algo = 'linsi'):
         def submit_to_linsi(fasta = ''):
-                os.system(' linsi --quiet --thread 12 ' + fasta + ' > ' + fasta[:-3] + '.linsi.fa')
+                os.system('linsi --quiet --thread 12 ' + fasta + ' > ' + fasta[:-3] + '.linsi.fa')
+		return fasta[:-3] + '.linsi.fa'
+	def submit_to_muscle(fasta = ''):
+		os.system('muscle -in ' + fasta + ' -out ' + fasta[:-3] + '.muscle.fa -maxiters 100 -quiet')
+		return fasta[:-3] + '.muscle.fa'
+	def submit_to_einsi(fasta = ''):
+                os.system(' einsi --quiet --thread 12 ' + fasta + ' > ' + fasta[:-3] + '.einsi.fa')
+		return fasta[:-3] + '.einsi.fa'
+	
         for cog in cog_list:
                 print "Aligning " + cog
-                submit_to_linsi( 'cdd.' + cog.split('|')[-1] + '.fa' )
+		if algo == 'linsi':
+			name = submit_to_linsi( 'cdd.' + cog.split('|')[-1] + '.fa' )
+		elif algo == 'muscle':
+			name = submit_to_muscle(  'cdd.' + cog.split('|')[-1] + '.fa')
+		elif algo == 'einsi':
+			name = submit_to_einsi( 'cdd.' + cog.split('|')[-1] + '.fa')
 
 
-def concat(cog_list, filename = 'concat.fa'):
+
+def concat(cog_list, filename = 'concat.fa', algo = 'linsi'):
+	if filename == None:
+		filename = 'concat.fa'
         concat = {}
         print "Concatenating the alignments"
         for cog in cog_list:
-                seq_dic, tags = bitk.fastareader('cdd.' + cog.split('|')[-1] + '.linsi.fa', 'r')
+                seq_dic, tags = bitk.fastareader('cdd.' + cog.split('|')[-1] + '.' + algo + '.fa', 'r')
                 for tag in tags:
                         if tag not in concat.keys():
                                 concat[tag] = seq_dic[tag]
@@ -355,54 +376,122 @@ def concat(cog_list, filename = 'concat.fa'):
 		        fout.write(output)
 		        fout.close()
                         sys.exit()
-		print len(concat[tag])
+		print tag + '\t' + str(len(concat[tag]))
 
+	print filename
         fout = open(filename, 'w')
         fout.write(output)
         fout.close()
 	return filename
 
-def aligncogbykingdom(cog_list):
+
+def doalnmuscle(cog):
+	kinglist = []
+	kingdic = {}
+	if 1 == 1:
+	        seq_dic, tags = bitk.fastareader('cdd.' + cog.split('|')[-1] + '.fa')
+        	if kingdic == {}:
+	                tagsI = [ int(tag) for tag in tags ]
+                        taxinfo = mist.genomes.find({'_id' :  { '$in' : tagsI }}, { 'ta' : 1, 'n' : 1 })
+                        for i in taxinfo:
+                                kingdic[i['_id']] = i['ta'][0]
+                        kinglist = list(set(kingdic.values()))
+                        print kinglist
+                for kingdom in kinglist:
+                        print "Aligning " + cog + ' from kingdom ' + kingdom
+                        if kingdom not in kinglist:
+                                kinglist.append(kingdom)
+                        output = ''
+                        for tag in tags:
+                                if kingdic[int(tag)] == kingdom:
+                                        output += '>' + str(tag) + '\n' + seq_dic[str(tag)] + '\n'
+                        with open('cdd.' + cog.split('|')[-1] + '.' + kingdom + '.fa', 'w' ) as f:
+                                f.write(output)
+                        submit_to_muscle( 'cdd.' + cog.split('|')[-1] + '.' + kingdom + '.fa')
+	return kinglist
+
+
+def submit_to_muscle(fasta = ''):
+        os.system('muscle -in ' + fasta + ' -out ' + fasta[:-3] + '.muscle.fa -maxiters 100')
+        return fasta[:-3] + '.muscle.fa'
+
+
+
+def aligncogbykingdom(cog_list, algo = 'linsi', Np = 20):
         def submit_to_linsi(fasta = ''):
                 os.system(' linsi --quiet --thread 12 ' + fasta + ' > ' + fasta[:-3] + '.linsi.fa')
 		return fasta[:-3] + '.linsi.fa'
+        def submit_to_einsi(fasta = ''):
+                os.system(' einsi --quiet --thread 12 ' + fasta + ' > ' + fasta[:-3] + '.einsi.fa')
+                return fasta[:-3] + '.einsi.fa'
+
+	def submit_to_muscle(fasta = ''):
+		os.system('muscle -in ' + fasta + ' -out ' + fasta[:-3] + '.muscle.fa -maxiters 100')
+		return fasta[:-3] + '.muscle.fa'
 
 	sets = {}
 	kingdic = {}
 	kinglist = []
-	for cog in cog_list:
-		seq_dic, tags = bitk.fastareader('cdd.' + cog.split('|')[-1] + '.fa')
-		if kingdic == {}:
-			tagsI = [ int(tag) for tag in tags ]
-			taxinfo = mist.genomes.find({'_id' :  { '$in' : tagsI }}, { 'ta' : 1, 'n' : 1 })
-			for i in taxinfo:
-				kingdic[i['_id']] = i['ta'][0]
-			kinglist = list(set(kingdic.values()))
-			print kinglist
-		for kingdom in kinglist:
-			print "Aligning " + cog + ' from kingdom ' + kingdom
-			if kingdom not in kinglist:
-				kinglist.append(kingdom)
-			output = ''
-			for tag in tags:
-				if kingdic[int(tag)] == kingdom:
-					output += '>' + str(tag) + '\n' + seq_dic[str(tag)] + '\n'
-			with open('cdd.' + cog.split('|')[-1] + '.' + kingdom + '.fa', 'w' ) as f:
-				f.write(output)
-			submit_to_linsi( 'cdd.' + cog.split('|')[-1] + '.' + kingdom + '.fa')
+#	for cog in cog_list:
+	if len(cog_list) < Np:
+		Np = len(cog_list)
+	
+	if Np < 2 or algo == 'linsi' or algo == 'einsi':
+		for cog in cog_list:
+	                seq_dic, tags = bitk.fastareader('cdd.' + cog.split('|')[-1] + '.fa')
+	                if kingdic == {}:
+        	                tagsI = [ int(tag) for tag in tags ]
+	              		taxinfo = mist.genomes.find({'_id' :  { '$in' : tagsI }}, { 'ta' : 1, 'n' : 1 })
+        	                for i in taxinfo:
+                	                kingdic[i['_id']] = i['ta'][0]
+                        	kinglist = list(set(kingdic.values()))
+	                        print kinglist
+        	        for kingdom in kinglist:
+                	        print "Aligning " + cog + ' from kingdom ' + kingdom
+                        	if kingdom not in kinglist:
+                                	kinglist.append(kingdom)
+	                        output = ''
+        	                for tag in tags:
+                	                if kingdic[int(tag)] == kingdom:
+                        	                output += '>' + str(tag) + '\n' + seq_dic[str(tag)] + '\n'
+	                        with open('cdd.' + cog.split('|')[-1] + '.' + kingdom + '.fa', 'w' ) as f:
+        	                        f.write(output)
+                	        if algo == 'linsi':
+                        	        submit_to_linsi( 'cdd.' + cog.split('|')[-1] + '.' + kingdom + '.fa')
+				elif algo == 'einsi':
+					submit_to_einsi( 'cdd.' + cog.split('|')[-1] + '.' + kingdom + '.fa')
+	                        elif algo == 'muscle':
+         	                        submit_to_muscle( 'cdd.' + cog.split('|')[-1] + '.' + kingdom + '.fa')
+                 	        else:
+                         	        print "Alignment algorithm " + algo + " not supported"
+                                	sys.exit()
+
+	elif algo == 'muscle':
+		pool = multip.Pool(processes=Np)
+		kinglist = pool.map(doalnmuscle, cog_list)
+
+		newkinglist = []
+		for i in kinglist:
+			for j in i:
+				if j not in newkinglist:
+					newkinglist.append(j)
+
+		kinglist = newkinglist
+
+	print kinglist
 
 	return kinglist
 
 
-def concatbykingdom(cog_list, kinglist = [], filename = 'concat.fa'):
+def concatbykingdom(cog_list, kinglist = [], filename = 'concat.fa', algo = 'linsi'):
 	kingdic = {}
         print "Concatenating the alignments"
 	filenames = []
 	for kingdom in kinglist:
 		concat = {}
 	        for cog in cog_list:
-        	        seq_dic, tags = bitk.fastareader('cdd.' + cog.split('|')[-1] + '.' + kingdom + '.linsi.fa', 'r')
-                	for tag in tags:
+			seq_dic, tags = bitk.fastareader('cdd.' + cog.split('|')[-1] + '.' + kingdom + '.' + algo + '.fa', 'r')
+			for tag in tags:
                         	if tag not in concat.keys():
                                 	concat[tag] = seq_dic[tag]
 	                        else:
@@ -433,8 +522,9 @@ def concatbykingdom(cog_list, kinglist = [], filename = 'concat.fa'):
 		filenames.append(fname)
         return filenames
 
-def gbbykingdom(filenames = [], par = '-b3=8 -b4=2 -b5=h') :
+def gbbykingdom(filenames = [], par = '-b3=8 -b4=2 -b5=h', algo = 'mafft') :
 	profile = []
+	print "Making profile alignment with " + algo
 	for filename in filenames:
 	        os.system('Gblocks ' + filename + ' ' + par)
         	filenamenew = filename.split('.')
@@ -445,19 +535,33 @@ def gbbykingdom(filenames = [], par = '-b3=8 -b4=2 -b5=h') :
 
 	for i in range(len(profile)-1):
 		if i == 0:
-			os.system('mafft-profile ' + profile[i] + ' ' + profile[i+1] + ' > profile_concat_tmp.fa')
-			os.system('mv profile_concat_tmp.fa pctmp.fa')
+			if algo == 'mafft':
+				os.system('mafft-profile ' + profile[i] + ' ' + profile[i+1] + ' > profile_concat_tmp.fa')
+			elif algo == 'clustalw':
+				os.system('clustalw2 -profile -profile1=' + profile[i] + ' -profile2=' + profile[i+1] + ' -output=fasta -outfile=profile_concat_tmp.fa')
+			elif algo == 'einsi' or algo == 'linsi':
+				os.system('mafft-' + algo + ' --thread 12 --addprofile ' + profile[i] + ' ' + profile[i+1] + ' > profile_concat_tmp.fa')
 		else:
-			os.system('mafft-profile pctmp.fa' + profile[i+1] + ' > profile_concat_tmp.fa')
-			os.system('mv profile_concat_tmp.fa pctmp.fa')
-
-	filenamenew = 'concat.gb.mafftprofile.fa'
+			if algo == 'mafft':
+				os.system('mafft-profile pctmp.fa' + profile[i+1] + ' > profile_concat_tmp.fa')
+			elif algo == 'clustalw':
+				os.system('clustalw2 -profile -profile1=pctmp.fa -profile2=' + profile[i+1] + ' -output=fasta -outfile=profile_concat_tmp.fa')
+			elif algo == 'einsi' or algo == 'linsi':
+				os.system('mafft-' + algo + ' --thread 12 --addprofile pctmp.fa' + profile[i+1] + ' >  profile_concat_tmp.fa')
+		os.system('mv profile_concat_tmp.fa pctmp.fa')
+				
+	filenamenew = 'concat.gb.' + algo + 'profile.fa'
+	
 	os.system('mv pctmp.fa ' + filenamenew)
+
+	print "Done with profile"
         return filenamenew
 
 
 
-def gb(filename = 'concat.fa', par = '-b3=8 -b4=2 -b5=h') :
+def gb(filename = 'concat.fa', par = '-b3=8 -b4=2 -b5=h', algo ='') :
+	if filename.__class__ == list:
+		filename = filename[0]
         os.system('Gblocks ' + filename + ' ' + par)
 	filenamenew = filename.split('.')
 	filenamenew.insert(len(filenamenew)-1, 'gb')
@@ -466,6 +570,7 @@ def gb(filename = 'concat.fa', par = '-b3=8 -b4=2 -b5=h') :
 	return filenamenew
 
 def preptree(filename = 'concat.gb.fa', nogid = False):
+	print "Starting the preparation to make a tree"
         seq_dic, tags = bitk.fastareader(filename)
         tags = [ int(i) for i in tags]
         names = mist.genomes.find({'_id' :  { '$in' : tags }}, {'n' : 1, '_id':1})
@@ -486,33 +591,50 @@ def preptree(filename = 'concat.gb.fa', nogid = False):
         fout = open(filename, 'w')
         fout.write(output)
         fout.close()
+	print "Done with prepping"
 	return filename
 
 
-def maketree(filename = 'concat.gb.names.fa', bootstrap = 0, NPraxml = 20):
+def maketree(filename = 'concat.gb.names.fa', bootstrap = 0, NP = 20, par = '-m PROTGAMMAILG', supertree = 'N'):
         os.system('rm RAxML*')
         os.system('fa2phy ' + filename)
 	filename = filename.split('.')
 	filenamenew = '.'.join(filename[:-1])
 	filename = '.'.join(filename[:-1] + ['phy'])
 
-	if bootstrap != 0:
-		os.system('raxmlHPC-PTHREADS-AVX -T ' + str(NPraxml) + ' -m PROTGAMMAJTTF -p 12345 -# ' + str(bootstrap) + ' -s ' + filename + ' -n ' + filenamenew + '.besttree_raxml.nwk')
-        else:
-                os.system('raxmlHPC-PTHREADS-AVX -T ' + str(NPraxml) + ' -m PROTGAMMAJTTF -p 12345 -s ' + filename + ' -n ' + filenamenew + '.besttree_raxml.nwk')
+
+
+	print filename
+	if supertree == 'N':
+		if bootstrap != 0:
+			command = 'raxmlHPC-PTHREADS-AVX -T ' + str(NP) + ' ' + par + ' -p 12345 -# ' + str(bootstrap) + ' -s ' + filename + ' -n ' + filenamenew + '.besttree_raxml.nwk'
+	        else:
+        	        command = 'raxmlHPC-PTHREADS-AVX -T ' + str(NP) + ' ' + par + ' -p 12345 -s ' + filename + ' -n ' + filenamenew + '.besttree_raxml.nwk'
+	else:
+		command = 'raxmlHPC-PTHREADS-AVX -T ' + str(NP) + ' ' + par + ' -p 12345 -f d -f a -x 1298 -# 1000 -s ' + filename + ' -n ' + filenamenew + '.besttree_raxml.nwk'
+	print "Command: " + command
+	os.system(command)
 	return filenamenew + '.besttree_raxml.nwk'
 
 
-def maketreephyml(filename = 'concat.gb.names.fa', bootstrap = 0, NP = 20):
+def maketreephyml(filename = 'concat.gb.names.fa', par = '-q -d aa -m JTT -c 4 -a e -v e -s SPR --no_memory_check', bootstrap = 0, NP = 0):
         os.system('fa2phy ' + filename)
         filename = filename.split('.')
         filenamenew = '.'.join(filename[:-1])
         filename = '.'.join(filename[:-1] + ['phy'])
 
-        if bootstrap == 0:
-                os.system('phyml -i ' + filename + ' -q -d aa -m JTT -c 4 -a e -v e -s SPR --no_memory_check')
+        if bootstrap < 2:
+		if NP > 2:
+			command = "mpirun -n " + str(NP) + " phyml-mpi"
+		else:
+			command = "phyml"
+		print command + ' -i ' + filename + ' ' + par
+ 		os.system(command + ' -i ' + filename + ' ' + par)
+#		os.system('phyml -i ' + filename + ' -q -d aa -m JTT -c 4 -a e -v e -s SPR -o tl --rand_start --n_rand_start 10 -b -4 --no_memory_check')
         else:
-                os.system('mpirun -n ' + str(NP) + 'phyml-mpi -i ' + filename + ' -q -d aa -m JTT -c 4 -a e -v e -s SPR --no_memory_check -b ' + bootstrap )
+		if NP < bootstrap:
+			NP = bootstrap
+                os.system('mpirun -n ' + str(NP) + ' phyml-mpi -i ' + filename + ' -q -d aa -m JTT -c 4 -a e -v e -s SPR --no_memory_check -b ' + bootstrap )
         return filenamenew + '.phy_phyml_tree.txt'
 
 
@@ -522,7 +644,7 @@ def posttree(filename = 'concat.gb.names.besttree_raxml.nwk', treefilename = 'bi
 #       if E != 0:
 #       	print "but do not worry, I got this!!!!"
         os.system('cp RAxML_bestTree.' + filename + ' ' + filename)
-        os.system('rectaxontree2 ' + filename)
+        os.system('rectaxontree3 ' + filename)
 	filename = filename.split('.')
         filename.insert(len(filename)-1, 'rec')
         filename = '.'.join(filename)

@@ -84,7 +84,7 @@ class msa(object):
 
 	def res_num2pos(self, res_num, tag, bias = 0):
 		aa_count = -1
-		res_num = res_num - bias
+		res_num = res_num + bias
 		for i in range(len(self.org[tag])):
 			if self.org[tag][i] != '-':
 				aa_count += 1

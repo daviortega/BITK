@@ -3,20 +3,30 @@
 #    Davi Ortega 4/13/2014 
 ###################################
 import sys
+import bitk
+import numpy
 if '-h' in sys.argv:
 	print 'put your explanation here'
 	sys.exit()
 
 
-datafile = open(sys.argv[1],'r')
+seq_dic, tags  = bitk.fastareader(sys.argv[1])
 
 output = ''
 
-for line in datafile:
-	if line[0] != '>':
-		output += str(len(line.replace('\n',''))) + '\n'
+lenall = []
+lennogaps = []
 
-datafile.close()
+for tag in tags:
+	seq = seq_dic[tag]
+	output += str(len(seq)) + '\n'
+	lenall.append(len(seq))
+	lennogaps.append(len(seq.replace('-','')))
+
+lenall = numpy.array(lenall)
+lennogaps = numpy.array(lennogaps)
+print lenall.mean()
+print lennogaps.mean() 
 
 outfile = open('fa2len.results.dat' ,'w')
 outfile.write(output)
