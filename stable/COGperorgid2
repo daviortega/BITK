@@ -1,0 +1,58 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 4/26/2013 
+###################################
+import bitk
+import sys
+if '-h' in sys.argv:
+	print 'outputs table of counts of number of members per cog per organism. \n \
+	Sintax: COGperorgid2 organism.tag.list some.cog.dat -ref refgen'
+	sys.exit()
+
+datafile = open(sys.argv[1],'r')
+
+#org_dic = {}
+orglist = []
+
+if "-ref" in sys.argv:
+    refgen = sys.argv[sys.argv.index('-ref')+1]
+else:
+    refgen = ""
+
+for line in datafile:
+	tag = line.replace('\n','')
+	tag = tag.split('-')[0]
+	orglist.append(tag)
+#	org_dic[tag] = []
+
+datafile.close()
+print orglist
+
+data = []
+locus = []
+with open(sys.argv[2], 'r') as f:
+    for line in f:
+        if "COG " in line:
+            data.append([])
+            locus.append([])
+        else:
+            org = line.split('-')[0]
+            while "'" in org:
+                org = org.replace("'","")
+            if org == refgen:
+                locus[-1].append(line.split("-")[1])
+            orgid = org.split(".")[-1]
+            data[-1].append(orgid)
+
+output = "MiST Id\t" + "\t".join([ "COG " + str(i+1) for i in range(len(data))]) + '\n'
+output += "Locus\t" + "\t".join([ ",".join(i) for i in locus]) + '\n'
+
+for org in orglist:
+    output += org + '\t' + '\t'.join([ str(data[i].count(org)) for i in range(len(data))]) + '\n'
+
+datafile = open('.'.join(sys.argv[1].split('.')[:-1]) + '.cogperorg2.dat' , 'w')
+datafile.write(output)
+datafile.close()
+
+	
+

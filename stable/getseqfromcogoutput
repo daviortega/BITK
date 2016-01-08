@@ -19,10 +19,27 @@ def is_int(x):
 
 COGs = sys.argv[3:]
 
+COGtype = ""
+
 if "all" in COGs:
 	COGs = 'all'
+	COGtype = "all"
 else:
-	COGs = [ x for x in sys.argv[3:] if is_int(x) ]
+	COGs = []
+	for x in sys.argv[3:]:
+		if "+" in x:
+			topC = x.replace('+','')
+			if is_int(topC):
+				COGs = [ str(i + 1) for i in range(int(topC)) ]
+				COGtype = "top" + topC
+		else:
+			if is_int(x):
+				COGs.append(x)
+
+					
+print COGs
+#	COGs = [ x for x in sys.argv[3:] if is_int(x) ]
+
 
 seq_dic, seq_list = bitk.fastareader(sys.argv[2])
 
@@ -34,7 +51,7 @@ for line in cogin:
 		if COGs == 'all':
 			N = line
 			for line in cogin:
-				print line
+				#print line
                                 if line != '\n':
                                         tag = line.replace('\n','')
                                         if '--cog-flag' in sys.argv:
@@ -59,6 +76,8 @@ cogin.close()
 
 if COGs == 'all':
 	dataout = open(sys.argv[1][:-3] + 'cogs.all.fa', 'w')
+elif "top" in COGtype:
+	dataout = open(sys.argv[1][:-3] + 'cogs.' + COGtype + '.fa', 'w')
 else:
 	dataout = open(sys.argv[1][:-3] + 'cogs.' + '.'.join(COGs) + '.fa', 'w')
 dataout.write(output)

@@ -1,0 +1,38 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 7/29/2015 
+###################################
+import sys
+import bitk
+if '-h' in sys.argv:
+	print 'Simple parser from fasta to nexus format'
+	sys.exit()
+
+
+seq_dic, seq_list = bitk.fastareader(sys.argv[1])
+
+ntax = len(seq_list)
+nchar = len(seq_dic.values()[0])
+
+output ="#nexus\nbegin data;\ndimensions ntax=" + str(ntax) +" nchar=" + str(nchar) + "; \n \
+	format datatype=protein gap=-; \n \
+	matrix\n"
+i = 0
+outdic = ""
+
+
+for tag in seq_list:
+	new_tag = "XXX" + str(i)
+	output += new_tag +  " " * (10 - len(new_tag)) + seq_dic[tag] + '\n'
+	outdic += new_tag + ';' + tag + "\n"
+	i += 1
+
+output += "  ;\nend;"
+
+with open(sys.argv[1] + ".nex", "w") as f:
+	f.write(output)
+
+with open("dic_fa2nex.dat", "w") as f:
+	f.write(outdic)
+
+

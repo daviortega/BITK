@@ -33,7 +33,7 @@ new_seq = 1
 print "Parsing........"
 for line in hmmfile:
 	if "Query sequence" in line:
-		tag = line.split(':')[1].replace(' ','').replace('\n','')
+		tag = ":".join(line.split(':')[1:]).replace(' ','').replace('\n','')
 		new_seq = 0
 	if ("------" in line) and (new_seq == 0):
 		new_seq = 1

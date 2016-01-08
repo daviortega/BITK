@@ -46,125 +46,47 @@ else
 	exit 1	
 fi
 
-
-echo "Formating the COG information for R"
-COGperorgid $prjt_nm.sorted.list mcp.latest.s.class.$prjt_nm.cog.dat
-mv $prjt_nm.sorted.cogperorg.dat $prjt_nm.sorted.mcp.cogperorg.dat
-COGperorgid $prjt_nm.sorted.list mcp.latest.s.class.$prjt_nm.hmmtrim.cog.dat
-mv $prjt_nm.sorted.cogperorg.dat $prjt_nm.sorted.mcp.hmmtrim.cogperorg.dat
-COGperorgid $prjt_nm.sorted.list adap.latest.s.$prjt_nm.hmmtrim.cog.dat
-mv $prjt_nm.sorted.cogperorg.dat $prjt_nm.sorted.adap.cogperorg.dat
-COGperorgid $prjt_nm.sorted.list chea.latest.s.class.$prjt_nm.cog.dat
-mv $prjt_nm.sorted.cogperorg.dat $prjt_nm.sorted.chea.cogperorg.dat
+if [ "$3" == '-ref' ]; then
+        echo "Reference Genome $4"
+        refgen=$4
+else
+        refgen=""
+fi
 
 
-echo "Loading the COG info on R and performing some reshaping"
 
-cat > ./temp.R << DELIM
-library(ggplot2)
-library(reshape2)
-adap <- read.table("$prjt_nm.sorted.adap.cogperorg.dat", sep='\\t', head=T)
-adap\$X <- NULL
-mcps <- read.table("$prjt_nm.sorted.mcp.cogperorg.dat", sep='\\t', head=T)
-mcps\$X <- NULL
-chea <- read.table("$prjt_nm.sorted.chea.cogperorg.dat", sep='\\t', head=T)
-chea\$X <- NULL
-mcp_hmmt <- read.table("$prjt_nm.sorted.mcp.hmmtrim.cogperorg.dat", sep='\\t', head=T)
-#o <- length(adap[,1]) - colSums(adap == 0)
-#o <- length(mcps[,1]) - colSums(mcps == 0)
+echo "Formating the COG information for Excel import"
+COGperorgid2 $prjt_nm.sorted.list mcp.latest.s.class.$prjt_nm.cog.dat -ref $refgen
+mv $prjt_nm.sorted.cogperorg2.dat $prjt_nm.sorted.mcp.cogperorg2.dat
+COGperorgid2 $prjt_nm.sorted.list mcp.latest.s.class.$prjt_nm.hmmtrim.cog.dat -ref $refgen
+mv $prjt_nm.sorted.cogperorg2.dat $prjt_nm.sorted.mcp.hmmtrim.cogperorg2.dat
+COGperorgid2 $prjt_nm.sorted.list adap.latest.s.$prjt_nm.hmmtrim.cog.dat -ref $refgen
+mv $prjt_nm.sorted.cogperorg2.dat $prjt_nm.sorted.adap.cogperorg2.dat
+COGperorgid2 $prjt_nm.sorted.list chea.latest.s.class.$prjt_nm.cog.dat -ref $refgen
+mv $prjt_nm.sorted.cogperorg2.dat $prjt_nm.sorted.chea.cogperorg2.dat
 
-#adap.df <- melt(adap[,order(o)], id.vars = "COGs") # Sort the name of genome by number of adaptors
-#mcps.df <- melt(mcps[,order(o)], id.vars = "COGs")
+rm cog.dat2json2.output.json $prjt_nm.summary.json
+
+echo "cog.dat2json2 chea.latest.s.class.$prjt_nm.cog.dat adap.latest.s.$prjt_nm.hmmtrim.cog.dat mcp.latest.s.class.$prjt_nm.cog.dat -cogtree chea.latest.s.class.$prjt_nm.cogxcog.final.bal.nwk adap.latest.s.$prjt_nm.hmmtrim.cogxcog.final.bal.nwk mcp.latest.s.class.$prjt_nm.cogxcog.final.bal.nwk -tree $prjt_nm.list.conservedcog.bal.nwk -ref $refgen"
 
 
-adap.df <- melt(adap, id.vars = "COGs")
-mcps.df <- melt(mcps, id.vars = "COGs")
-chea.df <- melt(chea, id.vars = "COGs")
-mcp_hmmt.df <- melt(mcp_hmmt, id.vars = "COGs")
-mcps.df\$prot <- c("mcps")
-adap.df\$prot <- c("adap")
-chea.df\$prot <- c("chea")
-mcp_hmmt.df\$prot <- c("mcps")
+cog.dat2json2 chea.latest.s.class.$prjt_nm.cog.dat adap.latest.s.$prjt_nm.hmmtrim.cog.dat mcp.latest.s.class.$prjt_nm.cog.dat -cogtree chea.latest.s.class.$prjt_nm.cogxcog.final.bal.nwk adap.latest.s.$prjt_nm.hmmtrim.cogxcog.final.bal.nwk mcp.latest.s.class.$prjt_nm.cogxcog.final.bal.nwk -tree $prjt_nm.list.conservedcog.bal.nwk -ref $refgen
 
-
-# THIS WILL MAKE THE PHYLOGENETIC PROFILE WITH THE ENTIRE MCP SEQUENCE
-
-chemo.ai.df <- rbind(chea.df, adap.df, mcps.df)
-chemo.df <- chemo.ai.df
-chemo.df\$cogpres <- ifelse(chemo.ai.df\$value != 0 , 1, 0)
-
-NCOGS <- length(unique(mcps.df\$COGs)) + length(unique(adap.df\$COGs)) + length(unique(chea.df\$COGs))
-NORG <- length(unique(chemo.df\$variable))
-
-pdf("$prjt_nm.presence.pdf", width = 0.3 * NCOGS + 2, height = 0.15 * NORG + 4)
-
-ggplot(chemo.df, aes( as.factor(COGs), as.factor(variable), fill = as.factor(cogpres))) +
-        facet_grid( ~ prot, scale = "free", space = "free" ) +
-        geom_tile(colour = "white") +
-        theme(axis.title.y = element_blank(), legend.position = "none", axis.title.x = element_blank(), axis.ticks.y = element_blank()) +
-        scale_fill_manual(values = c("white","black"), name = "")
-
-dev.off()
-
-max_prot <- max(chemo.ai.df\$value, na.rm = T) + 1
-color_scale <- colorRampPalette(c("white","black","blue", "red"), space = "rgb")
-
-pdf("$prjt_nm.color.pdf", width = 0.3 * NCOGS + 2, height = 0.15 * NORG + 4)
-ggplot(chemo.ai.df, aes( as.factor(COGs), as.factor(variable), fill = as.factor(value))) +
-        facet_grid( ~ prot, scale = "free", space = "free" ) +
-        geom_tile(colour = "white") +
-        theme(axis.title.y = element_blank(), legend.position = "bottom", axis.title.x = element_blank(), axis.ticks.y = element_blank()) +
-	scale_fill_manual(values = color_scale(max_prot), name = "")
-        
-dev.off()
-
-# THIS WILL MAKE THE PHYLOGENETIC PROFILE WITH THE MCP TRIMMED SEQUENCE
-
-chemo.ai.df <- rbind(chea.df, adap.df, mcp_hmmt.df)
-chemo.df <- chemo.ai.df
-chemo.df\$cogpres <- ifelse(chemo.ai.df\$value != 0 , 1, 0)
-
-NCOGS <- length(unique(mcp_hmmt.df\$COGs)) + length(unique(adap.df\$COGs)) + length(unique(chea.df\$COGs))
-NORG <- length(unique(chemo.df\$variable))
-
-pdf("$prjt_nm.presence.mcp_signal.pdf", width = 0.3 * NCOGS + 2, height = 0.15 * NORG + 4)
-
-ggplot(chemo.df, aes( as.factor(COGs), as.factor(variable), fill = as.factor(cogpres))) +
-        facet_grid( ~ prot, scale = "free", space = "free" ) +
-        geom_tile(colour = "white") +
-        theme(axis.title.y = element_blank(), legend.position = "none", axis.title.x = element_blank(), axis.ticks.y = element_blank()) +
-        scale_fill_manual(values = c("white","black"), name = "")
-
-dev.off()
-
-max_prot <- max(chemo.ai.df\$value, na.rm = T) + 1
-color_scale <- colorRampPalette(c("white","black","blue", "red"), space = "rgb")
-
-pdf("$prjt_nm.color.mcp_signal.pdf", width = 0.3 * NCOGS + 2, height = 0.15 * NORG + 4)
-ggplot(chemo.ai.df, aes( as.factor(COGs), as.factor(variable), fill = as.factor(value))) +
-        facet_grid( ~ prot, scale = "free", space = "free" ) +
-        geom_tile(colour = "white") +
-        theme(axis.title.y = element_blank(), legend.position = "bottom", axis.title.x = element_blank(), axis.ticks.y = element_blank()) +
-        scale_fill_manual(values = color_scale(max_prot), name = "")
-
-dev.off()
-
-
-DELIM
-
-echo "Running R"
-R CMD BATCH ./temp.R
-
-#prepring for building html
-
-#cog.dat2json2 chea.latest.s.class.$prjt_nm.cog.dat adap.latest.s.$prjt_nm.hmmtrim.cog.dat mcp.latest.s.class.$prjt_nm.hmmtrim.cog.dat -tree $prjt_nm.list.conservedcog.bal.nwk
-cog.dat2json2 chea.latest.s.class.$prjt_nm.cog.dat adap.latest.s.$prjt_nm.hmmtrim.cog.dat mcp.latest.s.class.$prjt_nm.cog.dat -tree $prjt_nm.list.conservedcog.bal.nwk
+if [ $? -ne 0 ]; then
+    echo "cog.dat2json2 failed"
+    exit 1
+fi
 
 mv cog.dat2json2.output.json $prjt_nm.summary.json
 
 
-#build phylogenetic html page
+phylopro.correl $prjt_nm.sorted.chea.cogperorg2.dat $prjt_nm.sorted.adap.cogperorg2.dat $prjt_nm.sorted.mcp.cogperorg2.dat -json $prjt_nm.summary.json
 
+mv phylopro.correl.dat $prjt_nm.phylopro.correl.dat
+
+
+#build phylogenetic html page
+rm ./$prjt_nm.PP.htm
 cat > ./$prjt_nm.PP.html << DELIM
 
 <!DOCTYPE html>
@@ -173,7 +95,7 @@ cat > ./$prjt_nm.PP.html << DELIM
 <title>Phylogenetic profiling</title>
 <style>
 
-@import url(http://god.phys.utk.edu/~ortega/style.css?aea6f0a);
+@import url(http://davi.jensengroup.org/css/style.css);
 
 .background {
   fill: #eee;
@@ -205,15 +127,21 @@ ele.cell.active {
 <p>Order: <select id="order_col">
   <option value="or_co">Column by Original</option>
   <option value="co">Column by Name</option>
+  <option value="or_cog">Column by COG sim</option>
+  <option value="or_clu">Column by correl</option>
   <option value="or_sp">Row by Original</option>
   <option value="sp">Row by Name</option>
-  <option value="sp_phy">Species by r16S</option>
+  <option value="sp_phy">Row by Reference Tree</option>
 </select>
 
 <p>Built with <a href="http://d3js.org/">d3.js</a>.
 
 </aside>
 
+<body>
+<div id=toggle> </div>
+<div id=phylopro> </div>
+</body>
 
 <script>
 
@@ -221,8 +149,8 @@ var color = d3.scale.ordinal().domain(d3.range(19)).range([ "#E41A1C", "#377EB8"
 
 
 var margin = {top: 80, right: 0, bottom: 10, left: 200},
-    width = 1300;
-    height = 720;
+    width = 1400;
+    height = 1000;
 
 var x = d3.scale.ordinal().rangeBands([0, width]),
     y = d3.scale.ordinal().rangeBands([0, height]),
@@ -233,9 +161,12 @@ var svg = d3.select("body").append("svg")
     .attr("height", height + margin.top + margin.bottom)
     .style("margin-left", -margin.left + "px")
     .append("g")
-    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+    .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
+    .call(d3.behavior.zoom().scaleExtent([1, 8]).on("zoom", zoom))
+    .append("g");
 
-d3.json("$prjt_nm.summary.json", function(miserables) {
+
+d3.json("$prjt_nm.summary.clust.json", function(miserables) {
   var matrix = [],
       spe = miserables.row,
       cog = miserables.col,
@@ -267,11 +198,15 @@ d3.json("$prjt_nm.summary.json", function(miserables) {
       var orders_x= {
       or_co: d3.range(m).sort(function(a) { return d3.map(cog[a].name); }),
       or_sp: d3.range(m).sort(function(a) { return d3.map(cog[a].name); }),
+      or_clu: d3.range(m).sort(function(a,b) {return d3.ascending(cog[a].correl, cog[b].correl);}),
+      or_cog: d3.range(m).sort(function(a,b) {return d3.ascending(cog[a].cogord, cog[b].cogord);}),
       sp: d3.range(m).sort(function(a) { return d3.map(cog[a].name); }),
       co: d3.range(m).sort(function(a, b) { return d3.ascending(cog[a].name, cog[b].name); }),
       };
       var orders_y= {
       or_co: d3.range(n).sort(function(a) { return d3.map(cog[a].name); }),
+      or_cog: d3.range(n).sort(function(a) {return d3.map(cog[a].name); }),
+      or_clu: d3.range(n).sort(function(a) {return d3.map(cog[a].name); }),
       sp_phy: d3.range(n).sort(function(a,b) { return d3.ascending(spe[a].phy_ord, spe[b].phy_ord); }),
       or_sp: d3.range(n).sort(function(a) { return d3.map(spe[a].name); }),
       sp: d3.range(n).sort(function(a, b) { return d3.ascending(spe[a].name, spe[b].name); }),
@@ -363,21 +298,32 @@ function drage() {
       .attr("class","ele")
       .each(ele)
 
+  var div = d3.select("body").append("div")   
+      .attr("class", "tooltip")               
+      .style("opacity", 0);
 
   function ele(ele) {
     var cell = d3.select(this).selectAll(".cell")
         .data(ele) //.filter(function(d) { return d; }))
-        .enter().append("rect")
+        .enter().append("circle")
         .attr("class", "cell")
-        .attr("x", function(d) { return x(d.x); })
-        .attr("y", function(d) { return y(d.y); })
-        .attr("width", x.rangeBand())
-        .attr("height", y.rangeBand())
+        //.attr("x", function(d) { return x(d.x); })
+        //.attr("y", function(d) { return y(d.y); })
+        .attr("cx", function(d) { return x(d.x) + x.rangeBand()/2 ; })
+        .attr("cy", function(d) { return y(d.y) + x.rangeBand()/2 ; })
+        //.attr("width", x.rangeBand())
+        //.attr("height", y.rangeBand())
+        .attr("r", x.rangeBand()/2)
+        .attr("stroke","black")
+        .attr("stroke-width", "0.1")
         .style("fill", function(d) { return color(d.g) })
-        .style("fill-opacity", function(d) { return z(d.z); })
+        .style("fill-opacity", function(d) { return (d.z === 0) ? 0 : 1; })
+        //.style("fill-opacity", function(d) { return z(d.z); })
         //.style("fill", function(d) { return nodes[d.x].group == nodes[d.y].group ? c(nodes[d.x].group) : null; })
-        .on("mouseover", mouseover)
-        .on("mouseout", mouseout)
+        .on("mouseover", function(d) { mouseover(d); div.transition().duration(200).style("opacity", 0.9); div.html(spe[d.y].name + "</br>" + cog[d.x].name ).style("left", (d3.event.pageX) + "px").style("top", (d3.event.pageY - 28) +     "px");})
+        .on("mouseout", function(d) {d3.selectAll("text").classed("active", false);});         
+//      .on("mouseover", mouseover)
+//      .on("mouseout", mouseout)
 //      .call(drag);
 //      .on("click", cell_sel);
   }
@@ -386,7 +332,11 @@ function drage() {
   function mouseover(p) {
     d3.selectAll(".row text").classed("active", function(d, i) { return i == p.y; });
     d3.selectAll(".col text").classed("active", function(d, i) { return i == p.x; });
-//    d3.selectAll(".cell rect").classed("active", true); //function(d, i ,j) { return i == p.y && j == p.x });
+//    d3.selectAll(".cell rect"). function(d) { 
+//    	div.transition()
+//	   .style("opacity", 0.9);
+ //   	div.html( "<br/>" + p.y + "<br/>" + p.x );
+//	console.log( p.y )});
   };
 
   function mouseout() {
@@ -404,7 +354,7 @@ function drage() {
 
 
   function order_co(value) {
-        if (value == "co" || value == "or_co") {
+        if (value == "co" || value == "or_co" || value == "or_cog" || value == "or_clu") {
            x.domain(orders_x[value]); }
         else if (value == "sp" || value == "or_sp" || value == "sp_phy") {
            y.domain(orders_y[value]); }
@@ -418,8 +368,10 @@ function drage() {
 
     t.selectAll(".cell")
         .delay(function(d) { return x(d.x) * 4; })
-        .attr("x", function(d) { return x(d.x); })
-        .attr("y", function(d) { return y(d.y); });
+        .attr("cx", function(d) { return x(d.x) + x.rangeBand()/2; })
+        .attr("cy", function(d) { return y(d.y) + x.rangeBand()/2; })
+        //.attr("x", function(d) { return x(d.x); })
+        //.attr("y", function(d) { return y(d.y); });
 
     t.selectAll(".col")
         .delay(function(d, i) { return x(i) * 4; })
@@ -434,16 +386,35 @@ var timeout = setTimeout(function() {
 
 });
 
-
-
+function zoom() {
+  svg.attr("transform", "translate(" + d3.event.translate + ")scale(" + d3.event.scale + ")");
+  }
+var op = 1;
+var tog = d3.selectAll("#toggle").append("svg")
+tog.append("text")
+   .attr("class", "legend")
+   .attr("x", "10")
+   .attr("y", "10")
+   .style("fill","black")
+   .on("click", function (d) { 
+       if (op == 1) {
+           d3.selectAll(".cell").transition(200).style("fill-opacity", function(d) { return z(d.z); });
+           op = 0;
+           }
+       else {
+           d3.selectAll(".cell").transition(200).style("fill-opacity", function(d) { return (d.z === 0) ? 0 : 1; });
+           op = 1;
+           };})
+   .text("Toggle oppacity");
 
 </script>
-</body>
 </html>
 
 DELIM
 
-mapfeature2phyloxml $prjt_nm.list.conservedcog.nwk --che_class -bal --use-fa chea.latest.s.class.$prjt_nm.fa
+echo "Making the phyloxml tree"
+
+mapfeature2phyloxml $prjt_nm.list.conservedcog.bal.nwk --che_class -bal --use-fa chea.latest.s.class.$prjt_nm.fa
 
 cat > ./$prjt_nm.tree_TOL.html << DELIM
 <html>
@@ -484,11 +455,11 @@ DELIM
 
 
 
-if [ "$3" == '-p' ]; then
-	echo "Publishing at $4"
-        plubd=$4
+if [ "$5" == '-p' ]; then
+	echo "Publishing at $6"
+        plubd=$6
 	mkdir -p $plubd/$prjt_nm/
-	rm $plubd/$prjt_nm/*
+#	rm -r $plubd/$prjt_nm/*
 	cp ../COGs/*json ../COGs/*html ./*html ./*json ../COGs/*bal.nwk ./*xml ./*pdf $plubd/$prjt_nm/
 fi
 

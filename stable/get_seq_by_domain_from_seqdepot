@@ -18,7 +18,7 @@ pfamdom = sys.argv[1].split(',')
 sd = bitk.get_seqdepot_client()
 
 #cards = sd.aseqs.find({}, {'t.pfam27': { '$elemMatch' : {  } ) #{'t': { '$elemMatch' : {'Secretin'}}},{})
-cards = sd.aseqs.find( { 't.pfam27' : { '$elemMatch' : { '$in' : pfamdom }}}, { '_id' : 1 , 's' : 1})
+cards = sd.aseqs.find( { 't.pfam27' : { '$elemMatch' : { '$in' : pfamdom }}}, { '_id' : 1 , 's' : 1}, timeout = False)
 
 
 #cards = mist.aseqs.find()

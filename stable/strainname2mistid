@@ -5,6 +5,7 @@
 import sys
 import bitk
 import random
+import json
 if '-h' in sys.argv:
 	print 'Reads a list of names of strain and outputs a list of mist organism id'
 	sys.exit()
@@ -19,7 +20,7 @@ mist = bitk.get_mist22_client()
 output = ''
 orgsin = []
 orgnodeal = []
-
+orgjson = {}
 
 def firsttry(name, orgsin, output):
 	print name
@@ -31,6 +32,7 @@ def firsttry(name, orgsin, output):
 		print str(d['_id']) + ' - ' + str(d['n'])
 		output += str(d['_id']) + '\n'
 		orgsin.append(d['_id'])
+		orgjson[name] = [ d['n'], d['_id'] ]
 		return orgsin, output
 
 def secondtry(name, orgsin, output):
@@ -50,6 +52,7 @@ def secondtry(name, orgsin, output):
 			print str(d['_id']) + ' - ' + str(d['n'])
 			output += str(d['_id']) + '\n'
 			orgsin.append(d['_id'])
+			orgjson[name] = [ d['n'], d['_id'] ]
 
 	return orgsin, output
 
@@ -72,6 +75,7 @@ def thirdtry(name, orgsin, output):
 			print str(d['_id']) + ' - ' + str(d['n'])
 			output += str(d['_id']) + '\n'
 			orgsin.append(d['_id'])
+			orgjson[name] = [ d['n'], d['_id'] ]
 		return orgsin, output
 
 def fourthtry(name, orgsin, output):
@@ -93,6 +97,7 @@ def fourthtry(name, orgsin, output):
                         print str(d['_id']) + ' - ' + str(d['n'])
                         output += str(d['_id']) + '\n'
                         orgsin.append(d['_id'])
+			orgjson[name] = [ d['n'], d['_id'] ]
                 return orgsin, output
 
 
@@ -119,6 +124,7 @@ if 1 == 1:
 						orgsin, output = data
 					else:
 						orgnodeal.append(name)
+						orgjson[name] = [ "--NOT-IN-MIST--" , 'XXX' ]
 					
 				
 
@@ -132,3 +138,7 @@ if len(orgnodeal) !=0:
 
 with open('mistid.list', 'w') as f:
 	f.write(output)
+
+with open('mistid.js', 'w') as f:
+	json.dump(orgjson, f, indent = 2)
+

@@ -3,7 +3,7 @@ import sys
 import bitk
 
 if '-h' in sys.argv:
-	print 'Sort an alignment (CLUSTAW format) according with a tree in nwk format\n\n\
+	print 'Sort an alignment (FASTA format) according with a tree in nwk format\n\n\
 		sintax: sortbytree youralignment.aln yourtree.nwk flags\n\n \
 		Flags: \n \
 		-name		reads just the name of the sequence no the length\n'
@@ -25,6 +25,8 @@ print len(seq_list)
 
 output = ''
 for name in tree_list:
+	if name.count("|") == 2:
+            name = name.replace("'","").split('|')[2]
 	if name in seq_list:
 		output = output + '>' + name + '\n' + seq_dic[name] + '\n'
 	else:

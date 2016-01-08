@@ -12,18 +12,33 @@ if '-h' in sys.argv:
 MISTDB = "/home/ortegad/MIST2.2/fasta/all/mistdb"
 #os.system('ln -s /home/ortega/MIST2.2/fasta/all/mist* ./')
 
-try:
-	num_iter_psi = int(sys.argv[2])
-except:
+if "-in_msa" in sys.argv:
+    filename = sys.argv[sys.argv.index("-in_msa")+1]
+    qry_type = "-in_msa"
+    try:
+	num_iter_psi = int( sys.argv[sys.argv.index("-in_msa")+2] )
+    except:
 	num_iter_psi = 4
-
-filename = sys.argv[1]
-print len(sys.argv)
-if len(sys.argv) == 3:
-	options = '-num_threads 12 -outfmt "6 qseqid sseqid bitscore evalue qlen length qcovs slen" -evalue 10E-30 -max_target_seqs 100000 -num_iterations ' + str(num_iter_psi)
+    if len(sys.argv) == 4:
+        options = '-num_threads 12 -outfmt "6 qseqid sseqid bitscore evalue qlen length qcovs slen" -evalue 10E-30 -max_target_seqs 100000 -num_iterations ' + str(num_iter_psi)
+    else:
+        options = " ".join(sys.argv[4:])
 else:
+    filename = sys.argv[1]
+    qry_type = "-query"
+    try:
+	num_iter_psi = int(sys.argv[2])
+    except:
+	num_iter_psi = 4
+    if len(sys.argv) == 3:
+	options = '-num_threads 12 -outfmt "6 qseqid sseqid bitscore evalue qlen length qcovs slen" -evalue 10E-30 -max_target_seqs 100000 -num_iterations ' + str(num_iter_psi)
+    else:
 	options = " ".join(sys.argv[3:])
+
+print len(sys.argv)
 print options
 
-os.system('psiblast -db ' + MISTDB + ' -query ' + sys.argv[1] + ' -out ' + sys.argv[1][:-3] + '.psiblastedvsmistdb.dat ' +  options )
+print 'psiblast -db ' + MISTDB + ' ' + qry_type + ' ' + filename + ' -out ' + filename[:-3] + '.psiblastedvsmistdb.dat ' +  options 
+
+os.system('psiblast -db ' + MISTDB + ' ' + qry_type + ' ' + filename + ' -out ' + filename[:-3] + '.psiblastedvsmistdb.dat ' +  options )
 

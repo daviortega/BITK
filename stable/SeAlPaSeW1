@@ -30,16 +30,17 @@ N = int(sys.argv[3])
 fastainfile = sys.argv[2]
 cogdatinfile = sys.argv[1]
 
-os.system('fa2fa ' + fastainfile + ' -u')
-print 'getseqfromcogoutput ' + cogdatinfile + ' ' + fastainfile + ' all --cog-flag'
-os.system('getseqfromcogoutput ' + cogdatinfile + ' ' + fastainfile + ' all --cog-flag')
-fastainfile = cogdatinfile[:-4] + ".cogs.all.fa"
-os.system('IIintag ' + fastainfile + ' 0 spaceholder')
-fastainfile = cogdatinfile[:-4] + ".cogs.all.IIintag.fa"
+if "--part2" not in sys.argv:
+    os.system('fa2fa ' + fastainfile + ' -u')
+    print 'getseqfromcogoutput ' + cogdatinfile + ' ' + fastainfile + ' all --cog-flag'
+    os.system('getseqfromcogoutput ' + cogdatinfile + ' ' + fastainfile + ' all --cog-flag')
+    fastainfile = cogdatinfile[:-4] + ".cogs.all.fa"
+    os.system('IIintag ' + fastainfile + ' 0 spaceholder')
+    fastainfile = cogdatinfile[:-4] + ".cogs.all.IIintag.fa"
 
-print "Phase 1 and 2 - Se + Al "
-print fastainfile
-for i in range(1,N+1):
+    print "Phase 1 and 2 - Se + Al "
+    print fastainfile
+    for i in range(1,N+1):
 	print "grep 'COG" + str(i) + "-spaceholder' -A1 " + fastainfile + " > " + fastainfile[:-3] + ".cluster" + str(i) + ".fa"
 	os.system("grep 'COG" + str(i) + "-spaceholder' -A1 " + fastainfile + " > " + fastainfile[:-3] + ".cluster" + str(i) + ".fa")
         if "-c" in sys.argv:
@@ -48,52 +49,60 @@ for i in range(1,N+1):
 	os.system("linsi --thread 12 " + fastainfile[:-3] + ".cluster" + str(i) + ".fa > " + fastainfile[:-3] + ".cluster" + str(i) + ".linsi.fa")
 #	os.system("fa2fa " + fastainfile[:-3] ".cluster" + str(i) + ".linsi.fa -u")
 
-print "Phase 3 - Pr"
-tmpprof = "PASEfile.tmp.0.fa"
-os.system("mafft-profile " + fastainfile[:-3] + ".cluster1.linsi.fa " + fastainfile[:-3] + ".cluster2.linsi.fa > " + tmpprof)
+    print "Phase 3 - Pr"
+    tmpprof = "PASEfile.tmp.0.fa"
+    os.system("mafft-profile " + fastainfile[:-3] + ".cluster1.linsi.fa " + fastainfile[:-3] + ".cluster2.linsi.fa > " + tmpprof)
 
 
-for i in range(3,N+1):
+    for i in range(3,N+1):
 	newtmp = "PASEfile.tmp." + str(i-2) + ".fa"
 	os.system("mafft-profile " + tmpprof + " " + fastainfile[:-3] + ".cluster" + str(i) + ".linsi.fa > " + newtmp)
 	tmpprof = newtmp
 
 
-os.system('fa2fa ' + newtmp + ' -u')
+    os.system('fa2fa ' + newtmp + ' -u')
 
-if "--trimMSA" in sys.argv:
-    Nx = sys.argv.index("--trimMSA") + 1
-    N1, N2 = [ int(i) for i in sys.argv[Nx: Nx+2] ]
-    print Nx
-    print N1
-    print N2
-    seq_dic, seq_list = bitk.fastareader(newtmp)
-    seq_dic = bitk.trimMSA(seq_dic, N1, N2, seq_list)
-    output = ""
-    for seq in seq_list:
-        output += ">" + seq + "\n" + seq_dic[seq] + "\n"
-    with open(newtmp, "w") as f:
-        f.write(output)
+    os.system('cp ' + newtmp + ' ' + fastainfile[:-3] + '.fullprofile.fa')
 
-os.system('fa2fa ' + newtmp + ' -u')
+    print "Check the profile alignment fullprofile to pick trim coordinates and run same command as before but with --part2 as the last flag"
 
-os.system('cp ' + newtmp + ' ' + fastainfile[:-3] + '.fullprofile.fa')
-
-if "--noWL" in sys.argv:
-    sys.exit()
-
-print "Phase 4 and 5 - Se + We"
-
-if "-n" in sys.argv:
-    Nopt = "-n " + sys.argv[sys.argv.index("-n")+ 1]
 else:
-    Nopt = ""
+    fastainfile = cogdatinfile[:-4] + ".cogs.all.IIintag.fa"
+    
 
-for i in range(1,N+1):
+    for i in range(3, N+1):
+        newtmp = "PASEfile.tmp." + str(i-2) + ".fa"
+
+    if "--trimMSA" in sys.argv:
+        Nx = sys.argv.index("--trimMSA") + 1
+        N1, N2 = [ int(i) for i in sys.argv[Nx: Nx+2] ]
+        print Nx
+        print N1
+        print N2
+        seq_dic, seq_list = bitk.fastareader(newtmp)
+        seq_dic = bitk.trimMSA(seq_dic, N1, N2, seq_list)
+        output = ""
+    
+        for seq in seq_list:
+            output += ">" + seq + "\n" + seq_dic[seq] + "\n"
+        with open(newtmp, "w") as f:
+            f.write(output)
+    os.system( "cp " + newtmp + " " + fastainfile[:-3] + '.fullprofile.trimm.' + str(N1) + '.' + str(N2) + '.fa')
+    if "--noWL" in sys.argv:
+        sys.exit()
+
+    print "Phase 4 and 5 - Se + We"
+
+    if "-n" in sys.argv:
+        Nopt = "-n " + sys.argv[sys.argv.index("-n")+ 1]
+    else:
+        Nopt = ""
+
+    for i in range(1,N+1):
         os.system("grep 'COG" + str(i) + "-spaceholder' -A1 " + newtmp + " > " + fastainfile[:-3] + ".profile" + str(i) + ".fa")
 	os.system("weblogo -f " + fastainfile[:-3] + ".profile" + str(i) + ".fa -o " + fastainfile[:-3] + ".profile" + str(i) + ".pdf " + Nopt + " -A protein -s large -F pdf -c chemistry --errorbars NO --resolution 300")
 
-print "DONE"
+    print "DONE"
 
 
 	

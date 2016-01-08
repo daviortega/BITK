@@ -5,42 +5,54 @@
 import sys
 import pymongo
 import bitk
+import time
 
 if '-h' in sys.argv:
-	print 'By request, this script takes two entries, blastmistdb output and query coverage cutoff, to perform one tasks: separate the sequence of hits for each sequence from query into independent files'
+	print 'By request, this script takes two entries, blastmistdb output, Evalue and query coverage cutoff, to perform one tasks: separate the sequence of hits for each sequence from query into independent files'
 	sys.exit()
 
 mist = bitk.get_mist22_client()
 
+stamp = str(int(time.time()))
 
 output = []
-N = float(sys.argv[2])
+N = float(sys.argv[3])
 
 qry_list = []
 M = 2
+Ev = float(sys.argv[2])
 
 print "reading the input file"
 datafile = open(sys.argv[1],'r')
 unique_hits = []
 hits = {}
+evalue = {}
 for line in datafile:
-	field = line.replace('\n','').split('\t')
-	qry = field[0]
-	hit = field[1].split('-')[0]
-	hit_ac = field[1].split('-')[M].replace('\n','')
-	qcov = float(field[5])/float(field[4])
-	if qcov > N:
-		if qry not in qry_list:
-			qry_list.append(qry)
-			output.append('')
-			hits[qry] = []
-		if hit not in unique_hits:
-			unique_hits.append(hit_ac)
-		hits[qry].append(hit_ac)
-	
-
+        if len(line.split("\t")) > 4:
+            field = line.replace('\n','').split('\t')
+            qry = field[0]
+            hit = field[1].split('-')[0]
+            hit_ac = field[1].split('-')[M].replace('\n','')
+            qcov2 = float(field[5])/float(field[4])
+            if qry not in evalue.keys():
+                evalue[qry] = { hit_ac : field[3] }
+            else:
+                evalue[qry][hit_ac] = field[3]
+            qcov2 = float(field[5])/float(field[7])
+            if qcov2 > N and Ev >= float(field[3]): # and qcov > N:
+                    if qry not in qry_list:
+                            qry_list.append(qry)
+                            output.append('')
+                            hits[qry] = []
+                    if hit_ac not in unique_hits:
+                            unique_hits.append(hit_ac)
+    #                       print hit_ac + '\t' + str(qcov) + '\t' + str(qcov2) + '\t' + field[3]
+                    if hit_ac not in hits[qry]:
+                        hits[qry].append( hit_ac )
+                    
+print len(unique_hits)
 if '-dna' in sys.argv:
-	print "This implementation does not comport -dna"
+	print "This implementation does not support -dna"
 	sys.exit()
 print "Gathering sequences"
 ac2seq_dic = bitk.accession2seq(unique_hits)
@@ -58,8 +70,15 @@ for qry in qry_list:
 		hit = hits[qry][i]
 		print str(i) + '/' + str(len(hits[qry])) + '\t' + hit + '\t' + qry
 		if hit not in errors_ac2tag:		
-			output += '>' + ac2bitktag_dic[hit] + '\n' + ac2seq_dic[hit] + '\n'
-	with open(qry + '.fa','w') as f:
+                    try:
+			output += '>' + ac2bitktag_dic[hit] + '-' + str(evalue[qry][hit]) + '\n' + ac2seq_dic[hit] + '\n'
+                    except KeyError:
+                        print evalue[qry]
+                        print qry
+                        print hit
+#                        sys.exit()
+                        output += '>' + ac2bitktag_dic[hit] + '-QUERY\n' + ac2seq_dic[hit] + '\n'
+	with open(qry + '.' + stamp + '.fa','w') as f:
 		f.write(output)
 
 

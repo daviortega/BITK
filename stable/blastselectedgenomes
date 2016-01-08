@@ -11,6 +11,8 @@ if '-h' in sys.argv:
 	print 'This is the default: -num_threads 12 -outfmt "6 qseqid sseqid bitscore evalue qlen length qcovs slen" -evalue 10E-30 -max_target_seqs 100000'
 	sys.exit()
 
+print len(sys.argv)
+
 ref_tag = datetime.datetime.now().strftime('%Y%m%d%H%M%s')
 genomes_pwd = '/home/ortegad/MIST3/TOL/genomes'
 
@@ -31,7 +33,7 @@ else:
 #	num_iter_psi = 4
 
 filename = sys.argv[1]
-if len(sys.argv) < 4:
+if len(sys.argv) == 3:
 	options = '-num_threads 12 -outfmt "6 qseqid sseqid bitscore evalue qlen length qcovs slen" -evalue 10E-30 -max_target_seqs 100000'
 else:
 	options = sys.argv[3]

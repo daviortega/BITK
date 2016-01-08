@@ -5,26 +5,29 @@ import sys
 
 if '-h' in sys.argv or len(sys.argv) == 1:
 	print 'Sequence in fasta format. \n \
-	A table will be generated (dic_aln2phy.fasta_file.dat) and it can be used with the output tree to replace the taxon names using rectreetaxon2\n' 
+	A table will be generated (dic_aln2phy.fasta_file.dat) and it can be used with the output tree to replace the taxon names using rectreetaxon2\n \
+        Option --nosub No substitution of names'
 	sys.exit()
 
 seq_dic, seq_list = bitk.fastareader(sys.argv[1])
 filename = sys.argv[1][:-3]
 #print seq_dic
 
+
 for tag in seq_list:
-	if len(tag) > 30:
+	if len(tag) > 30 and "--nosub" not in sys.argv:
 		change = 1
 		break
 	else:
-		change = 0
+        	change = 0
 
 
 output = ''
 seq_count = 0
 dic = ''
 
-for k, v in seq_dic.iteritems():
+for k in seq_list:
+        v = seq_dic[k]
 	v = v.replace(' ','')
 	if k != '':
 		#print k
@@ -39,9 +42,11 @@ for k, v in seq_dic.iteritems():
 				#print '\n'
 				output = output + 'XX' + str(seq_count) + 'XX' + ' ' * (30 - len(str(seq_count))) + v + '\n'
 			else:
-				output += k + ' ' * (30 - len(str(seq_count))) + v + '\n'
+				output += k + ' ' * (90 - len(k)) +  v  + '\n'         # (90 - len(str(seq_count))) + v + '\n'
 			seq_count = seq_count + 1
 			size = len(v)
+
+
 
 output = '    ' + str(seq_count) + '     ' + str(size) + '\n' + output
 

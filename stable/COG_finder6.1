@@ -25,7 +25,7 @@ import networkx as nx
 import matplotlib.pyplot as plt
 
 if '-h' in sys.argv:
-	print 'COG-finder3 with BLAST. It takes (in order) one alignment as the database and two others as queries. Then optional flags (as decribed bellow).  \n \
+	print """COG-finder3 with BLAST. It takes (in order) one alignment as the database and two others as queries. Then optional flags (as decribed bellow).  \n \
 	 Option: -plot for plot on display \n \
 		 -skip for skipping calculations\n \
 		 -html outputs html with \n \
@@ -43,13 +43,14 @@ if '-h' in sys.argv:
 		 -ac4arch Assumes that position 3 in the tag is the accession number and use to get the domain architecture\n \
 		 -aseq4arch Assumes that position 1 is aseq and there is only a second position\n \
 		 --output_gexf Outputs Gephi file format \n \
+                 --force-merge "{1:[[],[]], 2: [ [],[] ] }"     Force clusters to be merged - Ok, this is a hack. In the dictionary with key 1 will merge according to the original numbering, with key 2 will merge with the numbering of results forcing merging according to rule 1 and so on... each value is a list of lists with clusters to be merged. First cluster is 1. Note: If you change any threshould, you should start the merging rules from scratch as the numbering might have changed \n \
 		THRESHOLDS ----------------------------------------------------------- \n \
 		 -EvT N    Threshould for picking up distant paralogs in other species. N must be a number: default 10E-500\n \
 		 -EvP N    Threshould for picking up distant paralog in the same species. N must eb a number: default 10E-500\n \
 		 -Ec  N    Maximum Evalue to consider hit: default 1\n \
                  -qcov_cutoff N         Query coverage cutoff to be considered for grouping.\n\n\n\n \
 		_______________________________________________________________________\n \
-		BLAST COMMAND: blastp -db dbname -query your_query.fa -out output_file.dat -num_threads 10 -outfmt "6 qseqid sseqid bitscore evalue qlen length" -evalue 0.001 -max_target_seqs 100000' 
+		BLAST COMMAND: blastp -db dbname -query your_query.fa -out output_file.dat -num_threads 10 -outfmt "6 qseqid sseqid bitscore evalue qlen length" -evalue 0.001 -max_target_seqs 100000"""
 	sys.exit()
 
 EvT = 10E-500
@@ -174,7 +175,7 @@ data_list = []
 
 datafile = open(blastname,'r')
 output = ''
-
+data_all = {}
 for line in datafile:
 	field = line.replace('\n','').split('\t')
 #	while '' in field:
@@ -183,6 +184,14 @@ for line in datafile:
 	hit = field[1]
 	
 	qcov = int(field[5])/float(field[4])
+        rawvalues = [ float(i) for i in field[2:] ]
+        if qry not in data_all.keys():
+            data_all[qry] = {} 
+        if hit not in data_all[qry].keys():
+            data_all[qry][hit] = rawvalues #[ float(i) for i in field[2:] ]
+        elif  data_all[qry][hit][1] > rawvalues[1]:
+            data_all[qry][hit] = rawvalues
+
 	if hit != qry and qry in seq_list:
 		if qcov > Qth and float(field[3]) < Ec:
 			if qry not in data_dic:
@@ -248,7 +257,7 @@ H = nx.Graph()
 #G.add_nodes_from(data_list)
 recip_hit = []
 uni_hit = []
-
+any_nit = []
 groups = []
 linkID = 0
 for qry in data_list:
@@ -275,14 +284,15 @@ for qry in data_list:
 #	print data_dic[qry].keys()
 #	print data_list[:10]
 #	print [ i for hit in data_dic[qry].keys() if hit in data_list ]
-	for hit in data_dic[qry].keys():		
+	for hit in data_all[qry].keys():		
 #		time.sleep(5)
-		if hit in data_list:
+		if hit in data_list and hit in data_dic[qry].keys():
 			if qry in data_dic[hit].keys():
 				score = min(data_dic[hit][qry][1],data_dic[qry][hit][1])
 #				print qry + '\t' + hit
 #				print groups
 				G.add_edge(qry,hit, weight = score, id = linkID )
+                                H.add_edge(qry,hit, weight = score, id = linkID )
                                 linkID += 1
 				recip_hit.append((qry,hit))
 				if hit not in groups[grp]:
@@ -291,14 +301,24 @@ for qry in data_list:
 			elif data_dic[qry][hit][1] < EvP:
 				score = data_dic[qry][hit][1]
 				G.add_edge(qry,hit, weight = score, id = linkID )
+                                H.add_edge(qry,hit, weight = score, id = linkID )
 				linkID += 1
-				H.add_edge(qry,hit, weight = data_dic[qry][hit][0]/10)
                                 recip_hit.append((qry,hit))
                                 if hit not in groups[grp]:
                                         groups[grp].append(hit)
-			else:
-				H.add_edge(qry,hit, weight = data_dic[qry][hit][0]/10)
+		        else:
+                                score = min(data_all[hit][qry][1],data_all[qry][hit][1])
+				H.add_edge(qry,hit, weight = data_all[qry][hit][1])
 				uni_hit.append((qry,hit))
+                else:
+                        try:
+                             score = min(data_all[hit][qry][1],data_all[qry][hit][1])
+                             H.add_edge(qry,hit, weight = data_all[qry][hit][1])
+                             uni_hit.append((qry,hit))
+                        except KeyError:
+                            pass
+
+
 
 	for group in groups[:grp] + groups[grp+1:]:
 #		print group
@@ -325,9 +345,6 @@ for group in groups:
 print len(nodes)
 #print [ i for i in data_dic.keys() if data_list[1] in data_dic[i].keys()]
 
-
-
-
 for i in range(len(groups)):
 	for node in groups[i]:
 	        for j in range(len(query_array)):
@@ -336,21 +353,29 @@ for i in range(len(groups)):
 	        G.add_node(node, aln = j, url = "#" + node)
         	H.add_node(node, aln = j, url = "#" + node)
 
-grp_size = [ len(i) for i in groups ]
-grp_size = list(set(grp_size))
-grp_size.sort()
-grp_size.reverse()
+def all_items(nestedlist):
+    alli = []
+    for i in (nestedlist):
+        alli += i
+    return alli
+        
+        
 
-
-print len(groups)
-#print groups
-print "sorting..."
-groups_order = []
-for i in grp_size:
-        for group in groups:
-                if len(group) == i:
-			grp_deg = [ G.degree(k) for k in group]
-			grp_deg = list(set(grp_deg))
+def sorting_groups(groups, G):
+#    print groups
+    print "number of groups: " + str(len(groups))
+    print "sorting..."
+    grp_size = [ len(i) for i in groups ]
+    grp_size = list(set(grp_size))
+    grp_size.sort()
+    grp_size.reverse()
+    groups_order = []
+    for i in grp_size:
+            for group in groups:
+                    if len(group) == i:
+                        grp_deg = [ G.degree(k) for k in group]
+#                       print grp_deg
+                        grp_deg = list(set(grp_deg))
 			grp_deg.sort()
 			grp_deg.reverse()
 			group_sorted = []
@@ -359,17 +384,123 @@ for i in grp_size:
 					if j == G.degree(tag):
 						group_sorted.append(tag)
                         groups_order.append(group_sorted)
+    return groups_order
 #			groups_order.append(group)
 #print [ g for g in groups if g.sort() not in [ h.sort() for h in groups_order] ]
-print "Printing information about groups:"
-print len(groups)
-print len(groups_order)
+
+groups_order = sorting_groups(groups, G)
 groups = groups_order
-print(len(groups))
+
+if "--force-merge" in sys.argv:
+    old_elem = all_items(groups)
+    str_rule = sys.argv[sys.argv.index("--force-merge")+1]
+    rules = json.loads(str_rule)
+    num_rules = [ int(i) for i in rules.keys()]
+    num_rules.sort()
+    print num_rules
+    for i in num_rules:
+        print "Force merging rule " + str(i+1)
+        new_groups = []
+        all_groups2remove = []
+        for rule in rules[str(i)]:
+            print rule
+            all_groups2remove += rule
+            new_group = []
+            for grp in rule:
+                new_group += groups[int(grp)-1]
+#            print new_group
+            new_groups.append(new_group)
+        print new_groups
+        
+        groups = [ k for j, k in enumerate(groups, start=1) if j not in all_groups2remove]
+        groups += new_groups
+        new_elem = all_items(groups)
+        if len(set(old_elem).difference(new_elem)) != 0:
+            print rules
+            print set(old_elem).difference(new_elem)
+            sys.exit()
+        else:
+            print "Ok before sorting"
+
+        print len(groups)
+        groups_order = sorting_groups(groups, G)
+        print "Printing information about groups:"
+        print len(groups)
+        print len(groups_order)
+        groups = groups_order
+        print(len(groups))
+        new_elem = all_items(groups)
+        if len(set(old_elem).difference(new_elem)) != 0:
+            print rules
+            print set(old_elem).difference(new_elem)
+            sys.exit()
+
+
 
 for i in range(len(groups)):
         for node in groups[i]:
 		G.node[node]['group'] = i
+                H.node[node]['group'] = i
+
+###### Let's get a COG x COG similarity matrix
+if "-cogxcog" in sys.argv:
+    print " Exporting COG x COG matrix in json "
+    cogxcogout = ""
+    cogxcog = {}
+    cogxcogout += " " * 5 + str(len(groups)) + "\n"
+    for i in range(len(groups)):
+        cogxcog[i] = {}
+        cogxcogout += str(i+1) + " " * (10 - len(str(i+1)))
+        for j in range(0, i):
+            avg = 0
+            N = 0
+            cogxcog[i][j] = 0
+            for ni in groups[i]:
+                for nj in groups[j]:
+                    try:
+                        if data_all[ni][nj][1] == 0:
+                            value = 10E-300
+                        else:
+                            value = data_all[ni][nj][1]
+                        cogxcog[i][j] += 1/np.log10(value) * -1
+                        N += 1
+#res = numpy.cov(matrix)
+                    except KeyError:
+#                      cogxcog[i][j] += 10
+                       pass
+#           print cogxcog
+            try:
+                cogxcog[i][j] /= N #len(groups[i])*len(groups[j])
+            except KeyError:
+                cogxcog[i][j] = "NA"
+            except ZeroDivisionError:
+                cogxcog[i][j] = 10
+            if i != j:
+                if cogxcog[i][j] != 0:
+                    score = cogxcog[i][j]
+                else:
+                    score = 10000
+                
+                cogxcogout += str(score) + " " 
+        cogxcogout += "\n"
+
+    with open("infile", "w") as f:
+        f.write(cogxcogout)
+
+    with open("options.in", "w") as f:
+        output = "R\nN\nL\nJ\n5\nY\nR" #NJ
+        #output = "R\nL\nG\nJ\n3\n10\nY\nR" #FM
+        f.write(output)
+
+    with open("cogxcog.json", "w") as f:
+        json.dump(cogxcog, f, indent = 2)
+
+    os.system('neighbor < options.in')
+    #os.system('fitch < options.in')
+    os.system('mv outtree ' + sys.argv[1][:-3] + '.cogxcog.nwk')
+    os.system('balance_nwk_tree ' + sys.argv[1][:-3] + '.cogxcog.nwk' )
+
+
 
 if '--output_gexf' in sys.argv:
 	print "Trying to export nodes in gexf"
@@ -608,7 +739,7 @@ if '-js' in sys.argv:
                         print G.node[n]['pos'][1]
                    
 		
-	G_js = json_graph.node_link_data(G)
+	G_js = json_graph.node_link_data(H)
 	json.dump(G_js, open(sys.argv[1][:-3] + '.json','w'), indent=2)
 	
 	houtjs = """<style>
@@ -687,14 +818,17 @@ d3.json('""" + sys.argv[1][:-3] + """.json', function(error, graph) {
 </script>
 """
 
+acs = [ i.split('-')[2] for i in seq_list]
+
 if '-ac4arch' in sys.argv:
-	ac2aseqs = bitk.accession2md5([ i.split('-')[2] for i in seq_list])
+	ac2aseqs = bitk.accession2md5(acs)
 
 
 if '-html' in sys.argv:
 	print "Working on the index.html file"
 	hout = '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"\n"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">\n<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">\n<meta charset="utf-8">\n<head>\n<title>COGs</title>\n</head>\n'
-	if '-js' in sys.argv:
+        ac2id  = bitk.accession2_id(acs)
+        if '-js' in sys.argv:
 		hout += houtjs
 #	if '-pic' in sys.argv:
 #	hout += '<body>\n<div>\n<table cellspacing="0" cellpadding="0">\n<tr>\n<td>\n<img id="cluster" src=cluster.png />\n</td>\n</tr>\n</table>\n</div>\n'
@@ -727,7 +861,7 @@ if '-html' in sys.argv:
 					        md5 = '-'.join(tag.split('-')[:-1])
 					else:
 						md5 = bitk.getmd5(seqf_dic[simple_tag])
-					hout += '<tr> <td style="width:800px;"> <font color="' + colors_array[j] +'"><b>'+ str(G.degree(tag)) + '</b></font> ' + htmp + ' <a name="' + tag + '" href="http://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE=Proteins&amp;PROGRAM=blastp&amp;BLAST_PROGRAMS=blastp&amp;QUERY=' + seq_dic[tag] + '&amp;LINK_LOC=protein&amp;PAGE_TYPE=BlastSearch">' + tag + '</a></td>\n<td style="width:200px;"> <img align="right" title="'+ str(G.degree(tag)) + ' ' + tag + '" src="http://seqdepot.net/api/v1/aseqs/' + md5 + '.png" ></td></tr>\n'
+					hout += '<tr> <td style="width:800px;"> <font color="' + colors_array[j] +'"><b>'+ str(G.degree(tag)) + '</b></font> ' + htmp + ' <a name="' + tag + '" href="http://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE=Proteins&amp;PROGRAM=blastp&amp;BLAST_PROGRAMS=blastp&amp;QUERY=' + seq_dic[tag] + '&amp;LINK_LOC=protein&amp;PAGE_TYPE=BlastSearch">' + tag + '</a></td>\n<td style="width:200px;"> <a target="_blank" href="http://mistdb.com/proteins/view/' + str(ac2id[simple_tag.split('-')[2]]) +'"> <img align="right" title="'+ str(G.degree(tag)) + ' ' + tag + '" src="http://seqdepot.net/api/v1/aseqs/' + md5 + '.png" ></a></td></tr>\n'
 				else:
 					print "Your fullseq file is not up to snuff, please fix it or give up on domain architecture"
 					print "Defective tag is: " + simple_tag
@@ -745,7 +879,7 @@ if '-html' in sys.argv:
 				else:
 					md5 = bitk.getmd5(seq_dic[tag])
 				try:
-					hout += '<tr> <td style="width:800px;"> <font color="' + colors_array[j] +'"><b>'+ str(G.degree(tag)) + '</b></font> ' + htmp + ' <a name="' + tag + '" href="http://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE=Proteins&amp;PROGRAM=blastp&amp;BLAST_PROGRAMS=blastp&amp;QUERY=' + seq_dic[tag] + '&amp;LINK_LOC=protein&amp;PAGE_TYPE=BlastSearch">' + tag + '</a></td>\n<td style="width:200px;"> <img align="right" title="'+ str(G.degree(tag)) + ' ' + tag + '" src="http://seqdepot.net/api/v1/aseqs/' + md5 + '.png" ></td></tr>\n'
+					hout += '<tr> <td style="width:800px;"> <font color="' + colors_array[j] +'"><b>'+ str(G.degree(tag)) + '</b></font> ' + htmp + ' <a name="' + tag + '" href="http://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE=Proteins&amp;PROGRAM=blastp&amp;BLAST_PROGRAMS=blastp&amp;QUERY=' + seq_dic[tag] + '&amp;LINK_LOC=protein&amp;PAGE_TYPE=BlastSearch">' + tag + '</a></td>\n<td style="width:200px;"> <a target="_blank" href="http://mistdb.com/proteins/view/' + str(ac2id[tag.split('-')[2]]) +'"> <img align="right" title="'+ str(G.degree(tag)) + ' ' + tag + '" src="http://seqdepot.net/api/v1/aseqs/' + md5 + '.png" ></a></td></tr>\n'
 				except TypeError:
 					print md5
 		hout += '</table>'

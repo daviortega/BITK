@@ -69,23 +69,30 @@ if '--frommongo' in sys.argv:
 		print errors
 		sys.exit()
 
-if '--maketree' in sys.argv:
+if '--maketree' in sys.argv or "--alignonly" in sys.argv:
 	cog_list = bitkTOL.pre_aligncog(genomes, data)
 	if '--bydomain' in sys.argv:
 		domainlist = bitkTOL.aligncogbykingdom(cog_list, algo = algo)
-		name = bitkTOL.concatbykingdom(cog_list, domainlist)
-		name = bitkTOL.gbbykingdom(name)
+		name = bitkTOL.concatbykingdom(cog_list, domainlist, algo = algo)
+                if "--nogb" not in sys.argv:
+                    name = bitkTOL.gbbykingdom(name)
 	else:
 		bitkTOL.aligncog(cog_list)
 		name = bitkTOL.concat(cog_list)
-		name = bitkTOL.gb(name)
-	
+                if "--nogb" not in sys.argv:
+                    name = bitkTOL.gb(name)
 	name = bitkTOL.preptree(name)
+        print "This is the name: " + name
 	if '--supertree' in sys.argv:
-		name = bitkTOL.maketree(name, supertree = 'Y')
-		bitkTOL.posttree(name, sys.argv[1] + '.conservedcog.supertree.nwk')
+		if '--alignonly' in sys.argv:
+			name = bitkTOL.maketree(name, notree = True)
+		else:
+			name = bitkTOL.maketree(name, supertree = 'Y')
+			bitkTOL.posttree(name, sys.argv[1] + '.conservedcog.supertree.nwk', supertree = 'Y')
 	else:
-		name = bitkTOL.maketree(name)
-		bitkTOL.posttree(name, sys.argv[1] + '.conservedcog.nwk')
+		if '--alignonly' in sys.argv:
+			name = bitkTOL.maketree(name, notree = True)
+		else:
+			name = bitkTOL.maketree(name, notree = False)
+			bitkTOL.posttree(name, sys.argv[1] + '.conservedcog.nwk', supertree = 'N')
 #print data
-

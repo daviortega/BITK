@@ -16,7 +16,7 @@ MISTDB = "/home/ortegad/MIST2.2/fasta/all/mistdb"
 filename = sys.argv[1]
 print len(sys.argv)
 if len(sys.argv) == 2:
-	options = '-num_threads 12 -outfmt "6 qseqid sseqid bitscore evalue qlen length" -evalue 10E-30 -max_target_seqs 100000'
+	options = '-num_threads 12 -outfmt "6 qseqid sseqid bitscore evalue qlen length qcovs slen" -evalue 10E-30 -max_target_seqs 100000'
 else:
 	options = " ".join(sys.argv[2:])
 print options

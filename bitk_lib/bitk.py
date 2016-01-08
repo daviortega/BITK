@@ -9,24 +9,35 @@ import pymongo
 import time
 
 
+
+def xtractAC(tag):
+    try:
+        AC = tag.split('-')[2]
+    except:
+        print "Tag " + tag + " not in format for extraction"
+        sys.exit()
+    return AC
+
 def get_mist22_client():
 	print "Verifying tunnels"
 	print "Mist"
 	try:
 		client = pymongo.MongoClient('localhost',27019)
 	except:
-		print "You must open a tunnel with ares.bio.utk.edu: ssh -L 27019:localhost:27017 ares.bio.utk.edu"
+		print "You must open a tunnel with ares.bio.utk.edu: ssh -p 32790 -f -N -L 27019:localhost:27017 ortega@ares.bio.utk.edu"
 		sys.exit()
 	return client.mist22
 
 def get_seqdepot_client():
 	print "Verifying tunnels"
 	print "SeqDepot"
-	try:                                    
-		client = pymongo.MongoClient('localhost',27018)
-	except:                                                         
-		print "You must open a tunnel with ares.bio.utk.edu: ssh -L 27019:localhost:27017 ares.bio.utk.edu"
-		sys.exit()                                                                                      
+	#try:                                    
+		#client = pymongo.MongoClient('localhost',27018)
+        client = pymongo.MongoClient("aphrodite.bio.utk.edu",27017)
+        client.the_database.authenticate('binf',open("/home/ortegad/private/mongodb_binf.txt","r").readline().strip(), mechanism='MONGODB-CR',source='admin')
+	#except:
+        #        print "You must open a tunnel with ares.bio.utk.edu: ssh -p 32790 -f -N -L 27018:127.0.0.1:27017 ortega@aphrodite.bio.utk.edu"
+	print "Authenticated"	
 	return client.seqdepot
 
 def insertmethodinfilename(filename, method):
@@ -58,6 +69,24 @@ def proteinid2bitktag(proteinid_list = []):
 #                print out_dic[proteinid]
                 out_dic[proteinid] = gid_dic[int(out_dic[proteinid].split('-')[0])] + out_dic[proteinid]
         return out_dic
+
+def lc2ac(lc_list = []):
+        print "Locus -> Accession"
+        print lc_list
+        ac_list = []
+        mist22 = get_mist22_client()
+        print "Got the client"
+        genes = mist22.genes.find({'lo' : { '$in' : lc_list }}, {'p.ac':1})
+        for card in genes:
+            print card
+            try:
+                ac_list.append(card['p']['ac'])
+            except:
+                print "Found exception"
+                print card
+                sys.exit()
+        return ac_list
+
 
 def accession2bitktag(accession_list = [],):
         out_dic = {}
@@ -131,8 +160,23 @@ def aseq2bitktaglist(aseqs):
 			result[aseq] = ['None']
 	return result
 
+def accession2_id(aclist = []):
+    ac2id = {}
+    mist22 = get_mist22_client()
+    cards = mist22.genes.find({'p.ac' : { '$in' : aclist}})
+    for card in cards:
+        if card['p']['ac'] not in ac2id.keys():
+            ac2id[card['p']['ac']] = card['_id']
+        else:
+            print "same accession number in two different proteins... something is weird"
+            print card['p']['ac']
+            print card
+    for ac in aclist:
+        if ac not in ac2id.keys():
+            ac2id[ac] = "not_in_mist"
+    return ac2id
+
 def accession2seq(aclist = []):
-	out_dic = {}
 	mist22 = get_mist22_client()
 	sd = get_seqdepot_client()
 	cards = mist22.genes.find({'p.ac' : { '$in' : aclist }})
@@ -153,7 +197,12 @@ def accession2seq(aclist = []):
 	ac2seq = {}
 	for card in cards:
 		for ac in aseq2ac[card['_id']]:
+                    print card
+                    try:      
 			ac2seq[ac] = card['s']
+                    except KeyError:
+                        print card
+                        pass
 	return ac2seq
 
 def accession2md5(aclist = []):
@@ -930,6 +979,38 @@ def aa_hist(seq_dic={}):
 				AA_Nm[seq_dic[bug][i]] += 1
 		results.append(AA_Nm)
 	return results
+
+def trimMSA(seq_dic = {}, N1=0, N2=-1, seq_list =[] ):
+    """ trim the MSA by the cordinates N1 and N2 """
+    if N2 > N1:
+        if seq_list == []:
+            seq_list = seq_dic.keys()
+        new_seq_dic = {}
+        for seq in seq_list:
+            new_seq_dic[seq] = seq_dic[seq][N1-1:N2]
+        return new_seq_dic
+    else:
+        print "trimMSA doing nothing with your data because of the trim coordinates passed " + str(N1) + " " + str(N2) 
+        return seq_dic
+
+def makeconsensus(seq_dic={}):
+        import random
+        """Returns a sequence of the most prevalent amino-acid in each position counting "-" as 21st amino-acid"""
+        results = ""
+        AAlist = ['A','C','D','E','F','G','H','I','K','L','M','N','P','Q','R','S','T','V','Y','W','-']
+        for i in range(len(seq_dic.values()[0])):
+            AAnumb = numpy.array([0]*len(AAlist))
+            for seq in seq_dic.keys():
+                AAnumb[AAlist.index(seq_dic[seq][i])] += 1
+            M = numpy.argmax(AAnumb)
+            if len(AAnumb[ AAnumb == AAnumb[M] ]) > 1:
+                print "Position " + str(i) + " is ambiguous: " + " ".join( [ AAlist[i] for i in numpy.where( AAnumb == AAnumb[M] )[0] ] )
+                print AAnumb
+                print list([ i for i in numpy.where( AAnumb == AAnumb[M] )[0] ])
+                results += AAlist[random.choice(list([ i for i in numpy.where( AAnumb == AAnumb[M] )[0] ]))]
+            else:
+                results += AAlist[M]
+        return results
 
 def aa_distr(seq_dic={}, pos=0):
 	"""Calculates the distribution of AA in a given column of a given MSA. The result is a dictionary with the distribution"""

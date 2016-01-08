@@ -24,6 +24,8 @@ gid2tax = {}
 
 allgenomes = []
 
+tax_output = ""
+
 for fname in files:
 	genomes = []
 	with open(fname, 'r') as f:
@@ -39,6 +41,7 @@ for fname in files:
 	for card in cards:
 		if '--show-mid' in sys.argv:
 			print str(card['_id']) + '|' +  card['n'] + '|' + str(card['ta'])
+                tax_output += str(card['_id']) + '\t' +  card['n'] + '\t' + "\t".join(card['ta']) + '\n'
 		if len(card['ta']) > tax_level:
 			if card['ta'][tax_level] in alltax.keys():
 				alltax[card['ta'][tax_level]] = card['ta']
@@ -74,7 +77,8 @@ with open('taxsum.dat', 'w') as f:
 
 output = ''
 with open('gid2tax.' + str(tax_level) + '.dat', 'w') as f:
-	for g in allgenomes:
-		output += str(g) + '\t' + gid2tax[g] + '\n'
-	f.write(output)
+#       for g in allgenomes:
+#		output += str(g) + '\t' + gid2tax[g] + '\n'
+	f.write(tax_output)
+
 

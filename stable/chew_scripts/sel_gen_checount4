@@ -49,6 +49,13 @@ if '-sp' in sys.argv:
 else:
 	spec = None
 
+if '-rand' in sys.argv:
+    try:
+        N = int(sys.argv[sys.argv.index('-rand')+1])
+    except:
+        print "An integer must be passed after -rand"
+        sys.exit()
+        
 if '-r' in sys.argv:
 	rules = sys.argv[sys.argv.index('-r')+1:]
 else:
@@ -95,6 +102,8 @@ output = ''
 if '-nr' in sys.argv or '-nr_genus':
 	sp_dict = {}
 
+outgen = []
+
 for genome in mist.genomes.find(ast.literal_eval(query)):
 #	print genome
 	genomes.append(genome)
@@ -111,14 +120,34 @@ for genome in mist.genomes.find(ast.literal_eval(query)):
 			sp_dict[name] = [ genome['_id'] ]
 		else:
 			sp_dict[name].append(genome['_id'])
-	else:
+        elif '-rand' in sys.argv:
+                pass
+
+        else:
 		output += str(genome['_id']) + '\n'
+if '-rand' in sys.argv:
+    if N > len(genomes):
+        print "Sampling size larger than population... aborting -rand"
+        print len(genomes)
+        print N
+        N = len(genomes)
 
 if '-nr' in sys.argv or '-nr_genus' in sys.argv:
-	for sp, ls in sp_dict.iteritems():
-		output += str(random.choice(ls)) + '\n'
+        if '-rand' in sys.argv:
+            if N > len(sp_dict.keys()):
+                print "Sampling size larger than population... aborting -rand"
+                N = len(sp_dict.keys())
+            splist = random.sample(sp_dict.keys(), N)
+        else:
+            splist = sp_dict.keys()
+	for sp in splist:
+		output += str(random.choice(sp_dict[sp])) + '\n'
 		print sp
 	print len(sp_dict)
+elif '-rand' in sys.argv:
+        print "selecting genomes"
+        print [ x['_id'] for x in random.sample(genomes, N) ]
+        output = '\n'.join([ str(x['_id']) for x in random.sample(genomes, N)])
 else:
 	print len(genomes)
 

@@ -6,21 +6,11 @@ import sys
 import numpy
 import bitk
 import json
+import os
 
 if '-h' in sys.argv:
     print 'make_GN fasta_file.fa N \n\n N is window [-N,+N] \n\n Options :\n \
-	-pdf		Makes a pdf instead of printing on screen \n \
-	-name		Include the name of the chemotaxis genes \n \
-	-locus		Include name of the locus number of each gene (it is messy, but you should be able to disentangle the info in post-production)\n \
-	-org		Reference name will be Name of the strain  -  locus number - GN\n \
-	--prod		Product descreption (TODO)\n \
-	--refseq	RefSeq gene name (TODO)\n \
-	--order_st	Correct the direction of the genes by the central gene direction poiting to the right \n \
-	--sort		Sort list of sequnces by alphabetical order \n \
-	--svg		output svg file\n \
-	--che_color	color chemotaxis proteins if any\n \
-	--output	output table with locus info of the genes represented in the plot\n \
-	--show		Show GN in window\n '
+	--BN		Blast neighborhs to find homologs and allow double click colors (-Ec to change the default cutoff 10E-20) \n'
 
     sys.exit()
 
@@ -38,6 +28,7 @@ N = int(sys.argv[2])
 
 #MONGO
 mist = bitk.get_mist22_client()
+seqdepot = bitk.get_seqdepot_client()
 #END MONGO 
 
 
@@ -53,62 +44,104 @@ output = ''
 
 mistake = []
 
+
+Nbors = []
+
 for i in range(len(seq_list)):
 	opid = i
 	print "\n\n Starting new..."
 	tag = seq_list[i]
 	print tag
-	mistid = int(tag.split('-')[0].split('.')[-1])
+	try:
+		orgname = tag.split('-')[0]
+		if "." in orgname:
+			mistid = int(orgname.split('.')[-1])
+		else:
+			mistid = -1
+	except ValueError:
+		mistid = -1
+
 	new_tag = mist.genomes.find_one({'_id':mistid})
+	GN = {}
+	pos_list = []
 	if new_tag:
 		print new_tag
 		print new_tag['n']
 		org = new_tag['n']
+		ft = '-'.join(tag.split('-')[3:])
+
+		ac = tag.split('-')[2]
+		lo = tag.split('-')[1]
+		print ac
+		geneinfo = mist.genes.find_one({'p.ac': ac})
+		if geneinfo == None:
+			ac = tag.split('-')[3]
+			geneinfo = mist.genes.find_one({'p.ac': ac})
+			if geneinfo == None:
+				geneinfo = mist.genes.find_one({'lo': lo})
+
+		print geneinfo
+		
+		cid = geneinfo['cid']
+		pos = geneinfo['pos']
+		try:
+			aseq = geneinfo['p']['aid']
+		except KeyError:
+			aseq = bitk.getmd5(seq_dic[tag])
+		try:
+			ref = geneinfo['ns']
+		except KeyError:
+			ref = "NULL"
+		if pos - N > 0:
+			pos = pos - N - 1
+		else:
+			pos = 0
+
+		for g in mist.genes.find({'cid': cid, 'pos':{ '$gt': pos }}).limit(2*N+1):
+			GN[g['pos']] = g
+			pos_list.append(g['pos'])
+		pos_list.sort()
+	
+		pr = []	# product
+		lo = [] # locus
+		rs = [] # refseq
+		ch = [] # chemotaxis
+		st = [] # direction
+		ps = [] # position { "s" : start, "l" = length }
+	
+		so = -1
+
+		ope = []
+
+		so = geneinfo['aa']
+		#so = -1
+		sto = geneinfo['st']
+	
 	else:
 		print "Can't find genome " + tag
-		print "Exiting now"
-		sys.exit()
-	
+		cid = -1
+		ps = []
+		ft = "NULL"
+		aseq = ""
+		org = "unknown"
+		so = -1
+		sto = '+'
 
-	ft = '-'.join(tag.split('-')[3:])
+		tags = tag.split('-')
 
-	ac = tag.split('-')[2]
-	lo = tag.split('-')[1]
-	print ac
-	geneinfo = mist.genes.find_one({'p.ac': ac})
-	if geneinfo == None:
-		geneinfo = mist.genes.find_one({'lo': lo})
-	print geneinfo
-	cid = geneinfo['cid']
-	pos = geneinfo['pos']
-	aseq = geneinfo['p']['aid']
-	try:
-		ref = geneinfo['ns']
-	except KeyError:
-		ref = "NULL"
+		for i in range(1,len(tags)):
+			try_aseq = '-'.join(tags[:-i])
+			print "Trying to find the aseq. Maybe is this one: " + try_aseq 
+			card = seqdepot.aseqs.find_one({"_id" : try_aseq})
 
-	if pos - N > 0:
-		pos = pos - N - 1
-	else:
-		pos = 0
-	
-	GN = {}
-	pos_list = []
-	for g in mist.genes.find({'cid': cid, 'pos':{ '$gt': pos }}).limit(2*N+1):
-		GN[g['pos']] = g
-		pos_list.append(g['pos'])
-	pos_list.sort()
-	
-	pr = []	# product
-	lo = [] # locus
-	rs = [] # refseq
-	ch = [] # chemotaxis
-	st = [] # direction
-	ps = [] # position { "s" : start, "l" = length }
-	
-	so = -1
+			try:
+				aseq = card['_id']
+				break
+			except TypeError:
+				pass
 
-	ope = []
+		if aseq == "":
+			aseq = tag
 
 	for pos in pos_list:
 		chemo_info = mist.signal_genes5.find_one({'cid':cid, '_id':GN[pos]['_id']})
@@ -118,170 +151,135 @@ for i in range(len(seq_list)):
 		except KeyError:
 			print GN[pos]
 			loc = 'NULL'
-			sys.exit()
 		try:
 			pro = GN[pos]['p']['pd']
 		except KeyError:
 			pro = 'NULL'
-
+		try:
+			ac = GN[pos]['p']['ac']
+		except KeyError:
+			ac = 'NULL'
 		try:
 			ref = GN[pos]['ns']
 		except KeyError:
 			ref = 'NULL'
-
 		try:
 			aseq2 = GN[pos]['p']['aid']
 		except KeyError:
 			aseq2 = 'NULL'
-
 		if chemo_info:
 			if 'r' in chemo_info.keys():
-#               	        print chemo_info
-              			if chemo_info['r'][0] == 'chemotaxis':
-                               		che = chemo_info['r'][1]
+               		        print chemo_info
+      				if chemo_info['r'][0] == 'chemotaxis':
+                       			che = chemo_info['r'][1]
 		print loc + ':' + che
+
 
 		aa = GN[pos]['aa'] # start
 		ab = GN[pos]['ab'] # finish
-	
+			
+		ho = -2
+		if '--BN' in sys.argv and ac != 'NULL' and loc != 'NULL':
+			if GN[pos]['lo'] != tag.split('-')[1]:
+				Nbors.append(ac)
+			else:
+				ho = -1
+
+
 		if so == -1:
 			so = aa
-		if GN[pos]['lo'] == tag.split('-')[1]:
-			br = 3
+		if loc != 'NULL':
+			if GN[pos]['lo'] == tag.split('-')[1]:
+				br = 3
+			else:
+				br = 1
 		else:
 			br = 1
 
-	
-		ps.append({ 's' : aa - so, 'l' : ab - aa , 'st' : GN[pos]['st'], 'lo' : loc, 'pr' : pro, 'ref' : ref, 'ch' : che, 'co' : che_dic[che], 'url' : 'http://mistdb.com/proteins/view/' + str(GN[pos]['_id']), 'br' : br, 'as' : aseq2 } )
-	
-	jsout.append( { 'org' : org,  'ps' : ps, 'ft' : ft, 'opid' : i, 'q' : tag , 'as' : aseq } )
+		ps.append({ 'pos' : GN[pos]['pos'], 's' : aa - so, 'sn' : aa - so, 'l' : ab - aa,  'st' : GN[pos]['st'], 'lo' : loc, 'pr' : pro, 'ref' : ref, 'ch' : che, 'co' : "#FFFFFF", 'url' : 'http://mistdb.com/proteins/view/' + str(GN[pos]['_id']), 'br' : br, 'as' : aseq2, 'ac' : ac , 'ho' : ho} )
 
-print jsout
 
+	if sto != '+':
+		marker = -1
+		for i in list(reversed(range(len(ps)))):
+			try:
+				print ps[i]
+				if ps[i]['s'] == 0:
+					marker = i
+				if ps[i]['st'] == '+':
+					ps[i]['stn'] = '-'
+				else:
+					ps[i]['stn'] = '+'
+
+				if i == len(ps) - 1:
+					ps[i]['sn'] = ps[0]['s']
+				else:
+					ps[i]['sn'] = ps[ i+1]['sn'] + ps[i+1]['l'] + ps[i+1]['s'] - ps[i]['s'] - ps[i]['l']
+				
+			except IndexError:
+				pass
+		adj = ps[marker]['sn'] - ps[marker]['s']
+
+		for i in range(len(ps)):
+			ps[i]['sn'] -= adj
+
+	jsout.append( { 'org' : org,  'ps' : ps, 'ft' : ft, 'opid' : i, 'q' : tag , 'as' : aseq, } )
+
+
+
+
+if len(Nbors) != 0:
+	print "Let's start to find homology among " + str(len(Nbors)) + " neighboring genes"
+	print "Getting the bitk tags"
+#	ac2btag, errors_ac2tag = bitk.accesion2bitktag(Nbors)
+	print "Getting sequence info"
+	ac2seq = bitk.accession2seq(Nbors)
+	Nbors_output = ''
+	print "Making the fasta file"
+	for ac in Nbors:
+	#	Nbors_output += '>' + ac2btag[ac] + '\n' + ac2seq[ac] + '\n'
+		Nbors_output += '>' + ac + '\n' + ac2seq[ac] + '\n'
+	print "Saving fasta file"
+	with open('make_GNjstmp.fa', 'w') as f:
+		f.write(Nbors_output)
+	if "-Ec" in sys.argv:
+		Ec = sys.argv[sys.argv.index('-Ec') + 1]
+	else:
+		Ec = "10E-20"
+	
+	if "-qcov_cutoff" in sys.argv:
+		Qcoff = sys.argv[sys.argv.index('-qcov_cutoff') + 1]
+	else:
+		Qcoff = "0.7"
+
+	print "Running COG_finder5 with Evalue " + Ec + " and qcov_cutoff " + Qcoff
+	os.system('COG_finder5 make_GNjstmp.fa make_GNjstmp.fa -notCOG -cog_output -Ec ' + Ec + ' -qcov_cutoff ' + Qcoff + ' -nodraw ')
+
+	print "Loading clustering output"
+
+	Nbors_dic = {}
+
+	with open('make_GNjstmp.cog2.dat', 'r') as f:
+		for line in f:
+			ac = line.replace('\n','').split('|')[1]
+			Nbors_dic[ac] = line.split('|')[0].replace('COG','')
+	
+	print "Updating json output format"
+	for i in range(len(jsout)):
+		for j in range(len(jsout[i]['ps'])):
+			try:
+				jsout[i]['ps'][j]['ho'] = int(Nbors_dic[jsout[i]['ps'][j]['ac']]) - 1
+			except KeyError:
+                                print jsout[i]['ps'][j]
+				pass
+	
+
+print "Saving"
 with open(sys.argv[1][:-3] + '.GN.json', 'w') as f:
 	json.dump(jsout, f, indent = 2)
 
 sys.exit()
 
-if 1 == 1:
-
-	operon_size = max(coords[-1][:2]) - min(coords[0][:2])
-	if operon_size > largest_operon:
-		largest_operon = operon_size
-	if len(coords) == 2*N+1:
-		coords_list.append(coords)
-		print tag
-	else:
-		print 'This did not work well and it will be excluded: ' + tag
-		mistake.append(tag)
-	print "All done here"
-
-sf = 1/float(largest_operon+100)
- 
-print "\nStarting plotting"
-for i in range(len(coords_list)):
-	print str(i) + "/" + str(len(coords_list))
-	print coords_list[i]
-	coords = coords_list[i]
-#	if '-org' not in sys.argv:
-#		ax = fig.add_subplot(col,3,3*i+3)
-#		ax.axis('off')
-#	else:
-	ax = fig.add_subplot(col,2,2*i+2)
-#	ax.axis('off')
-#	sf = 1/float(ab - coords[0][0])
-	
-	if '--order_st' in sys.argv and coords[N][2] == '-':
-		beg = coords[0][0]
-		coords.reverse()
-		new_coords = []
-		for i in range(len(coords)-1):
-			end = beg + coords[i][1] - coords[i][0]
-			if coords[i][2] == '-':
-				new_coords.append([ beg, end , '+', coords[i][3], coords[i][4], coords[i][5]])
-			else:
-				new_coords.append([ beg, end , '-', coords[i][3], coords[i][4], coords[i][5]])
-			beg = end + coords[i][0] - coords[i+1][1]
-		end = beg + coords[-1][1] - coords[-1][0]
-                if coords[i][2] == '-':
-                        new_coords.append([ beg, end , '+', coords[-1][3], coords[i][4], coords[i][5]])
-                else:
-                        new_coords.append([ beg, end , '-', coords[-1][3], coords[i][4], coords[i][5]])
-		coords = new_coords
-	
-	
-
-	beg = coords[0][0]
-
-	W = 2
-
-	for coord in coords:
-#		start = coord[0]*sf
-#		end = (coord[0] - coord[1])*sf
-		start = (coord[0]-beg)*sf
-		dx = (coord[1] - coord[0])*sf
-#		ax.add_patch(mpatches.Arrow(start,1.5,dx,0,width = W,color = colors_array[coords.index(coord)]))
-		output += coord[4] + ':' + coord[3] + ';'
-		if '--che_color' in sys.argv:
-			color_str = che_colors[che_array.index(coord[3])]
-		else:
-			color_str = 'white'
-
-		if '-locus' in sys.argv:
-			ax.text(start+dx/2, 0.5, coord[4], ha = 'center', size = 10)
-			if coord[2] == '+':
-	                        ax.add_patch(mpatches.Arrow(start,0.5,dx-0.001,0,width = W,ec = 'black', color = color_str))
-        	                ax.axis('off')
-                	else:
-                        	ax.add_patch(mpatches.Arrow(start+dx,0.5,0.001-dx,0,width = W,ec = 'black',  color = color_str))
-	                        ax.axis('off')
-		if '--pro' in sys.argv:
-			ax.text(start+dx/2, 1, coord[5], ha = 'center', size = 10)
-			if coord[2] == '+':
-				ax.add_patch(mpatches.Arrow(start,0.5,dx-0.001,0,width = W,ec = 'black', color = color_str))
-				ax.axis('off')
-			else:
-				ax.add_patch(mpatches.Arrow(start+dx,0.5,0.001-dx,0,width = W,ec = 'black',  color = color_str))
-				ax.axis('off')
-
-		elif '-name' in sys.argv:
-			print coord
-			ax.text(start+dx/2, 0.8, che_dic[coord[3]], ha = 'center', size = 10)
-			if coord[2] == '+':
-				ax.add_patch(mpatches.Arrow(start,0.5,dx-0.001,0,width = W,ec = 'black', color = che_colors[che_array.index(coord[3])]))
-				ax.axis('off')
-			else:
-				ax.add_patch(mpatches.Arrow(start+dx,0.5,0.001-dx,0,width = W,ec = 'black', color = che_colors[che_array.index(coord[3])]))
-				ax.axis('off')
-		else:
-			if coord[2] == '+':
-                	        ax.add_patch(mpatches.Arrow(start,0.5,dx-0.001,0,width = W,ec = 'black',  color = color_str))
-        	                ax.axis('off')
-	                else:
-                        	ax.add_patch(mpatches.Arrow(start+dx,0.5,0.001-dx,0,width = W,ec = 'black',  color = color_str))
-	                        ax.axis('off')
-
-	output = output[:-1] + '\n'
-
-#	ax.axis('off')
-#       ax.autoscale_view()
-        ax.figure.canvas.draw()
-
-if '--output' in sys.argv:
-        with open(sys.argv[1][:-3] + '.GN.dat', 'w') as f:
-	                f.write(output)
-			#plt.xticks([])
-print '\n'
-if '-pdf' in sys.argv:
-	plt.savefig(sys.argv[1][:-3] + '.GN.pdf')
-
-if '--svg' in sys.argv:
-	plt.savefig(sys.argv[1][:-3] + '.GN.svg')
-
-if '--show' in sys.argv:
-	plt.show()
-
-print mistake
 
 
 

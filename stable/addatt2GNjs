@@ -1,0 +1,44 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 12/27/2015 
+###################################
+import sys
+import bitk
+import json
+if '-h' in sys.argv or '-f' not in sys.argv:
+	print 'adds attribute (presence and abscence) if there is at least one sequence in fastafile1 that belongs to the genome in the reference tree. \n \
+        Sintax: addatt2GNjs jsonfile.json <options> -f fastafile_1.fa fastafile_2.fa ...\n \
+        Option: --new will reset the attribute list else, it will replace the old one if any with the newone'
+	sys.exit()
+
+with open(sys.argv[1], 'r') as f:
+    datajson = json.load(f)
+
+
+orglistall = []
+for i in sys.argv[sys.argv.index('-f') + 1 : ] :
+    seqlist, seqdic = bitk.fastareader(i)
+    orglist = list(set( [ i.split("-")[0].split('.')[-1] for i in seqlist ]))
+    orglistall.append(orglist)
+
+
+
+for i in range(len(datajson)):
+    mid = datajson[i]['q'].split("-")[0].split('.')[-1] 
+    attlist = []
+    for orglist in orglistall:
+        if mid in orglist:
+            attlist.append(1)
+        else:
+            attlist.append(0)
+    if "at" not in datajson[i].keys() or "--new" in sys.argv:
+        datajson[i]["at"] = attlist
+    else:
+        datajson[i]["at"] += attlist
+
+print datajson
+
+with open(sys.argv[1][:-4] + "withatt.json", 'w') as f:
+    json.dump(datajson, f, indent = 2)
+
+

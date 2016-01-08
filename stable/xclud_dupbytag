@@ -28,5 +28,5 @@ for tag in tag_list:
 with open(sys.argv[1][:-3] + '.nodup.fa', 'w') as f:
 	f.write(output)
 
-	
+print set([x for x in seq_list if seq_list.count(x) > 1])	
 

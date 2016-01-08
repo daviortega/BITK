@@ -27,30 +27,48 @@ T = ete2.Tree(filename)
 mist22 = bitkTOL.get_mist22_client()
 
 node_id = 0
+
+midpos = 0
+
 for n in T.traverse():
+	name_type = 0
         if n.is_leaf():
 		try:
-			mid = int(n.name.split('|')[0])
+			mid = n.name.split('|')[0]
+			if mid == "":
+				print str(n.name.split('|')[1])
+				mid = int(n.name.split('|')[1])
+				midpos = 1
+			else:
+				mid = int(mid)
 		except ValueError:
 			try:
-				print n.name
 				mid = int(n.name.split('-')[0].split('.')[-1])
+				name_type = 1
 			except ValueError:
 				mid = 'None'
-			tax = None
-			tax = mist22.genomes.find_one({'_id' : mid})
-			if tax != None:
-				print tax
+		tax = None
+		tax = mist22.genomes.find_one({'_id' : mid})
+		if tax != None:
+			print tax
+			print n.name
+			try:
+				tax = tax['ta'][tax_level]
+			except IndexError:
+				tax = "----Not Available----"
+			if name_type == 0:
 				try:
-					tax = tax['ta'][tax_level]
+					n.name = str(mid) + '|' + tax + '|' + '|'.join(n.name.split('|')[midpos+1:])
 				except IndexError:
-					tax = "----Not Available----"
-				try:
-					n.name = str(mid) + '|' + tax + '|' + n.name.split('|')[1]
-				except IndexError:
+					print "error"
 					n.name = str(mid) + '|' + tax + '|' + n.name
 			else:
-				n.name = '|XXX|----NOT IN MIST----|' + n.name
+				n.name = str(mid) + '|' + tax + '|' + n.name
+
+
+			print n.name
+		else:
+			n.name = 'XXX|----NOT IN MIST----|' + n.name
 	else:
 		n.name = n.support
 

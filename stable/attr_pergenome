@@ -57,10 +57,13 @@ for gen in genomes:
 		cla1 += 1
 	if len(classes) > 0:
 		print gen + '\t' + str(classes)
+        else:
+                print gen + '\tNo classes'
 	json_out[gen] = classes
 
 
 json_out['allcla'] = allcla
+json_out['labels'] = allcla
 
 f = open(sys.argv[1][:-4] + '.attribute_pergenomes.json', 'w')
 json.dump(json_out, f)
@@ -71,6 +74,7 @@ f.close()
 #f.close()
 
 clapergen = numpy.array(clapergen)
+#print 'Found ' + str(len(
 print 'Average number of classes per genomes: ' + str(numpy.mean(clapergen)) + ' +- ' + str(numpy.std(clapergen))
 print 'Genomes with Uncat MCPs ' + str(Uncat) + '/' + str(len(genomes)) + ' = ' + str(100*Uncat/float(len(genomes))) + '%'
 print 'Genomes with only 1 MCP class ' + str(cla1) + '/' + str(len(genomes)) + ' = ' + str(100*cla1/float(len(genomes))) + '%'

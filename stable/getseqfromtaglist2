@@ -1,0 +1,74 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 7/23/2014 
+###################################
+import bitk
+import sys
+import re
+
+
+if '-h' in sys.argv:
+	print 'Input list of smart tags or Seqdepot qseqs output fasta file'
+        print "Option --aclast assures that smart tag last field (separated by '-') is an accession number. This will decrease the number of error due to locus with '-' in it"
+	sys.exit()
+
+
+if "--aclast" in sys.argv:
+    split = -1
+else:
+    split = 2
+
+
+mist22 = bitk.get_mist22_client()
+seqdepot = bitk.get_seqdepot_client()
+output = ''
+taglist = []
+aclist = []
+aseqlist = []
+error = []
+
+with open(sys.argv[1], 'r') as f:
+	for line in f:
+                tag = line.replace('\n','')
+		taglist.append(tag)
+                if re.match('[A-Za-z0-9_-]{22}$', tag):
+                    aseqlist.append(tag)
+                else:
+                    aclist.append(tag.split('-')[split])
+
+cards = mist22.genes.find({ 'p.ac' : { '$in' : aclist }})
+ac2aseq = {}
+for card in cards:
+	#pint card
+	ac2aseq[card['p']['ac']] = card['p']['aid']
+
+print "Number of tags from MiST: " + str(len(ac2aseq.values()))
+print "Number of tags from SeqDepot: " + str(len(aseqlist))
+
+allaseqs = ac2aseq.values() + aseqlist
+print "Total: " + str(len(allaseqs))
+
+
+cards = seqdepot.aseqs.find({'_id' :  { '$in' : allaseqs }})
+aseq2seq = {}
+for card in cards:
+	aseq2seq[card['_id']] = card['s']
+
+for tag in taglist:
+        if tag in aseqlist:
+            output += '>' + tag + '\n' + aseq2seq[tag] + '\n'
+        else:
+            try:
+		output += '>' + tag + '\n' + aseq2seq[ac2aseq[tag.split('-')[split]]] + '\n'
+            except KeyError:
+		error.append(tag)		
+
+with open(sys.argv[1] + '.fa', 'w') as f:
+	f.write(output)
+
+if len(error) != 0:
+	with open(sys.argv[1] + '.error', 'w') as f:
+		f.write(str(error))
+
+
+

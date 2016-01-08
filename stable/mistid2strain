@@ -16,8 +16,11 @@ output = ''
 datafile = open(sys.argv[1],'r')
 for line in datafile:
         mist_id = line.replace('\n','')
+	if mist_id == '':
+		break
         res = mist.genomes.find_one({"_id":int(mist_id)}, {"n":1})
         if res != None:
+		print str(res['_id']) + '\t' + res['n']
                 output += str(res['_id']) + '\t' + res['n'] + '\n'
         else:		
 		output += mist_id + '\n'

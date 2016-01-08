@@ -1,0 +1,118 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 10/19/2015 
+###################################
+import sys
+import bitk
+import numpy
+import scipy.cluster.hierarchy as sch
+import json
+
+
+if '-h' in sys.argv:
+	print 'put your explanation here'
+	sys.exit()
+
+i = 0
+alldata = {}
+cogs = []
+loci = []
+cogperfile = []
+orgids = []
+idx = 0
+for files in sys.argv[1:]:
+    if files == "-json":
+        break
+    with open(files, 'r') as f:
+        for line in f:
+            what = line.split('\t')[0]
+            if what == "MiST Id":
+                cog = [ str(idx) + "_" + j for j in line.replace("\n","").split('\t')[1:] ]
+                cogperfile.append(len(cog))
+                cogs += cog
+            elif what == "Locus":
+                loci += line.replace("\n","").split('\t')[1:]
+            elif what in alldata.keys():
+                #alldata[what] += [ int(i) for i in line.replace("\n","").split('\t')[1:] ]
+                linetmp = []
+                for i in line.replace("\n","").split('\t')[1:]:
+                    if int(i) != 0:
+                        linetmp.append(1)
+                    else:
+                        linetmp.append(0)
+                alldata[what] += linetmp
+            else:
+                #alldata[what] = [ int(i) for i in line.replace("\n","").split('\t')[1:] ]
+                linetmp = []
+                for i in line.replace("\n","").split('\t')[1:]:
+                    if int(i) != 0:
+                        linetmp.append(1)
+                    else:
+                        linetmp.append(0)
+                alldata[what] = linetmp
+    idx += 1
+
+orgids = alldata.keys()
+orgids.sort()
+matrix = []
+for c in range(len(cogs)):
+    col = []
+    for orgid in orgids:
+        col.append(alldata[orgid][c])
+    matrix.append(col)
+
+matrix = numpy.matrix(matrix)
+res = numpy.corrcoef(matrix)
+Y = sch.linkage(res, method="ward")
+Z = sch.dendrogram(Y, no_plot=True, distance_sort = True) #, count_sort = True)
+idx = Z['leaves']
+res = res[idx,:]
+res = res[:,idx]
+cogs = numpy.array(cogs)
+loci = numpy.array(loci)
+cogs = cogs[idx]
+loci = loci[idx]
+
+
+
+#building headers
+j = 0
+cogline = "\t"*2 + "\t".join(cogs) + '\n'
+lociline = "\t"*2 + "\t".join(loci) +'\n'
+output = cogline + lociline
+
+print len(cogs)
+print res.shape
+
+
+for i in range(len(cogs)):
+    output += cogs[i] + '\t' + loci[i]
+    for j in range(len(cogs)):
+        output += "\t" + "%.2f" % res[i][j] #.item((i,j))
+    output += '\n'
+
+with open("phylopro.correl.dat", 'w') as f:
+    f.write(output)
+
+if '-json' in sys.argv:
+    with open(sys.argv[sys.argv.index("-json")+1], "r") as f:
+        jsondata = json.load(f)
+        count_spaces = 0
+        new_ord = 0
+        old_ord = 0
+        for i in range(len(jsondata["col"])):
+            tag = jsondata["col"][i]["group"] + "_COG" + jsondata["col"][i]["name"].split("COG")[-1]
+            if len(numpy.where(cogs == tag)[0]) == 0:
+                new_ord = 100000 + count_spaces
+                count_spaces += 1
+            else:
+                new_ord = numpy.where(cogs == tag)[0].tolist()[0] + count_spaces
+            jsondata["col"][i]["correl"] = new_ord
+            old_ord = new_ord
+
+    with open(sys.argv[sys.argv.index("-json")+1].split(".json")[0] + ".clust.json", "w") as f:
+        json.dump( jsondata, f , indent = 2)
+
+
+
+

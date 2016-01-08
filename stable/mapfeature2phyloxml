@@ -61,6 +61,8 @@ che_class_list = []
 for node in T.traverse():
 	if node.name != 'NoName':
 		gid = node.name.split('|')[0]
+                while "'" in gid:
+                    gid = gid.replace("'","")
 		node.add_features(uri = 'http://mistdb.com/bacterial_genomes/summary/' + gid)
 		if '--che_class' in sys.argv:
 			che_classes = get_che_class(gid, chea_list)

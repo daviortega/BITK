@@ -1,0 +1,244 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 9/4/2013 
+###################################
+import matplotlib
+import sys
+import ete2
+if '-pdf' in sys.argv:
+        matplotlib.use('Agg')
+
+import json
+import sys
+import math
+import numpy
+import bitkTOL
+import bitk
+import os
+import time
+
+if '-h' in sys.argv:
+    print 'map_featurefromjson_tree data.js orgtree.nwk N \n where N is the position of the mist id after split of | \
+    	Options: --highlight-genomes mistid.list        highlight in red the genomes from list\n \
+		 --textface				Print colored squares with identifier numbers\n \
+		 --radius N 				Size of circles\n \
+		 --font N				Font size\n \
+		 --highlight-genomes list1,list2,...	highlight the genomes in different colors. list1 is a file with mist_ids\n \
+		 --entry-group-color N1,N2,...		Multiple enntries with single color. First N1 with one color, then N2 with other and etc \n \
+		 --balance				Balance tree'
+    sys.exit()
+
+#CLASS_IN_ORDER = ['F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9', 'F10', 'F11', 'F12', 'F13', 'F14', 'F15', 'F16', 'F17', 'F18', 'F19', 'F20', 'Tfp', 'ACF', 'Uncat']
+
+#BLAST SETION
+if '--radius' in sys.argv:
+	R = int(sys.argv[sys.argv.index('--radius') + 1])
+else:
+	R = 10
+
+if '--font' in sys.argv:
+	F = int(sys.argv[sys.argv.index('--font') + 1])
+else:
+	F = 20
+
+hlgen_col = []
+if '--highlight-genomes' in sys.argv:
+	hlgenfilenames = sys.argv[sys.argv.index('--highlight-genomes') + 1].split(',')
+	for hlgenfilename in hlgenfilenames:
+		hlgen_list = []	
+		with open(hlgenfilename, 'r') as f:
+			for line in f:
+				hlgen_list.append(line.replace('\n',''))
+		hlgen_col.append(hlgen_list)
+else:
+	hlgen_col.append([])
+	
+colors_array = [ '#E41A1C' , '#377EB8' , '#4DAF4A' , '#984EA3' , '#FF7F00' , '#999999' , '#A65628' , '#F781BF', '#17BECF', "#8DD3C7", "#BEBADA", "#FB8072", "#80B1D3", "#B3DE69", "#FCCDE5", "#D9D9D9", "#BC80BD", "#CCEBC5", "#FFED6F" ]
+
+colors_array = [ "#6600CC", "#009999", "#006633", "#FF3333", "#990033", "#CCCC00", "#FF99FF", "#E77B25", "#4DAD4D", "#00CCCC", "#ED4023", "#6DCEF5", "#91268F", "#1B75BB"]
+
+colors_array = [ "#1B75BA", "#38BFC3", "#62449B", "#90278C", "#6DCDF4", "#4DAC4B", "#016635", "#009999", "#CB2026", "#F16567", "#981A36", "#CACB2B", "#DA9FC7", "#E67A25"]
+
+
+
+
+if '--entry-group-color' in sys.argv:
+	num_entry_list = [ int(x) for x in sys.argv[sys.argv.index('--entry-group-color') + 1].split(',')]
+	new_color_array = []
+	for i in range(len(num_entry_list)):
+		ic = int(math.fmod(i, len(colors_array)))
+		new_color_array += [colors_array[ic]]*num_entry_list[i]
+#		new_color_array += [colors_array[i]]*num_entry_list[i]
+	colors_array = new_color_array
+
+with open(sys.argv[1], 'r') as f:
+	featjson = json.load(f)
+
+
+featlist = featjson['labels']
+
+treefile = sys.argv[2] 
+
+N = int(sys.argv[3])
+
+T = ete2.Tree(treefile)
+ts = ete2.TreeStyle()
+#s.branch_vertical_margin = 10
+
+if '--textface' in sys.argv:
+	feat_text = sys.argv[sys.argv.index('--textface') + 1]
+	if feat_text.isdigit():
+		feat_text = int(feat_text)
+	else:
+		feat_text = False
+
+#node_id = 0
+
+
+
+
+def mylayout(node):
+    node.img_style["size"] = 0
+#    global node_id
+    if node.is_leaf():
+#   	mid = str(node.name.split('|')[0])
+#   	ete2.faces.add_face_to_node(ete2.faces.TextFace(node.name, fsize = 50), node, column = 0, position = "aligned") 
+        if 1:
+	        mid = str(node.name.split('|')[N])
+	        print mid
+	    	for f in range(len(featlist)):	   
+	        	color = int(math.fmod(f, len(colors_array)))
+
+#			if '--textface' not in sys.argv:
+#		        	ace = ete2.faces.CircleFace(R, color = colors_array[color])
+#			if mid == qry.split('-')[0].split('.')[-1]:
+#				Face.border.width = 1
+#				Face.border.color = 'black'
+#			else:
+#			    if mid == qry.split('-')[0].split('.')[-1]:
+#			       	text = str(qry_list.index(qry) + 1 ) + '*'
+#			    else:
+			if mid != "XXX" and mid in featjson.keys():
+				text = str(featjson[mid][f])
+			else:
+				text = "0"
+
+			if text == "0":
+				text = " "
+				coltmp = "white"
+			else:
+				coltmp = colors_array[color]
+
+			Face = ete2.faces.TextFace(text, fsize = R, fgcolor = 'black')
+			Face.background.color = coltmp
+			Face.margin_top = 10
+			Face.margin_bottom = 10
+			Face.margin_left = 10
+			Face.margin_right = 10
+#			if mid == qry.split('-')[0].split('.')[-1]:
+#		    	Face.border.width = 2
+#			Face.border.color = 'black'
+#		    print str(hits[qry][mid]/norm) + '\t' + str(hits[qry][mid]) + '\t' + str(hits[qry][mid]/max(evalues))
+#		    Face.opacity = hits[qry][mid]/max(evalues[qry])
+	       	    	ete2.faces.add_face_to_node(Face, node, column = f, aligned = True)
+#	    else:
+#  			ete2.faces.add_face_to_node(ete2.faces.TextFace(' ', fgcolor = 'black'), node, column = f , aligned = True)
+#	found = False
+#	for hlgen_list in hlgen_col:
+#		hl_color = int(math.fmod(hlgen_col.index(hlgen_list), len(colors_array)))
+#		if str(mid) in hlgen_list:
+#			print "Found one"
+#			print mid
+#			ete2.faces.add_face_to_node(ete2.faces.TextFace(node.name, fsize = F, fgcolor = colors_array[hl_color]), node, column = len(feature) + 1, position = "aligned")
+#			found = True
+#			break
+#	if found == False:
+	    	ete2.faces.add_face_to_node(ete2.faces.TextFace(node.name, fsize = F, fgcolor = 'black'), node, column = len(featlist) + 1, position = "aligned")
+#   else:
+#  	node.name = str(node_id)
+#	node_id += 1
+#   print qry_list
+
+
+if '--unroot' in sys.argv:
+    mp = T.get_midpoint_outgroup()
+    T.set_outgroup(mp)
+
+node_id = 0
+for n in T.traverse():
+	if not n.is_leaf():
+		n.name = str(node_id)
+	node_id += 1
+
+
+
+if '--root' in sys.argv:
+	try:
+		root_id = sys.argv[sys.argv.index('--root') + 1]
+		D = -1
+	except IndexError:
+		D = T.get_midpoint_outgroup()
+	if D == -1:
+		D = 1
+		for n in T.traverse():
+			if n.name == root_id:
+				D = n
+				break
+	T.set_outgroup(D)
+
+if '--balance' in sys.argv:
+	T.ladderize()
+
+if '--c' in sys.argv:
+    ts.mode = 'c'
+
+if '--c180' in sys.argv:
+    ts.mode = 'c'
+    ts.arc_start = 180 # 0 degrees = 3 o'clock
+    ts.arc_span = 180		
+
+if '--no-top' in sys.argv:
+        T.convert_to_ultrametric(1)
+
+
+print len(T.get_leaves())
+ts.layout_fn = mylayout
+ts.show_leaf_name = False
+
+
+#ts.optimal_scale_level = "full"
+ts.root_opening_factor = 1
+
+
+if '--show' in sys.argv:
+    T.show(tree_style = ts)
+if '--newick' in sys.argv:
+    T.write( outfile = sys.argv[1] + 'blastontree.nwk')
+if '--pdf' in sys.argv:
+    T.render(sys.argv[1] + '.pdf', tree_style = ts)
+if '--jpg' in sys.argv:
+    T.render(sys.argv[1] + '.jpg', tree_style = ts)
+if '--svg' in sys.argv:
+    T.render(sys.argv[1] + '.svg', h = 1000, tree_style = ts)
+if '--png' in sys.argv:
+    T.render(sys.argv[1] + '.png', tree_style = ts)
+
+
+
+
+
+#for node in T.iter_leaves():
+#    for che in cla['allcla']:
+#        Face.add_face_to_node(node.
+#        if che in cla[node.name.split('|')[0]]:
+           
+
+#   nstyle = NodeStyle()
+#   nstyle["fgcolor"] = "red"
+#   nstyle["size"] = 15
+#   n.set_style(nstyle)
+
+
+
+
+

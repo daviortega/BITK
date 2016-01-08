@@ -15,11 +15,22 @@ files = []
 
 for i in sys.argv[1:]:
 
-	if i != '-tree':
+	if i != '-tree' and i != '-cogtree':
 		files.append(i)
 	else:
 		break
 	print files
+
+cogfile = []
+
+if '-cogtree' in sys.argv:
+    for i in sys.argv[sys.argv.index('-cogtree')+1:]:
+        if i != '-tree':
+            cogfile.append(i)
+        else:
+            break
+
+
 
 
 data = {}
@@ -32,9 +43,22 @@ if '-tree' in sys.argv:
 	org_order = []
 	for node in t.iter_leaves():
 		if node.is_leaf():
-			org_order.append(node.name.split('|')[0])
+                        mid = node.name.split('|')[0]
+                        while "'" in mid:
+                            mid = mid.replace("'","")
+			org_order.append(mid)
 
 
+if '-ref' in sys.argv:
+    refgenome = sys.argv[sys.argv.index('-ref') + 1]
+    if "," in refgenome:
+        refgenome = refgenome.split(",")
+    else:
+        refgenome = [refgenome]
+
+cog2refgen = {}
+
+cog_order = {}
 
 i_old = 0
 for f in files:
@@ -42,8 +66,21 @@ for f in files:
 	i = files.index(f)
 	if i != i_old:
 		COG_list.append('_')
+
+        if "-cogtree" in sys.argv:
+            print cogfile[i]
+            t = ete2.Tree(cogfile[i])
+            cog_order[str(i)] = []
+            for node in t.iter_leaves():
+                if node.is_leaf():
+                    cog = node.name
+                    while "'" in cog:
+                        cog.replace("'","")
+                    cog_order[str(i)].append(cog)
+
 	datafile = open(f,'r')
 #	data[org] = []
+
 	for line in datafile:
 		line = line.replace('\n','')
 		if 'COG' in line[:3]:
@@ -53,6 +90,13 @@ for f in files:
 			if COG + '_' + str(i) not in COG_list:
 				COG_list.append(COG + '_' + str(i))
 			if org != '':
+                                if org in refgenome:
+                                    locus = line.split('-')[1]
+                                    if COG + '_' + str(i) not in cog2refgen.keys():
+                                        cog2refgen[COG + '_' + str(i)] = locus
+                                    else:
+                                        cog2refgen[COG + '_' + str(i)] += ", " + locus
+
 				if org not in data.keys():
 					data[org] = { COG + '_' + str(i) : 1}
 					org_list.append(org)
@@ -62,7 +106,7 @@ for f in files:
 					else:
 						data[org][COG + '_' + str(i)] += 1
 	i_old = i
-
+print cog2refgen
 #for org in data.keys():
 #	if org.split(".")[-1] not in org_order:
 #		del data[org]
@@ -76,9 +120,26 @@ if '-tree' in sys.argv:
 else:
 	for org in org_list:
                 data_json['row'].append({'name':org, 'phy_ord': '0'})
+print cog_order
+oldcogorg = 0
+countspace = 0
 
+print COG_list
 for COG in COG_list:
-	data_json['col'].append({'name':COG.split('_')[0], 'group':COG.split('_')[1]})
+        name = ''
+        if COG in cog2refgen.keys():
+            name = ' ' + cog2refgen[COG] + " - "
+        name += COG.split('_')[0]
+        g = COG.split('_')[1]
+        if '-cogtree' not in sys.argv:
+            cog_order[g].append(COG.split('_')[0].replace("COG",""))
+        if g == "":
+            cogord = oldcogord + 1000
+            #countspace += 1
+        else:
+            cogord = cog_order[g].index(COG.split('_')[0].replace("COG ","")) + 10000 * (int(g) + 1)
+        oldcogord = cogord
+        data_json['col'].append({'name':name, 'group':COG.split('_')[1], "cogord" : cogord, "clust" : 0 })
 
 for org in org_list:
 	for COG in COG_list:

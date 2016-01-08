@@ -20,9 +20,13 @@ if len(sys.argv) > 2:
                 print "Tag invalid"
                 sys.exit()
 else:
-	seqref = MSA.tag[0]	
+	seqref = MSA.tag[0]
+	bias = 1
 
+print seqref
 print bias
+print MSA.seq[0]
+
 
 res = bitk3.p_sector5(MSA, 'pos')
 
@@ -31,13 +35,19 @@ output = 'POS\t' + '\t'.join( ["PCA" + str(i+1) for i in range(len(MSA.seq[0]))]
 
 gap = 0
 pos = []
-for i in range(len(MSA.seq[0])):
-	if MSA.pos2res_num(i, seqref, bias) in pos:
-		output += "G%d\t" %(gap) + "\t".join([ "%.4f" %(i) for i in res[1][i,:]]) + '\n'
+
+test = ""
+
+for i in range(0,len(MSA.seq[0])):
+	test += str(i) + '\t' + str(MSA.pos2res_num(i, seqref, bias)) + '\t' + MSA.org[seqref][i] + '\n'
+	if MSA.pos2res_num(i, seqref, bias) in pos or MSA.pos2res_num(i, seqref, bias) == 0:
+		output += "G%d\t" %(gap + 1) + "\t".join([ "%.4f" %(i) for i in res[1][i,:]]) + '\n'
 		gap += 1
 	else:
 		pos.append(MSA.pos2res_num(i, seqref, bias))
 		output += "%d\t" %(MSA.pos2res_num(i, seqref, bias)) + "\t".join([ "%.4f" %(j) for j in res[1][i,:]]) + '\n'
+
+#print test
 
 dataout = open(sys.argv[1][:-3] + '.psector5_pos.dat' ,'w')
 dataout.write(output)

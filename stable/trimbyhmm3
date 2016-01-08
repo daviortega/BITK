@@ -8,7 +8,12 @@ import sys
 import difflib
 if '-h' in sys.argv:
 	print 'Trim sequences by hmmer hit coordinates: trimbyhmm pfam_model.hmm fastafile.fa [options]\n \
-	Options\n \t -m N for protein with multiple hits. N is the number of domains the protein needs to have to be selected. \n\t\t 0 allows for multiple domains. It will split the sequence in new entries for each domain and add numbers at the end of the tag\n \t -all (to be used with -m N where N != 0 or 1) brings all domains separately only from proteins with N hits\n\t --fullsequence Option forcing no trimm. It basically serves to select sequences with certain number of non-overlapping hits if used with -m option (do not use it... it is beta...) '
+	Options\n \
+            -m N for protein with multiple hits. N is the number of domains the protein needs to have to be selected. \n \
+                0 allows for multiple domains. It will split the sequence in new entries for each domain and add numbers at the end of the tag\n \
+            -all (to be used with -m N where N != 0 or 1) brings all domains separately only from proteins with N hits\n \
+            --fullsequence Option forcing no trimm. It basically serves to select sequences with certain number of non-overlapping hits if used with -m option (do not use it... it is beta...) \n \
+            --no-flag Do not add flags to sequence tags'
 	sys.exit()
 
 hmm_model = sys.argv[1]
@@ -19,7 +24,7 @@ if '-m' in sys.argv:
 		N = int(sys.argv[sys.argv.index('-m') +1])
 	except:
 		print " option -m needs the number of domains to be selected \n\n"
-		os.system('trimbyhmm2 -h')
+		os.system('trimbyhmm3 -h')
 		sys.exit()
 
 
@@ -70,8 +75,8 @@ for line in datafile:
 #									print tags		
 #									print '\n'.join(difflib.ndiff([name], [tags.replace(' ','')]))
 #							print seq_dic[name]
-							new_seq_dic[name + '-' + str(DN)] =  seq_dic[name][start:end]
-						new_seq_list.append(name + '-' + str(DN))
+                                                        new_seq_dic[name + '-' + str(DN)] =  seq_dic[name][start:end]
+                                                new_seq_list.append(name + '-' + str(DN))
 						DN += 1
 				else:
 					output += '>' + name + '\n' + seq_dic[name][start:end] + '\n'
@@ -101,6 +106,9 @@ if '-m' in sys.argv and N != 0:
 			output += '>' + seq + '\n' + new_seq_dic[seq] + '\n'
 		elif '-all' not in sys.argv:
 			if seq_list_count_domain.count('-'.join(seq.split('-')[0:-1])) == N:
+                            if "--no-flag" in sys.argv:
+                                output += '>' + "-".join(seq.split("-")[:-1]) + '\n' + new_seq_dic[seq] + '\n'
+                            else:
 				output += '>' + seq + '\n' + new_seq_dic[seq] + '\n'
 
 

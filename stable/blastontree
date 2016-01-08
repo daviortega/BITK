@@ -5,8 +5,8 @@
 import matplotlib
 import sys
 import ete2
-if '-pdf' in sys.argv:
-        matplotlib.use('Agg')
+#if '--pdf' in sys.argv:
+ #       matplotlib.use('Agg')
 
 import json
 import sys
@@ -279,8 +279,8 @@ else:
 
 T = ete2.Tree(treefile)
 ts = ete2.TreeStyle()
+ts_original = ts
 #s.branch_vertical_margin = 10
-
 
 features = []
 
@@ -294,11 +294,13 @@ if '--textface' in sys.argv:
 #node_id = 0
 
 def mylayout(node):
+    while "'" in node.name:
+        node.name = node.name.replace("'","")
     node.img_style["size"] = 0
 #    global node_id
     if node.is_leaf():
 #   	mid = str(node.name.split('|')[0])
-#   	ete2.faces.add_face_to_node(ete2.faces.TextFace(node.name, fsize = 50), node, column = 0, position = "aligned") 
+  	ete2.faces.add_face_to_node(ete2.faces.TextFace(node.name, fsize = 50), node, column = 0, position = "aligned") 
         if 1:
 	    if '--nogid' in sys.argv:
 		    try:
@@ -322,13 +324,13 @@ def mylayout(node):
 	        color = int(math.fmod(qry_list.index(qry), len(colors_array)))
 #               Face.add_face_to_node(Face.TextFace(node.name), node, column = 0)
 # 	        Face.margin_top = 3
-#               Face.margin_bottom = 3
+#                Face.margin_bottom = 3
 #	        Face.margin_left = 3
 #	        Face.margin_right = 20
 
 	        if mid in hits[qry].keys():
 		
-#		    Face = ete2.faces.TextFace(str(hits[qry][mid]))
+		    Face = ete2.faces.TextFace(str(hits[qry][mid]))
 		    if '--textface' not in sys.argv:
 		        Face = ete2.faces.CircleFace(R, color = colors_array[color])
 #			if mid == qry.split('-')[0].split('.')[-1]:
@@ -341,13 +343,15 @@ def mylayout(node):
 			    if feat_text == False: 
 	  	    	 	    text = str(qry_list.index(qry) + 1 )
 			    else:
+#                                   print "this is feat_text: " + str(feat_text)
+#                                   print qry
 			    	    text = qry.split('-')[feat_text]
 			    Face = ete2.faces.TextFace(text, fsize = R, fgcolor = 'black')
-			    Face.background.color = colors_array[color]
-			    Face.margin_top = 3
-			    Face.margin_bottom = 3
-			    Face.margin_left = 3
-			    Face.margin_right = 3
+                            Face.background.color = colors_array[color]
+        		    Face.margin_top = 3
+	    	            Face.margin_bottom = 3
+	        	    Face.margin_left = 3
+        		    Face.margin_right = 3
 		    if mid == qry.split('-')[0].split('.')[-1]:
 		    	Face.border.width = 2
 			Face.border.color = 'black'
@@ -359,26 +363,35 @@ def mylayout(node):
 		        Face.opacity = min(1, (hits[qry][mid] - emin[qry]) / ( emax[qry] - emin[qry]) + 0.1)
 #		    print str(hits[qry][mid]/max(evalues[qry]))
 #	            Face.background.color = colors_array[color]
-         	    ete2.faces.add_face_to_node(Face, node, column = qry_list.index(qry) , aligned = True)
+         	    ete2.faces.add_face_to_node(Face, node, column = 1, aligned = True)
                 else:
 #		    print mid
 #		    print hits[qry].keys()
-	            ete2.faces.add_face_to_node(ete2.faces.TextFace(' ', fgcolor = 'black'), node, column = qry_list.index(qry) , aligned = True)
+	            ete2.faces.add_face_to_node(ete2.faces.TextFace(' ', fgcolor = 'black'), node, column = qry_list.index(qry), aligned = True)
 	found = False
-	for hlgen_list in hlgen_col:
-		hl_color = int(math.fmod(hlgen_col.index(hlgen_list), len(colors_array)))
-		if str(mid) in hlgen_list:
-			print "Found one"
-			print mid
-			ete2.faces.add_face_to_node(ete2.faces.TextFace(node.name, fsize = F, fgcolor = colors_array[hl_color]), node, column = len(qry_list) + 1, position = "aligned")
-			found = True
-			break
-	if found == False:
-		ete2.faces.add_face_to_node(ete2.faces.TextFace(node.name, fsize = F, fgcolor = 'black'), node, column = len(qry_list) + 1, position = "aligned")
+#	for hlgen_list in hlgen_col:
+#		hl_color = int(math.fmod(hlgen_col.index(hlgen_list), len(colors_array)))
+#		if str(mid) in hlgen_list:
+#			print "Found one"
+			#print mid
+#			ete2.faces.add_face_to_node(ete2.faces.TextFace(node.name, fsize = F, fgcolor = colors_array[hl_color]), node, column = 0 , position = "aligned")
+#			found = True
+#			break
+#	if found == False:
+#               print "False " + node.name
+#               if len(qry_list) == 1:
+#           	    ete2.faces.add_face_to_node(ete2.faces.TextFace(node.name, fsize = F, fgcolor = 'black'), node, column = 0 ) # len(qry_list)) # , position = "aligned")
+
+#               else:
+#                   ete2.faces.add_face_to_node(ete2.faces.TextFace(node.name, fsize = F, fgcolor = 'black'), node, column = 0 ) # len(qry_list) , position = "aligned")
+
+
+#   print "Done!!!@!#$#@"
 #   else:
-#  	node.name = str(node_id)
+ # 	node.name = str(node_id)
 #	node_id += 1
 #   print qry_list
+
 
 
 if '--unroot' in sys.argv:
@@ -407,6 +420,7 @@ if '--root' in sys.argv:
 				break
 	T.set_outgroup(D)
 
+
 if '--balance' in sys.argv:
 	T.ladderize()
 
@@ -418,18 +432,20 @@ if '--c180' in sys.argv:
     ts.arc_start = 180 # 0 degrees = 3 o'clock
     ts.arc_span = 180		
 
+if "--scale" in sys.argv:
+    ts.scale = int(sys.argv[sys.argv.index("--scale") + 1])
+
+
 if '--no-top' in sys.argv:
         T.convert_to_ultrametric(1)
-
 
 print len(T.get_leaves())
 ts.layout_fn = mylayout
 ts.show_leaf_name = False
 
-print qry_list
 
 #ts.optimal_scale_level = "full"
-ts.root_opening_factor = 1
+#ts.root_opening_factor = 1
 
 
 if '--show' in sys.argv:

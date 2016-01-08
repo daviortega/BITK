@@ -57,12 +57,12 @@ except:
 mist = client.mist22
 
 print "SeqDepot"
-try:
-	client2 = pymongo.MongoClient('localhost', 27018)
-except:
-        print "You must open a tunnel with aphrodite.bio.utk.edu: ssh -L 27018:localhost:27017 aphrodite.bio.utk.edu"
-	sys.exit()
-seqdepot = client2.seqdepot
+#try:
+#	client2 = pymongo.MongoClient('localhost', 27018)
+#except:
+#        print "You must open a tunnel with aphrodite.bio.utk.edu: ssh -L 27018:localhost:27017 aphrodite.bio.utk.edu"
+#	sys.exit()
+seqdepot = bitk.get_seqdepot_client()
 
 local = pymongo.MongoClient()
 
@@ -110,7 +110,7 @@ def run_rps(mid_list = [], dbname = TOLdb_name,TOLdb_path = TOLdb_path, autofix 
 	rpscommands = []
 	mid_list = set(mid_list)
 	for mid in mid_list:
-		rpscommands.append('rpsblast -query ' + genomes_path + 'mist22.' + mid + '.fa -db ' + dbname + ' -evalue 0.1 -outfmt 6 -out rps.mist22.' + mid + '.dat :' + mid )
+		rpscommands.append('rpsblast -i ' + genomes_path + 'mist22.' + mid + '.fa -d ' + dbname + ' -e 0.1 -m 8 -o rps.mist22.' + mid + '.dat :' + mid )
 
 	if NPrps <= 1:
 		for c in rpscommands:
@@ -351,9 +351,11 @@ def concat(cog_list, filename = 'concat.fa', algo = 'linsi'):
 	if filename == None:
 		filename = 'concat.fa'
         concat = {}
+        partition = [[0,0]]
         print "Concatenating the alignments"
         for cog in cog_list:
                 seq_dic, tags = bitk.fastareader('cdd.' + cog.split('|')[-1] + '.' + algo + '.fa', 'r')
+                partition.append( [ partition[-1][-1] + 1, partition[-1][-1] + len(seq_dic[tags[0]]) ] )
                 for tag in tags:
                         if tag not in concat.keys():
                                 concat[tag] = seq_dic[tag]
@@ -382,6 +384,14 @@ def concat(cog_list, filename = 'concat.fa', algo = 'linsi'):
         fout = open(filename, 'w')
         fout.write(output)
         fout.close()
+
+        print "Making the partition file"
+        with open(filename + ".partition.dat" , "w") as f:
+            outpart = ""
+            for i in range(1, len(partition)):
+                outpart += "AUTO, gene" + str(i) +" = " + '-'.join([str(x) for x in partition[i]]) + '\n'
+            f.write(outpart)
+
 	return filename
 
 
@@ -595,7 +605,7 @@ def preptree(filename = 'concat.gb.fa', nogid = False):
 	return filename
 
 
-def maketree(filename = 'concat.gb.names.fa', bootstrap = 0, NP = 20, par = '-m PROTGAMMAILG', supertree = 'N'):
+def maketree(filename = 'concat.gb.names.fa', bootstrap = 0, NP = 20, par = '-m PROTGAMMAILG', supertree = 'N', notree = False ):
         os.system('rm RAxML*')
         os.system('fa2phy ' + filename)
 	filename = filename.split('.')
@@ -603,18 +613,21 @@ def maketree(filename = 'concat.gb.names.fa', bootstrap = 0, NP = 20, par = '-m 
 	filename = '.'.join(filename[:-1] + ['phy'])
 
 
-
-	print filename
-	if supertree == 'N':
-		if bootstrap != 0:
-			command = 'raxmlHPC-PTHREADS-AVX -T ' + str(NP) + ' ' + par + ' -p 12345 -# ' + str(bootstrap) + ' -s ' + filename + ' -n ' + filenamenew + '.besttree_raxml.nwk'
-	        else:
-        	        command = 'raxmlHPC-PTHREADS-AVX -T ' + str(NP) + ' ' + par + ' -p 12345 -s ' + filename + ' -n ' + filenamenew + '.besttree_raxml.nwk'
+	if notree == False:
+		print filename
+		if supertree == 'N':
+			if bootstrap != 0:
+				command = 'raxmlHPC-PTHREADS-AVX -T ' + str(NP) + ' ' + par + ' -p 12345 -# ' + str(bootstrap) + ' -s ' + filename + ' -n ' + filenamenew + '.besttree_raxml.nwk'
+		        else:
+        		        command = 'raxmlHPC-PTHREADS-AVX -T ' + str(NP) + ' ' + par + ' -p 12345 -s ' + filename + ' -n ' + filenamenew + '.besttree_raxml.nwk'
+		else:
+			command = 'raxmlHPC-PTHREADS-AVX -T ' + str(NP) + ' ' + par + ' -p 12345 -f d -f a -x 1298 -# 1000 -s ' + filename + ' -n ' + filenamenew + '.besttree_raxml.nwk'
+		print "Command: " + command
+		os.system(command)
+		return filenamenew + '.besttree_raxml.nwk'
 	else:
-		command = 'raxmlHPC-PTHREADS-AVX -T ' + str(NP) + ' ' + par + ' -p 12345 -f d -f a -x 1298 -# 1000 -s ' + filename + ' -n ' + filenamenew + '.besttree_raxml.nwk'
-	print "Command: " + command
-	os.system(command)
-	return filenamenew + '.besttree_raxml.nwk'
+		return filenamenew + '.besttree_raxml.nwk'
+		
 
 
 def maketreephyml(filename = 'concat.gb.names.fa', par = '-q -d aa -m JTT -c 4 -a e -v e -s SPR --no_memory_check', bootstrap = 0, NP = 0):
@@ -639,11 +652,14 @@ def maketreephyml(filename = 'concat.gb.names.fa', par = '-q -d aa -m JTT -c 4 -
 
 
 
-def posttree(filename = 'concat.gb.names.besttree_raxml.nwk', treefilename = 'bitkTOL.tree.nwk'):
+def posttree(filename = 'concat.gb.names.besttree_raxml.nwk', treefilename = 'bitkTOL.tree.nwk', supertree = 'N'): 
 #	E = os.system('cp RAxML_result.concat.tree ' + filename')
 #       if E != 0:
 #       	print "but do not worry, I got this!!!!"
-        os.system('cp RAxML_bestTree.' + filename + ' ' + filename)
+        if supertree == 'Y':
+            os.system('cp RAxML_bipartitions.' + filename + ' ' + filename)
+        else:
+            os.system('cp RAxML_bestTree.' + filename + ' ' + filename)
         os.system('rectaxontree3 ' + filename)
 	filename = filename.split('.')
         filename.insert(len(filename)-1, 'rec')

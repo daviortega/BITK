@@ -18,9 +18,13 @@ filename = sys.argv[1]
 T = ete2.Tree(filename)
 
 output = ''
-for node in T.traverse():
-	if node.name != 'NoName':
-		output += node.name.split('|')[0] + '\n'
+for node in T.iter_leaves():
+	if node.is_leaf():
+            if "|" in node.name:
+                org = node.name.split('|')[0]
+                while "'" in org:
+                    org = org.replace("'","")
+                output += org + '\n'
 			
 with open(filename + '.mistid.list' , 'w') as f:
 	f.write(output)

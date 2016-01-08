@@ -1,2 +1,2 @@
 #!/bin/bash
-rsync -aHXxv --numeric-ids --delete --progress -e "ssh -T -c arcfour -o Compression=no -x" ~/public_html/* davi.jensengroup.org:~/davi.jensengroup.org/
+rsync -aHxv --numeric-ids --delete --progress -e "ssh -T -c arcfour -o Compression=no -x" ~/public_html/* davi.jensengroup.org:~/davi.jensengroup.org/

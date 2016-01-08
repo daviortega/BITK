@@ -11,7 +11,8 @@ if '-h' in sys.argv:
 T = ete2.Tree(sys.argv[1])
 
 mp = T.get_midpoint_outgroup()
-T.set_outgroup(mp)
+if mp != None:
+    T.set_outgroup(mp)
 T.ladderize()
 
 treeout = open(sys.argv[1][:-4] + '.bal.nwk', 'w')

@@ -45,8 +45,10 @@ def read_seq(filename, msafmt= 'fasta'):
 		if notAligned:
 			print "At this time, this class only works with Multiple Sequence Alignments and therefore your sequences needs to have the same length. If you are sure you have input a MSA, the troubled sequence could be:"
 			print tag_list[i]
+			sys.exit()
 		else:
 			return msa(tag_list, seq_list, original = {}, orgpos = [])
+			print tag_list
 	else:
 		print "Please provide one of the following formats: fasta"
                 return -1
@@ -100,7 +102,7 @@ class msa(object):
 	def pos2res_num(self, pos, tag, bias = 0):
 		gaps = 0
 #		removed = self.rem
-		res_num = bias
+		res_num = bias - 1
 #		pos = [ i for i in range(len(self.org.values()[0])) if i not in self.rem ][pos]
 		pos = self.orgpos[pos]
 		for aa in self.org[tag][:pos+1]:

@@ -5,7 +5,7 @@
 import bitk
 import sys
 if '-h' in sys.argv:
-	print 'Input list of smart tags output fasta file'
+	print 'Input list of smart tags or Seqdepot qseqs output fasta file'
 	sys.exit()
 
 mist22 = bitk.get_mist22_client()
@@ -19,7 +19,9 @@ error = []
 with open(sys.argv[1], 'r') as f:
 	for line in f:
 		taglist.append(line.replace('\n',''))
-		aclist.append(line.replace('\n','').split('-')[2])
+                try:
+                    aclist.append(line.replace('\n','').split('-')[2])
+                except 
 
 cards = mist22.genes.find({ 'p.ac' : { '$in' : aclist }})
 ac2aseq = {}
