@@ -1,0 +1,101 @@
+#!/usr/bin/env python
+# 
+import fileinput
+import bitk
+import sys
+
+if '-h' in sys.argv:
+	print "Concatenates sequences in fa format:\n \
+		Sintaxe: concatbyorganism left_seq.fa right_seq.fa (same organism)\n \
+		Options: -n N   - Concat only if it is N genes up or downstream \n"
+	sys.exit()
+
+
+if '-n' in sys.argv:
+	N = int(sys.argv[sys.argv.index('-n') + 1])
+
+sequences1 = sys.argv[1]
+sequences2 = sys.argv[2]
+
+#print seq_seq
+seq1_dic, seq1_list = bitk.fastareader(sequences1)
+seq2_dic, seq2_list = bitk.fastareader(sequences2)
+
+allseqs = seq1_list + seq2_list
+
+#Parsing the AC from the list
+
+AC_list = []
+ac2tag = {}
+tag2ac = {}
+
+for tag in allseqs:
+	ac = bitk.xtractAC(tag)
+	if ac != 0:
+		AC_list.append(ac)
+		ac2tag[ac] = tag
+		tag2ac[tag] = ac
+
+mist22 = bitk.get_mist22_client()
+
+print AC_list 
+
+cards = mist22.genes.find({'p.ac': { '$in' : AC_list }}, { 'p.ac': 1 , 'pos' : 1})
+
+ac2pos = {}
+for card in cards:
+	ac2pos[card['p']['ac']] = card['pos']
+
+print ac2pos
+
+output = ''
+tags = []
+
+for seq1 in seq1_list:
+	try:
+		print tag2ac[seq1]
+		pos1 = ac2pos[tag2ac[seq1]]
+	except KeyError:
+		continue
+	for seq2 in seq2_list:
+		try:
+			pos2 = ac2pos[tag2ac[seq2]]	
+		except KeyError:
+			continue
+		if seq1.split('-')[0] == seq2.split('-')[0]:
+			if '-n' in sys.argv:
+				if pos1 == pos2 + 1 or pos1 == pos2 - 1:
+					go = True
+				else:
+					go = False
+			if ('-n' in sys.argv and go == True ) or '-n' not in sys.argv:
+				seq = seq1.split('-')[0] + '.1'
+				while seq in tags:
+					N = int(seq.split('.')[-1])
+					seq = '.'.join(seq.split('.')[:-1]) + '.' + str(N+1)
+				tags.append(seq)				
+				output += '>' + seq + '\n' + seq1_dic[seq1] + seq2_dic[seq2] + '\n'
+
+
+
+
+#list = check_loci(seq1.keys(),seq2.keys())
+
+#for loci in list:
+#	if loci in seq1.keys():
+#		del seq1[loci]
+#	if loci in seq2.keys():
+#		del seq2[loci]
+
+
+
+#if len(sys.argv) > 3:
+#	final = concat(seq1,seq2,seq_seq)
+#else:
+#	final = concat(seq1,seq2)
+
+outfile = open('concatbyorganism.fa','w')
+outfile.write(output)
+outfile.close()
+print 'Done'
+

@@ -1,0 +1,55 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 4/1/2016 
+###################################
+import sys
+import os
+import numpy
+import re
+
+if '-h' in sys.argv:
+	print 'Reads RAxML_info of an inference run and select the Nth best tree inference'
+	sys.exit()
+
+
+
+#defining container
+dt = numpy.dtype([('Inference', numpy.int, 1 ), ('LN', numpy.float64, 1), ('filename', numpy.str_, 250)])
+
+line = 'Inference[1] final GAMMA-based Likelihood: -23704.178794 tree written to file /home/ortegad/Projects/2015/Pseudomonadales/paperIgor/Pseudo.Xantho/Pseudo.Xantho/COGs/RAxML_result.adap.latest.s.Pseudo.Xantho.hmmtrim.linsi.250inf.d.PROTGAMMAILG.tree.RUN.1'
+
+data = []
+out_tab = ''
+
+with open(sys.argv[1], 'r') as f:
+    for line in f:
+        if "final" in line:
+            field = line.split(' ')
+            print field
+            print field[0]
+            try:
+                I = numpy.int(re.findall(r'\d+',  field[0]) [0] )
+                LN = numpy.float64(field[4])
+                fn = field[-1].replace('\n','')
+            except IndexError:
+                continue
+            data.append(( I, LN, fn))
+            out_tab += str(I) + '\t' + str(LN) + '\t' + fn + '\n'
+
+data_np = numpy.array( data, dtype = dt)
+
+N = int(sys.argv[2])
+
+print data_np[:10]
+data_np = numpy.sort( data_np, order = 'LN')[::-1]
+print data_np[:10]
+
+#cat the files
+os.system('cat ' + ' '.join([ i for i in data_np[:N]['filename'] ]) + '> ' + sys.argv[1] + '.top' + str(N) + '.nwk')
+
+#output the tree file tabled
+with open(sys.argv[1] + '.tab.dat', 'w') as f:
+    f.write(out_tab)
+
+
+

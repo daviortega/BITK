@@ -1,0 +1,282 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 9/4/2013 
+###################################
+import matplotlib
+import sys
+import ete3
+if '-pdf' in sys.argv:
+        matplotlib.use('Agg')
+import bitk
+import json
+import sys
+import math
+import colorlover
+
+if '-h' in sys.argv:
+    print 'Map feature from classes from the list to the correspondent nwk tree using ete3 python module. Input yourtree.nwk N1 N2 Nn [options starting with "-"] (Nx is the location of the feature to be mapped) and output is a png figure'
+    sys.exit()
+
+#CLASS_IN_ORDER = ['F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9', 'F10', 'F11', 'F12', 'F13', 'F14', 'F15', 'F16', 'F17', 'F18', 'F19', 'F20', 'Tfp', 'ACF', 'Uncat']
+
+
+
+
+colors_array = [ '#E41A1C' , '#377EB8' , '#4DAF4A' , '#984EA3' , '#FF7F00' , '#999999' , '#A65628' , '#F781BF', '#17BECF', "#8DD3C7", "#BEBADA", "#FB8072", "#80B1D3", "#B3DE69", "#FCCDE5", "#D9D9D9", "#BC80BD", "#CCEBC5", "#FFED6F" ]
+
+
+colors_array = [ '#d0d1e6','#a6bddb','#74a9cf','#3690c0','#0570b0','#045a8d','#023858', '#fdd49e','#fdbb84','#fc8d59','#ef6548','#d7301f','#b30000','#7f0000', '#ccece6','#99d8c9','#66c2a4','#41ae76','#238b45','#006d2c','#00441b', '#dadaeb','#bcbddc','#9e9ac8','#807dba','#6a51a3','#54278f','#3f007d'] 
+
+
+colors_array = ['#E41A1C', '#8C0000', '#F04949', '#D361A1', '#B71570', '#700040', '#E4761A', '#8C4000', '#FFB375', '#4CA7A7', '#076C6C', '#C5F06E', '#73A70B', '#84B5DE', '#377DB8', '#094D85', '#908FE3', '#4846C3', '#181591', '#FFD03F', '#CF7800', '#D8935B', '#AC4983', '#932A67'] 
+
+colors_array = ["#FFFF00", "#1CE6FF", "#FF34FF", "#FF4A46", "#008941", "#006FA6", "#A30059",
+"#FFDBE5", "#7A4900", "#0000A6", "#63FFAC", "#B79762", "#004D43", "#8FB0FF", "#997D87",
+"#5A0007", "#809693", "#FEFFE6", "#1B4400", "#4FC601", "#3B5DFF", "#4A3B53", "#FF2F80",
+"#61615A", "#BA0900", "#6B7900", "#00C2A0", "#FFAA92", "#FF90C9", "#B903AA", "#D16100",
+"#DDEFFF", "#000035", "#7B4F4B", "#A1C299", "#300018", "#0AA6D8", "#013349", "#00846F",
+"#372101", "#FFB500", "#C2FFED", "#A079BF", "#CC0744", "#C0B9B2", "#C2FF99", "#001E09",
+"#00489C", "#6F0062", "#0CBD66", "#EEC3FF", "#456D75", "#B77B68", "#7A87A1", "#788D66",
+"#885578", "#FAD09F", "#FF8A9A", "#D157A0", "#BEC459", "#456648", "#0086ED", "#886F4C",
+"#34362D", "#B4A8BD", "#00A6AA", "#452C2C", "#636375", "#A3C8C9", "#FF913F", "#938A81",
+"#575329", "#00FECF", "#B05B6F", "#8CD0FF", "#3B9700", "#04F757", "#C8A1A1", "#1E6E00",
+"#7900D7", "#A77500", "#6367A9", "#A05837", "#6B002C", "#772600", "#D790FF", "#9B9700",
+"#549E79", "#FFF69F", "#201625", "#72418F", "#BC23FF", "#99ADC0", "#3A2465", "#922329",
+"#5B4534", "#FDE8DC", "#404E55", "#0089A3", "#CB7E98", "#A4E804", "#324E72", "#6A3A4C",]
+
+colors_array = ["#023FA5","#7D87B9","#BEC1D4","#D6BCC0","#BB7784","#FFFFFF", "#4A6FE3","#8595E1","#B5BBE3","#E6AFB9","#E07B91","#D33F6A", "#11C638","#8DD593","#C6DEC7","#EAD3C6","#F0B98D","#EF9708", "#0FCFC0","#9CDED6","#D5EAE7","#F3E1EB","#F6C4E1","#F79CD4"]
+
+colors_array = ["#FFA6D8",
+"#91ED1D",
+"#75FBE9",
+"#9E5D16",
+"#6B68F4",
+"#606C6A",
+"#F91275",
+"#5F7E0F",
+"#DD30BA",
+"#A0F791",
+"#467EC9",
+"#D52925",
+"#FBFE6D",
+"#148860",
+"#EDF8E4",
+"#8B568E",
+"#B69801",
+"#1DAFD8",
+"#D1CDF7",
+"#FD8657",
+"#CDA7FF",
+"#A5594A",
+"#52E8AF",
+"#CA7AF3",
+"#33920B",
+"#EA8BA0",
+"#87F96E",
+"#AD44CC",
+"#49639B",
+"#F5414D"]
+
+
+#colors_array.sort()
+#cla = json.load(open(sys.argv[1]))
+T = ete3.Tree(sys.argv[1])
+N_list = []
+for i in sys.argv[2:]:
+	if '-' in i:
+		break
+	N_list.append(int(i))
+
+#print cla['allcla']
+
+#if '-checlass' in sys.argv:
+#    new_order = []
+#    for c in CLASS_IN_ORDER:
+#        if c in cla['allcla']:
+#            new_order.append(c)
+#    cla['allcla'] = new_order
+#else:
+#    cla['allcla'].sort()
+#
+#print cla['allcla']
+#Faces = {}
+
+#for che in cla['allcla']:
+#    Faces[che] = ete3.faces.AttrFace("checla", fsize=20, fgcolor="#009000", bgcolor = colors_array[cla['allcla'].index(che)])
+#nameFace = ete3.AttrFace("name", fsize=20, fgcolor="#009000")
+
+#for node in T.iter_leaves():
+#    node.add_feature(che = cla[node.name.split('|')[0]])
+if "-fasta" in sys.argv:
+    seq_dic, seq_list = bitk.fastareader(sys.argv[sys.argv.index('-fasta') + 1])
+
+ts = ete3.TreeStyle()
+
+ts.branch_vertical_margin = 5
+
+if '-bal' in sys.argv:
+#   T.ladderize()
+    mp = T.get_midpoint_outgroup()
+    T.set_outgroup(mp)
+    T.ladderize()
+
+
+
+#if '-rem' in sys.argv:
+#    rem = sys.argv[sys.argv.index('-rem')+1].split(',')
+#    for node in T.iter_leaves():
+#        node.detach()
+#else:
+#    rem = []
+
+#if '-mistid' not in sys.argv: #keep mistid
+#    ts.show_leaf_name = False
+
+if "-clustal-colors" in sys.argv:
+    fasta_colors = bitk.clustal_colors(seq_dic, seq_list)
+
+if "-feat_colored" in sys.argv:
+    feat_color = sys.argv[sys.argv.index('-feat_colored') + 1]
+    feat_color.split(',')
+
+
+style = ete3.NodeStyle()
+style['size'] = 0
+
+features = []
+for i in N_list:
+    features.append([])
+
+def mylayout(node):
+    if node.is_leaf():
+        node.set_style(style)
+        if 1:
+            #print node.name
+#           if '-mistid' not in sys.argv:
+#               if len(node.name.split('|')) != 2:
+#                   if '|' not in node.name:
+#                       node.name = node.name + '|X Error'
+#                   else:
+#                       node.name = node.name.split('|')[0] + '|Error'
+	    c = 1
+            if "-fasta" in sys.argv:
+                nn = node.name
+                try:
+                    seq = seq_dic[nn]
+                except KeyError:
+                    while "|" in nn:
+                        nn = nn.replace("|",":")
+                    seq = seq_dic[nn]
+                #print seq
+                for i in range(len(seq)):
+                    Face = ete3.faces.TextFace(seq[i], tight_text = True, ftype = "Arial")
+                    if "-clustal-colors" in sys.argv:
+                        Face.background.color = fasta_colors[nn][i]
+                    else:
+                        Face.background.color = "white"
+	            Face.margin_top = 3
+        	    Face.margin_bottom = 3
+	            Face.margin_left = 0
+        	    Face.margin_right = 0
+	            ete3.faces.add_face_to_node(Face, node, column = c, aligned = True)
+		    c += 1
+                
+                Face_sp = ete3.faces.TextFace("   ", tight_text = True, ftype = "Arial")
+                Face_sp.background.color = "white"
+	        Face_sp.margin_top = 3
+        	Face_sp.margin_bottom = 3
+	        Face_sp.margin_left = 0
+        	Face_sp.margin_right = 0
+	        ete3.faces.add_face_to_node(Face_sp, node, column = c, aligned = True)
+		c += 1
+	    for N in N_list:
+	            feature = node.name.split('-')[N]
+        	    if feature not in features[N_list.index(N)]:
+                        #print feature
+			features[N_list.index(N)].append(feature)
+	            i = int(math.fmod(features[N_list.index(N)].index(feature), len(colors_array)))
+#       	    ete3.faces.add_face_to_node(ete3.faces.TextFace(node.name), node, column = 0)
+		    Face = ete3.faces.TextFace(feature)
+                    #Face.border.type = 0
+                    #Face.border.width = 0
+                    #Face.border.color = "white"
+                    if N_list.index(N) % 2 == 0:
+                        Face.background.color = colors_array[i]
+                    else:
+                        Face.background.color = colors_array[len(colors_array) - i - 1]
+                    #Face.oppacity = 0.2
+	            Face.margin_top = 3
+        	    Face.margin_bottom = 3
+	            Face.margin_left = 3
+        	    Face.margin_right = 3
+	            ete3.faces.add_face_to_node(Face, node, column = c, aligned = True)
+		    c += 1
+                    ete3.faces.add_face_to_node(Face_sp, node, column = c, aligned = True)
+                    c += 1
+#       	    ete3.faces.add_face_to_node(ete3.faces.TextFace(' ', fgcolor = 'white'), node, column = 2*i+2, aligned = True)
+    else:
+        node.set_style(style)
+            
+#if '-bal' in sys.argv:
+#   T.ladderize()
+#    mp = T.get_midpoint_outgroup()
+#    T.set_outgroup(mp)
+#    T.ladderize()
+
+#ts.NodeStyle
+
+
+if '-noname' in sys.argv:
+    ts.show_leaf_name = False
+
+
+if '-cspan' in sys.argv:
+    start = float(sys.argv[sys.argv.index('-cspan') + 1])
+    span = float(sys.argv[sys.argv.index('-cspan') + 2])
+    ts.mode = 'c'
+    ts.arc_start = start
+    ts.arc_span = span
+
+
+if '-c' in sys.argv:
+    ts.root_opening_factor = 1
+    ts.mode = 'c'
+    #ts.scale = 20
+
+if '-c180' in sys.argv:
+    ts.mode = 'c'
+    ts.arc_start = 180 # 0 degrees = 3 o'clock
+    ts.arc_span = 180		
+
+ts.layout_fn = mylayout
+
+
+
+if '-show' in sys.argv:
+    T.show(tree_style = ts)
+
+if '-pdf' in sys.argv:
+    print "here now"
+    T.render(sys.argv[1] + '.pdf', tree_style = ts)
+    print "here !?"
+
+if '-svg' in sys.argv:
+    T.render(sys.argv[1] + '.svg', tree_style = ts)
+
+
+
+#for node in T.iter_leaves():
+#    for che in cla['allcla']:
+#        ete3.faces.add_face_to_node(node.
+#        if che in cla[node.name.split('|')[0]]:
+           
+
+#   nstyle = NodeStyle()
+#   nstyle["fgcolor"] = "red"
+#   nstyle["size"] = 15
+#   n.set_style(nstyle)
+
+
+
+
+

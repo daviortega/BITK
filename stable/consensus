@@ -1,0 +1,31 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 1/5/2016 
+###################################
+import sys
+import bitk
+if '-h' in sys.argv:
+	print 'output consensus code at 100% 90% 80% 70% 60% and 50% \n \
+        Options: --trim N1 N2 Trim the MSA by the coordinates N1 and N2 put your'
+	sys.exit()
+
+seq_dic, seq_list = bitk.fastareader(sys.argv[1])
+
+cut = [100,90,80,70,60,50]
+
+print sys.argv[1][:-3]
+
+if "--trim" in sys.argv:
+    N = sys.argv.index("--trim") + 1
+    N1, N2 = [ int(i) for i in sys.argv[N: N+2] ]
+    seq_dic = bitk.trimMSA(seq_dic, N1, N2, seq_list)
+
+consensus = bitk.consensus(seq_dic, cut)
+output = ""
+for c in cut:
+    output += ">" + sys.argv[1][:-3] + "-" + str(c) + "\n" + consensus[c] + "\n"
+
+with open(sys.argv[1][:-3] + ".consensus_code.fa", "w") as f:
+    f.write(output)
+
+    
