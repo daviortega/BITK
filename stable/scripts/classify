@@ -11,7 +11,8 @@ if '-h' in sys.argv:
 		Sintaxe: python classify.py name_of_the_file.fa [flags] [options]\n \
 		Sequence name format: organism_id-locus-class.\n \
 		Sequence name format (MCP): organism_id-locus-class-heptad \n\n \
-		Options: -kc\tKeep the class into the tag.\n\n"
+		Options: -kc\tKeep the class into the tag. \n \
+                         -N n\tIf you want to classify by the nth feature in the smart tag \n"
 		
 #		"The files with X in it needs to be loaded to vi (vi filename) and the type: ':%s/<control>V<control>M//g' to replace the ^M caracters from the file.\n The <control> indicates to hold the Ctrl key."
 	sys.exit()
@@ -28,7 +29,10 @@ for name in seq_list:
 		class_name = name.split('-')[4].replace('\n','')
 	elif '-mcp_s' in sys.argv:
 		class_name = name.split('-')[3]
-	else:
+	elif '-N' in sys.argv:
+                N = int(sys.argv[sys.argv.index('-N') + 1] )
+                class_name = name.split('-')[N]
+        else:
 		class_name = name.split('-')[3]
 	if class_name not in class_ls:
 		class_ls.append(class_name)
@@ -49,6 +53,12 @@ for class_name in class_ls:
 					output += '>' + name.replace('-'+class_name,'') + '\n' + seq + '\n'
 		elif '-mcp_s' in sys.argv:
 			if name.split('-')[3] == class_name:
+				if '-kc' in sys.argv:
+                                        output += '>' + name + '\n' + seq + '\n'
+				else:
+					output += '>' + name.replace('-'+class_name,'') + '\n' + seq + '\n'
+		elif '-N' in sys.argv:
+			if name.split('-')[N] == class_name:
 				if '-kc' in sys.argv:
                                         output += '>' + name + '\n' + seq + '\n'
 				else:

@@ -17,32 +17,50 @@ files = glob.glob(str(sys.argv[1]))
 for F in files:
 	aseqs = []
 	print F
-	seq_dic, seq_list = bitk.fastareader(F)
+        just_list = False
+        try:
+            seq_dic, seq_list = bitk.fastareader(F)
+        except UnboundLocalError:
+            with open(F, 'r') as f:
+                for line in f:
+                    aseqs.append(line.replace('\n',''))
+                just_list = True
 #	try:
 #		N = int(sys.argv[2]) + 1
 #	except:
 #		N = 1
+        try:
+    	    for line in seq_list:
+	    	aseqs.append(line)
+	except NameError:
+            pass
 
-	for line in seq_list:
-		aseqs.append(line)
-		
 	print aseqs
 	A = bitk.aseq2bitktaglist(aseqs)
 
 	output = ''
 	nodeal = ''
+        taglist = ''
 
 	for aseq in aseqs:
 		for tag in A[aseq]:
-			if tag != 'None':
+			if tag != 'None' and just_list == False:
 				output += '>' + tag + '\n' + seq_dic[aseq] + '\n'
-			else:
+			elif just_list == False:
 				nodeal += '>' + aseq + '\n' + seq_dic[aseq] + '\n'
+                        elif tag != 'None':
+                                taglist += tag + '\n'
+                        else:
+                                taglist += aseq + '\n'
 			print aseq + '\t' + tag
 
-	with open(F[:-3] + '.bitktags.fa', 'w') as f:
+        if just_list == True:
+            with open(F[:-3] + '.bitktags.list', 'w') as f:
+                f.write(taglist)
+        else:
+            with open(F[:-3] + '.bitktags.fa', 'w') as f:
 		f.write(output)
-	
-	with open(F[:-3] + '.bitktags_nodeal.fa', 'w') as f:
+	    with open(F[:-3] + '.bitktags_nodeal.fa', 'w') as f:
 	        f.write(nodeal)
+
 

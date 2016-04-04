@@ -7,16 +7,20 @@ import base64
 import ete2
 import pymongo
 import time
-
+import json
 
 
 def xtractAC(tag):
-    try:
-        AC = tag.split('-')[2]
-    except:
-        print "Tag " + tag + " not in format for extraction"
-        sys.exit()
-    return AC
+	if tag.split('-')[0].count('.') >= 2:
+		try:
+			AC = tag.split('-')[2]
+			return AC
+		except:
+			print "Tag " + tag + " not in format for extraction"
+			sys.exit()
+	else:
+		print "Tag " + tag + " is not a bitktag"
+	return 0
 
 def get_mist22_client():
 	print "Verifying tunnels"
@@ -46,7 +50,19 @@ def insertmethodinfilename(filename, method):
         filenamenew = '.'.join(filenamenew)
 	return filenamenew
 
-
+def mistid2strain(mid_list = []):
+    mid_list = [ int(i) for i in mid_list ]
+    result = {}
+    mist = get_mist22_client()
+    for mist_id in mid_list:
+         res = mist.genomes.find_one({"_id":int(mist_id)}, {"n":1})
+         if res != None:
+                 print str(res['_id']) + '\t' + res['n']
+                 result[res['_id']] = res['n']
+         else:           
+                 output += mist_id + '\n'
+                 print str(mist_id) + " is not a valid MIST id"
+    return result
 
 def proteinid2bitktag(proteinid_list = []):
         out_dic = {}
@@ -366,7 +382,7 @@ def fastareader(datafile, just_name = 'no'):
 		else:
 			while line.find('\n') != -1:
 				line = line[0:line.find('\n')] + line[line.find('\n')+2:]
-			seq_dic[name]= seq_dic[name] + line.replace(' ','')
+			seq_dic[name]= seq_dic[name] + line # Let's see if this comment breaks too many things ".replace(' ','')"
 	dataout = ''
 	for k, v in seq_dic.iteritems():
 	 	dataout = dataout + '>' + k + '\n' + v + '\n'
@@ -1099,7 +1115,7 @@ def consensus(seq_dic = {}, sec = [100,90,80,70,60]):
 
 	for cut in sec:
 		cons = ''
-		cut_num = cut/float(100)
+		cut_num = int(cut)/float(100)
 		for i in range(len(seq_dic.values()[0])):
 			groups_dic = {  'A':[0,['A']],
 					'C':[0,['C']],
@@ -1141,17 +1157,109 @@ def consensus(seq_dic = {}, sec = [100,90,80,70,60]):
 			for group in groups_dic.keys():
 				if  groups_dic[group][0] != 0:
 					groups_dic[group][0] /= float(len(seq_dic.keys()))
-			winners_size = 30
-			winners = ' '
-			for group in groups_dic.keys():
-				if groups_dic[group][0] >= cut_num and len(groups_dic[group][1]) < winners_size:
-					winners = group
-					winners_size = len(groups_dic[group][1])
-
-			cons += winners
+			winner_size = 30
+			winner = ' '
+                        winner_score = 0
+    			for group in groups_dic.keys():
+				if groups_dic[group][0] >= cut_num and len(groups_dic[group][1]) < winner_size: 
+					winner = group
+                                        winner_score = groups_dic[group][0]
+					winner_size = len(groups_dic[group][1])
+                                elif groups_dic[group][0] >= cut_num and groups_dic[group][0] > winner_score and len(groups_dic[group][1]) == winner_size:
+                                        winner = group
+                                        winner_size = len(groups_dic[group][1])
+                                        winner_score = groups_dic[group][0]
+                        cons += winner
 		results[cut] = cons
 	return results
 
+
+def clustal_colors(seq_dic = {}, seq_list = []):
+    """ Calculates what is needed and place it into a ... ... .. to output a color code like clustalX. Mainly intended to work with map_feature_ontree.v3"""
+    #constants
+
+    #two types of rules: 0 -> any amino-acids (sum), 1 -> that conservation threshold to any individual amino-acid 
+
+    rules = [ [ "AILMFWV", [ [ 0.6 , "WLVIMAFCHP", 0 ]                                                      ], "#80a0f0" ], 
+              [ "RK"     , [ [ 0.6 , "KR"        , 0 ], [ 0.80 , "KRQ"         , 1 ]                        ], "#f01505" ],
+              [ "N"      , [ [ 0.5 , "N"         , 0 ], [ 0.85 , "NY"          , 1 ]                        ], "#80a0f0" ],
+              [ "C"      , [ [ 0.6 , "WLVIMAFCHP", 0 ],                                                     ], "#80a0f0" ],
+              [ "C"      , [ [ 1.0 , "C"         , 0 ]                                                      ], "#f08080" ],
+              [ "Q"      , [ [ 0.6 , "KR"        , 0 ], [ 0.5  , "QE"          , 0 ], [ 0.85 , "QEKR" , 1 ] ], "#15c015" ],
+              [ "E"      , [ [ 0.6 , "KR"        , 0 ], [ 0.5  , "QE"          , 0 ], [ 0.85 , "QED"  , 1 ] ], "#c048c0" ],
+              [ "D"      , [ [ 0.6 , "KR"        , 0 ], [ 0.5  , "ED"          , 0 ], [ 0.85 , "KRQ"  , 1 ] ], "#c048c0" ],
+              [ "G"      , [ [ 0.0 , "G"         , 0 ]                                                      ], "#f09048" ],
+              [ "HY"     , [ [ 0.6 , "WLVIMAFCHP", 0 ], [ 0.85 , "WYACPQFHILMV", 1 ]                        ], "#15a4a4" ],
+              [ "P"      , [ [ 0.0 , "P"         , 0 ]                                                      ], "#c0c000" ],
+              [ "ST"     , [ [ 0.6 , "WLVIMAFCHP", 0 ], [ 0.5 , "TS"           , 0 ], [ 0.85, "TS"    , 1 ] ], "#15c015" ] ]
+
+    rules = [ [ "A"      , [ [ 0.6  , "WLVIMAFCYHP", 0 ], [ 0.5  , "P"  , 0 ], [ 0.85 , "TSG" , 1 ] ,           ], "#80a0f0" ],
+              [ "ILMFWV" , [ [ 0.6  , "WLVIMAFCYHP", 0 ], [ 0.5  , "P"  , 0 ]                                   ], "#80a0f0" ], 
+              [ "RK"     , [ [ 0.6  , "KR"         , 0 ], [ 0.85 , "Q"  , 0 ]                                   ], "#f01505" ],
+              [ "N"      , [ [ 0.5  , "N"          , 0 ], [ 0.85 , "D"  , 0 ]                                   ], "#15c015" ],
+              [ "C"      , [ [ 0.6  , "WLVIMAFCYHP", 0 ], [ 0.5  , "P"  , 0 ], [ 0.85 , "S", 0 ]                ], "#80a0f0" ],
+              [ "C"      , [ [ 0.85 , "C"          , 0 ]                                                        ], "#f08080" ],
+              [ "Q"      , [ [ 0.6  , "KR"         , 0 ], [ 0.5  , "QE" , 0 ]                                   ], "#15c015" ],
+              [ "E"      , [ [ 0.5  , "QE"         , 0 ], [ 0.5  , "ED" , 0 ]                                   ], "#c048c0" ],
+              [ "D"      , [ [ 0.5  , "ED"         , 0 ], [ 0.5  , "N"  , 0 ]                                   ], "#c048c0" ],
+              [ "G"      , [ [ 0.0  , "G"          , 0 ]                                                        ], "#f09048" ],
+              [ "HY"     , [ [ 0.6  , "WLVIMAFCYHP", 0 ], [ 0.5  , "P"  , 0 ]                                   ], "#15a4a4" ],
+              [ "P"      , [ [ 0.0  , "P"          , 0 ]                                                        ], "#c0c000" ],
+              [ "S"      , [ [ 0.6  , "WLVIMAFCYHP", 0 ], [ 0.5 , "TS"  , 0 ]                                   ], "#15c015" ],
+              [ "T"      , [ [ 0.8  , "WLVIMAFCYHP", 0 ], [ 0.5 , "TS"  , 0 ]                                   ], "#15c015" ] ]
+
+
+
+
+    res_dic = {}
+    
+    hist = aa_hist(seq_dic)
+
+    num_seq = len(seq_list)
+
+    print json.dumps(hist, indent = 2 )
+
+    MSA_len = len(hist)
+
+    for i in range(MSA_len):
+        for tag in seq_list:
+            if tag not in res_dic.keys():
+                res_dic[tag] = []
+            AA = seq_dic[tag][i]
+#            color = "#FFFFFF"
+#            get_color = False
+            print tag + " " + str(i) + " " + AA
+            for rule in rules:
+                #print rule[0]
+                if AA in rule[0]:
+                    for dec in rule[1]:
+                        if dec[2] == 0:
+                            p = 0
+                            #print hist[i]
+                            #print dec[1]
+                            for aa in dec[1]:
+                                p += float(hist[i][aa])/num_seq
+                            #print p
+                            if p > dec[0]:
+                                print "Rule type 0 color: " + rule[2]
+                                color = rule[2]
+                                break
+                            else:
+                                color = "#FFFFFF"
+                        if dec[2] == 1:
+                            for aa in dec[1]:
+                                if float(hist[i][aa])/num_seq > dec[0]:
+                                    color = rule[2]
+                                    break
+                                else:
+                                    color = "#FFFFFF"
+                            if color != "#FFFFFF":
+                                break
+                    if color != "#FFFFFF":
+                        print "Found rule" + rule[0]
+                        break
+            res_dic[tag].append(color)
+    return res_dic
 
 def sortrow(counts=[],labels=[]):
 	""" To be used to sort rows by the maximum valuer in matrixes such as the ones that correlates MCP class with Che class"""

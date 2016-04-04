@@ -9,14 +9,18 @@ import base64
 
 if '-h' in sys.argv:
 	print 'produces a file containing aseq_id of sequences from fasta file (to use on seqdepot)\n \
-	Sintax: getAseqa_id fastafile.fa'
+	Sintax: getAseqa_id fastafile.fa \n \
+        Option: --aseq-only - only list aseqs'
 	sys.exit()
 
 seq_dic, seq_list = bitk.fastareader(sys.argv[1],'r')
 
 output = ''
 for tag in seq_list:
-	output += tag + ";" + base64.encodestring(md5.new(seq_dic[tag].replace('-','')).digest()).replace('/','_').replace('=','').replace('+','-')
+        if "--aseq-only" in sys.argv:
+            output += base64.encodestring(md5.new(seq_dic[tag].replace('-','')).digest()).replace('/','_').replace('=','').replace('+','-')
+        else:
+            output += tag + ";" + base64.encodestring(md5.new(seq_dic[tag].replace('-','')).digest()).replace('/','_').replace('=','').replace('+','-')
 
 dataout = open(sys.argv[1][:-2] + "md5.list", 'w')
 dataout.write(output)
