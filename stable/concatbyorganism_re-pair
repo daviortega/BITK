@@ -1,0 +1,41 @@
+#!/usr/bin/env python
+# 
+import fileinput
+import bitk
+import sys
+import json
+
+if '-h' in sys.argv:
+	print "It uses the cleaned (for redundancy) concatenated file, the pair list (json) to filter the fasta files of selected sequences.\n \
+		Sintaxe: concatbyorganism left_seq.fa right_seq.fa concatbyorganism.edited.fa pairlist.json "
+	sys.exit()
+
+sequences1 = sys.argv[1]
+sequences2 = sys.argv[2]
+concat = sys.argv[3]
+
+with open(sys.argv[4], 'r') as f:
+	pairlist = json.load(f)
+
+
+#print seq_seq
+seq1_dic, seq1_list = bitk.fastareader(sequences1)
+seq2_dic, seq2_list = bitk.fastareader(sequences2)
+conc_dic, conc_list = bitk.fastareader(concat)
+
+new_seq1 = ''
+new_seq2 = ''
+
+for seq in conc_list:
+	print pairlist[seq]
+	new_seq1 += '>' + pairlist[seq][0] + '\n' + seq1_dic[pairlist[seq][0]] + '\n'
+	new_seq2 += '>' + pairlist[seq][1] + '\n' + seq2_dic[pairlist[seq][1]] + '\n'
+
+with open(sys.argv[1] + '.postselected.fa', 'w') as f:
+	f.write(new_seq1)
+
+with open(sys.argv[2] + '.postselected.fa', 'w') as f:
+	f.write(new_seq2)
+
+print 'Done'
+

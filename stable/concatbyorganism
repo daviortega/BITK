@@ -8,9 +8,15 @@ import json
 if '-h' in sys.argv:
 	print "Concatenates sequences in fa format:\n \
 		Sintaxe: concatbyorganism left_seq.fa right_seq.fa (same organism)\n \
-		Options: -n N   - Concat only if it is N genes up or downstream \n"
+		Options: -n N   - Concat only if it is N genes up or downstream \n \
+				 -ext extension  - include extension in outputfilename"
 	sys.exit()
 
+
+if '-ext' in sys.argv:
+	ext = "." + sys.argv[sys.argv.index('-ext') + 1]
+else:
+	ext = ''
 
 if '-n' in sys.argv:
 	N = int(sys.argv[sys.argv.index('-n') + 1])
@@ -92,7 +98,7 @@ for seq1 in seq1_list:
 				pair_list[seq] = [seq1, seq2]
 
 
-outfile = open('concatbyorganism.fa','w')
+outfile = open('concatbyorganism' + ext + '.fa','w')
 outfile.write(output)
 outfile.close()
 
@@ -100,16 +106,16 @@ outfile.close()
 output1 = ''
 for seq in seq1_sel:
 	output1 += '>' + seq + '\n' + seq1_dic[seq] + '\n'
-with open(sys.argv[1] + '.selected.fa', 'w') as f:
+with open(sys.argv[1] + '.selected' + ext + '.fa', 'w') as f:
 	f.write(output1)
 
 output2 = ''
 for seq in seq2_sel:
 	output2 += '>' + seq + '\n' + seq2_dic[seq] + '\n'
-with open(sys.argv[2] + '.selected.fa', 'w') as f:
+with open(sys.argv[2] + '.selected' + ext + '.fa', 'w') as f:
 	f.write(output2)
 
-with open('pairlist.json', 'w') as f:
+with open('pairlist' + ext + '.json', 'w') as f:
 	json.dump(pair_list, f, indent = 2)
 
 print 'Done'
