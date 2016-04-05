@@ -11,14 +11,16 @@ if '-h' in sys.argv:
 	sys.exit()
 
 
-#"pfam27":[["Response_reg",4,112,"..",0,1,111,"[.",4,113,"..",101.9,7.5e-32,1.2e-29,0.98],["Trans_reg_C",148,223,"..",0,2,77,".]",146,223,"..",77.5,7.5e-25,3.6e-22,0.97]]
+#"pfam27":[["Response_reg",4,112,"..",0,1,111,"[.",4,113,"..",101.9,7.5e-32,1.2e-29,0.98], ["Trans_reg_C",148,223,"..",0,2,77,".]",146,223,"..",77.5,7.5e-25,3.6e-22,0.97]]
 
 pfamdom = sys.argv[1].split(',')
 
 sd = bitk.get_seqdepot_client()
 
+print pfamdom
+
 #cards = sd.aseqs.find({}, {'t.pfam27': { '$elemMatch' : {  } ) #{'t': { '$elemMatch' : {'Secretin'}}},{})
-cards = sd.aseqs.find( { 't.pfam28' : { '$elemMatch' : { '$in' : pfamdom }}}, { '_id' : 1 , 's' : 1}, timeout = False)
+cards = sd.aseqs.find( { 't.pfam28' : { '$elemMatch' : { '$elemMatch' : { '$in' : pfamdom }}}}, { '_id' : 1 , 's' : 1}, timeout = False)
 
 
 #cards = mist.aseqs.find()
@@ -35,7 +37,7 @@ for card in cards:
 
 print "Found %d sequences" % count
 
-with open(sys.argv[1] + 'sequenceswith.fa', 'w') as f:
+with open(sys.argv[1] + '.sequenceswith.fa', 'w') as f:
 	f.write(output)
 	
 
