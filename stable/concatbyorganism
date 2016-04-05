@@ -3,6 +3,7 @@
 import fileinput
 import bitk
 import sys
+import json
 
 if '-h' in sys.argv:
 	print "Concatenates sequences in fa format:\n \
@@ -40,16 +41,27 @@ mist22 = bitk.get_mist22_client()
 
 print AC_list 
 
-cards = mist22.genes.find({'p.ac': { '$in' : AC_list }}, { 'p.ac': 1 , 'pos' : 1})
+cards = mist22.genes.find({'p.ac': { '$in' : AC_list }}, { 'p.ac': 1 , 'pos' : 1, 'p.aid' : 1})
 
 ac2pos = {}
 for card in cards:
+#	if card['p']['aid'] == 'zZ3vudw4KSmXnWHIcYz60Q':
+#			print "Myxo in the house - 4808"
+#			print card
+#	if card['p']['aid'] == 'PUY_I8SocfrugPrZDf-i6w':
+#			print "Myxo in the house - 4807"
+#			print card
 	ac2pos[card['p']['ac']] = card['pos']
 
-print ac2pos
+#print ac2pos
 
 output = ''
 tags = []
+
+seq1_sel = []
+seq2_sel = []
+
+pair_list = {}
 
 for seq1 in seq1_list:
 	try:
@@ -75,27 +87,30 @@ for seq1 in seq1_list:
 					seq = '.'.join(seq.split('.')[:-1]) + '.' + str(N+1)
 				tags.append(seq)				
 				output += '>' + seq + '\n' + seq1_dic[seq1] + seq2_dic[seq2] + '\n'
+				seq1_sel.append(seq1)
+				seq2_sel.append(seq2)
+				pair_list[seq] = [seq1, seq2]
 
-
-
-
-#list = check_loci(seq1.keys(),seq2.keys())
-
-#for loci in list:
-#	if loci in seq1.keys():
-#		del seq1[loci]
-#	if loci in seq2.keys():
-#		del seq2[loci]
-
-
-
-#if len(sys.argv) > 3:
-#	final = concat(seq1,seq2,seq_seq)
-#else:
-#	final = concat(seq1,seq2)
 
 outfile = open('concatbyorganism.fa','w')
 outfile.write(output)
 outfile.close()
+
+#making a fasta file of selected sequences
+output1 = ''
+for seq in seq1_sel:
+	output1 += '>' + seq + '\n' + seq1_dic[seq] + '\n'
+with open(sys.argv[1] + '.selected.fa', 'w') as f:
+	f.write(output1)
+
+output2 = ''
+for seq in seq2_sel:
+	output2 += '>' + seq + '\n' + seq2_dic[seq] + '\n'
+with open(sys.argv[2] + '.selected.fa', 'w') as f:
+	f.write(output2)
+
+with open('pairlist.json', 'w') as f:
+	json.dump(pair_list, f, indent = 2)
+
 print 'Done'
 
