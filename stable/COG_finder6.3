@@ -46,6 +46,7 @@ if '-h' in sys.argv:
                  --grpbyattr N  Pass Nth feature of sequence tag to group key in json \n \
                  --force-merge "{1:[[],[]], 2: [ [],[] ] }"     Force clusters to be merged - Ok, this is a hack. In the dictionary with key 1 will merge according to the original numbering, with key 2 will merge with the numbering of results forcing merging according to rule 1 and so on... each value is a list of lists with clusters to be merged. First cluster is 1. Note: If you change any threshould, you should start the merging rules from scratch as the numbering might have changed \n \
                  --test-only  Only test connections to database and integrity of merging rules\n \
+                 --single-only Don't do nothing after output a set of sequences that is not part of 1 member group.
 		THRESHOLDS ----------------------------------------------------------- \n \
 		 -EvT N    Threshould for picking up distant paralogs in other species. N must be a number: default 10E-500\n \
 		 -EvP N    Threshould for picking up distant paralog in the same species. N must eb a number: default 10E-500\n \
@@ -163,7 +164,7 @@ for seq_info1 in query_array:
 	for seq_info2 in query_array[query_array.index(seq_info1)+1:]:
 		common = list(set(seq_info1[1]) & set(seq_info2[1]))
 		if len(common) != 0:
-			print "\n\nSame tag sequences in two supplied alignments. Unacceptable because I won't know which to where it trully belongs: " + sys.argv[2 + query_array.index(seq_info1)] + " or " + sys.argv[2 + query_array.index(seq_info2)] + ".\nCould you fix it for me before resubmit?\nThe common sequences is(are):\n" + "\n".join(common) 
+			print "\n\nSame tag sequences in two supplied alignments. Unacceptable because I won't know where it trully belongs: " + sys.argv[2 + query_array.index(seq_info1)] + " or " + sys.argv[2 + query_array.index(seq_info2)] + ".\nCould you fix it for me before resubmit?\nThe common sequences is(are):\n" + "\n".join(common) 
 			sys.exit()
 
 #merging sequences for the sake of calculations.
@@ -264,12 +265,25 @@ datafile.close()
 #check for unique clans made out of qcov factors and add them:
 
 
-print "Sequences that are now made its own COG because of domain coverage cutoff"
+print "Sequences that are now made its own COG"
+nohit_list = []
 for seq in seq_list: 
 	if seq not in data_dic.keys():
 		data_dic[seq]={}
 		data_list.append(seq)
-		print seq
+		nohit_list.append(seq)
+		#print seq
+
+print 'No blast results for: ' + str(len(nohit_list))
+
+nohit_output = ""
+for seq in nohit_list:
+	nohit_output += '>' + seq + '\n' + seq_dic[seq] + '\n'
+with open('nohit_list.fa', 'w') as f:
+	f.write(nohit_output)
+
+if "--single-only" in sys.argv:
+	sys.exit()
 
 if "--grpbyattr" in sys.argv:
     grpbyattr = {}
