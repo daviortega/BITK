@@ -366,30 +366,59 @@ def aln2vissa(datafile):
 			output = output + line[:line.find(' ')] + '     ' + line[line.find(' '):]
 	return output
 
-def fastareader(datafile, just_name = 'no'):
-	data = open(datafile,'r')
-	seq_dic = {}
-	list_order = []
-	for line in data:
-		line = line.replace('\r','')
-		if line[0] == '>':
-			if just_name == 'Yes':
-				name = line.split('/')[0][1:]
-			else:
-				name = line[1:-1]
-			list_order.append(name)
-			seq_dic[name] = ''
-		else:
-			while line.find('\n') != -1:
-				line = line[0:line.find('\n')] + line[line.find('\n')+2:]
-			seq_dic[name]= seq_dic[name] + line # Let's see if this comment breaks too many things ".replace(' ','')"
-	dataout = ''
-	for k, v in seq_dic.iteritems():
-	 	dataout = dataout + '>' + k + '\n' + v + '\n'
+# def fastareader(datafile, just_name = 'no'):
+# 	data = open(datafile,'r')
+# 	seq_dic = {}
+# 	list_order = []
+# 	for line in data:
+# 		line = line.replace('\r','')
+# 		if line[0] == '>':
+# 			if just_name == 'Yes':
+# 				name = line.split('/')[0][1:]
+# 			else:
+# 				name = line[1:-1]
+# 			list_order.append(name)
+# 			seq_dic[name] = ''
+# 		else:
+# 			while line.find('\n') != -1:
+# 				line = line[0:line.find('\n')] + line[line.find('\n')+2:]
+# 			seq_dic[name]= seq_dic[name] + line # Let's see if this comment breaks too many things ".replace(' ','')"
+# 	dataout = ''
+# 	for k, v in seq_dic.iteritems():
+# 	 	dataout = dataout + '>' + k + '\n' + v + '\n'
 	
-	data.close()
-	return seq_dic, list_order
+# 	data.close()
+# 	return seq_dic, list_order
 
+def fastareader(datafile):
+	
+	ListOrder = []
+	SeqDic = {}
+
+	fh = open(datafile, 'r')
+	
+	fastaBuffer = None
+
+	line = fastaBuffer if fastaBuffer else fh.readline()
+	while line:
+		if line[0] != '>':
+			print "here"
+			raise Exception('Invalid FASTA file. Header line must begin with a greater than symbol\nLine: ' + line + '\n\n')
+		name = line[1:-1]
+		ListOrder.append(name)
+		SeqDic[name] = ''
+		line = fh.readline()
+		while line:
+			if line[0] != '>':
+				SeqDic[name] += line
+				line = fh.readline()
+				continue
+
+			fastaBuffer = line
+			break
+
+		SeqDic[name] = SeqDic[name].replace('\n','')
+	return SeqDic, ListOrder		
 
 def alnwriter(seq_dic, list_order = []):
 	if list_order == []:
