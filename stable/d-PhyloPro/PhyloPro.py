@@ -91,20 +91,28 @@ if __name__ == "__main__":
 	parser = argparse.ArgumentParser()
 	parser.add_argument("--init", type=str, help = 'Build the local directory system')
 	parser.add_argument("--init-force", type=str, help = 'Build the local directory system and erase any existing files. Use with caution.')
-	parser.add_argument("--continue", type=str, help = 'Restart the pipeline')
+	parser.add_argument("--continue", dest = "cont", help = 'Restart the pipeline')
 	args = parser.parse_args()
 
-	#Argu
+	print args.cont
 
-	if args.continue:
-		
+	if args.cont:
+		path = os.getcwd()
+		listdir = os.listdir(path)
+		if len(listdir) == 1:
+			ProjectName = listdir[0]
+		else:
+			print "It seems that there are more than one project in this directory, please specify the project name in front of the --continue flag."
+			sys.exit()
+		print "Project Name recognized: " + ProjectName
+	elif args.cont != None:
+		print args.cont
 
 	if args.init:
 		ProjectName = args.init
 		BuildDirectorySystem(ProjectName)
 		print "Done with init stage. Recording changes to the local config file."
 		update_phylopro_cfg(ProjectName, "init")
-
 	elif args.init_force:
 		ProjectName = args.init_force
 		BuildDirectorySystem(ProjectName, force = True)
