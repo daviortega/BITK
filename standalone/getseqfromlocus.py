@@ -2,7 +2,7 @@
 ###################################
 #    Davi Ortega 10/17/2014 
 ###################################
-#import bitk
+import pymongo
 import sys
 if '-h' in sys.argv:
 	print 'Input list of locus. Output fasta with sequences'
@@ -16,10 +16,11 @@ def get_seqdepot_client():
 	print "SeqDepot"
 	try:                                    
 		#client = pymongo.MongoClient('localhost',27018)
-        client = pymongo.MongoClient("aphrodite.bio.utk.edu",27017)
-        client.the_database.authenticate('binf',open("/home/ortegad/private/mongodb_binf.txt","r").readline().strip(), mechanism='MONGODB-CR',source='admin')
+		client = pymongo.MongoClient("aphrodite.bio.utk.edu",27017)
+		client.the_database.authenticate('binf',open("/Users/ortegad/private/mongodb_binf.txt","r").readline().strip(), mechanism='MONGODB-CR',source='admin')
 	except:
-        print "Edit get_seqdepot_client to get a SeqDepot client"
+		print "Edit get_seqdepot_client to get a SeqDepot client"
+		sys.exit()
 	print "Authenticated"	
 	return client.seqdepot
 
@@ -34,21 +35,22 @@ def get_mist22_client():
 	return client.mist22
 
 def lc2ac(lc_list = []):
-        print "Locus -> Accession"
-        print lc_list
-        ac_list = []
-        mist22 = get_mist22_client()
-        print "Got the client"
-        genes = mist22.genes.find({'lo' : { '$in' : lc_list }}, {'p.ac':1})
-        for card in genes:
-            print card
-            try:
-                ac_list.append(card['p']['ac'])
-            except:
-                print "Found exception"
-                print card
-                sys.exit()
-        return ac_list
+	print "Locus -> Accession"
+	print lc_list
+	ac_list = []
+	mist22 = get_mist22_client()
+	print "Got the client\nGetting the cards now"
+	genes = mist22.genes.find({'lo' : { '$in' : lc_list }}, {'p.ac':1})
+	for card in genes:
+	    print card
+	    try:
+	        ac_list.append(card['p']['ac'])
+	    except:
+	        print "Found exception"
+	        print card
+	        sys.exit()		  
+	print "Got them"
+	return ac_list
 
 def accession2seq(aclist = []):
 	mist22 = get_mist22_client()
@@ -79,16 +81,16 @@ def accession2seq(aclist = []):
                         pass
 	return ac2seq
 
-def accession2bitktag(accession_list = [],):
-    out_dic = {}
+def accession2ag(accession_list = [],):
+	out_dic = {}
 	preout_dic = {}
-    mist22 = get_mist22_client()
-    genes = mist22.genes.find({'p.ac' : { '$in' : accession_list }}, {'gid' : 1, 'lo' : 1, '_id' : 1, 'p.ac':1})
-    genomes = []
+	mist22 = get_mist22_client()
+	genes = mist22.genes.find({'p.ac' : { '$in' : accession_list }}, {'gid' : 1, 'lo' : 1, '_id' : 1, 'p.ac':1})
+	genomes = []
 	print "\tProcessing cards..."
-    for card in genes:
+	for card in genes:
 		try:
-    		genomes.append(int(card['gid']))
+			genomes.append(int(card['gid']))
 		except:
 			print "Found exception"
 			print card
@@ -103,10 +105,10 @@ def accession2bitktag(accession_list = [],):
         for card in genomes_mist:
         	gid_dic[card['_id']] = card['g'][:2] + '.' + card['sp'][:3] + '.'
 	errors = []
-    for accession in accession_list:
+	for accession in accession_list:
 		try:
-	       	out_dic[accession] = gid_dic[int(preout_dic[accession].split('-')[0])] + preout_dic[accession]
-       	except KeyError:
+			out_dic[accession] = gid_dic[int(preout_dic[accession].split('-')[0])] + preout_dic[accession]
+		except KeyError:
 			print "This sequence has - in the name and is messing up the data collection"
 			print accession
 			errors.append(accession)
@@ -116,6 +118,10 @@ def accession2bitktag(accession_list = [],):
 
 #main
 if __name__ == '__main__' :
+	print "Test connections to DB before we start"
+	mist22 = get_mist22_client()
+	sd = get_seqdepot_client()
+
 	with open(sys.argv[1], 'r') as f:
 		for l in f:
 			items = l.replace('\n','').split('-')
@@ -123,10 +129,10 @@ if __name__ == '__main__' :
 			if len(items) > 1:
 				feature[items[0]] = '-'.join(items[1:])
 
-	ac_list = bitk.lc2ac(lc_list)
+	ac_list = lc2ac(lc_list)
 
-	ac2tag, error = bitk.accession2bitktag(ac_list)
-	ac2seq = bitk.accession2seq(ac_list)
+	ac2tag, error = accession2ag(ac_list)
+	ac2seq = accession2seq(ac_list)
 
 	output = ''
 	for ac in ac_list:
