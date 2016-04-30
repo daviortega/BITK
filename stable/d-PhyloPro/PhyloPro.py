@@ -1,5 +1,4 @@
 #!/usr/bin/python
-
 # Davi Ortega - April 2016
 
 import os
@@ -7,6 +6,10 @@ import argparse
 import json
 import sys
 import shutil
+
+#HardVariables
+
+PIPELINE = ['init', 'mkfiles', ]
 
 class color:
    PURPLE = '\033[95m'
@@ -24,11 +27,9 @@ def FastaReader(datafile):
 	
 	ListOrder = []
 	SeqDic = {}
-
-	fh = open(datafile, 'r')
-	
 	fastaBuffer = None
-
+	
+	fh = open(datafile, 'r')
 	line = fastaBuffer if fastaBuffer else fh.readline()
 	while line:
 		if line[0] != '>':
@@ -85,26 +86,64 @@ def update_phylopro_cfg (ProjectName, stage):
 
 	with open( main_path + '/' + ProjectName + '/' + "phylopro." + ProjectName + ".cfg.json", 'w') as f:
 		json.dump(LocalConfigFile, f, indent = 2)
+		
+def get_cfg_file(ProjectName):
+	main_path = os.getcwd()
+	
+	if ProjectName:
+		with open( main_path + '/' + ProjectName + '/' + "phylopro." + ProjectName + ".cfg.json", 'r') as f:
+			LocalConfigFile = json.load(f)
+		return LocalConfigFile
+	else:
+		print "Something is wrong: Your config file does not seem to exist in the right place"
+		print " Project Name : " + ProjectName
+		sys.exit() #If you ever get this error, feel free to throw a better error.
+
+def get_ProjectName():
+	main_path = os.getcwd()
+	listdir = os.listdir(main_path)
+	if len(listdir) == 1:
+		ProjectName = listdir[0]
+	elif len(listdir) == 0:
+		print "It seems that there is no project in this directory, please initiate PhyloPro with --init ProjectName flag."
+		sys.exit()
+	else:
+		print "It seems that there are more than one project in this directory, please specify the project name you want in front of the flag."
+		sys.exit()
+	return ProjectName
+
+def isTheRightOrder(stage, LocalConfigFile):
+	if PIPELINE.index(LocalConfigFile['stage']) + 1 == PIPELINE.index(stage):
+		return True
+	else:
+		print "Sorry, your pipeline cannot restart from this stage because the previous stage has not been sucessful."
+		print "It seems that your project is at stage : " + LocalConfigFile['stage']
+		print "You can run the PhyloProf with the --continue flag."
+		print "Alternatively, you can run PhyloProf from these stages: " + " ".join(PIPELINE[:PIPELINE.index(LocalConfigFile['stage'])])
+		sys.exit()
+	
+
+def mkfiles(ProjectName):
+	LocalConfigFile = get_cfg_file(ProjectName)
+	if isTheRightOrder('mkfiles', LocalConfigFile):
+		# GRAB THE components from SeqDepot based on the database of choice
+	
+
+		
 
 if __name__ == "__main__":
 	#Parse flags.
 	parser = argparse.ArgumentParser()
-	parser.add_argument("--init", type=str, help = 'Build the local directory system')
-	parser.add_argument("--init-force", type=str, help = 'Build the local directory system and erase any existing files. Use with caution.')
-	parser.add_argument("--continue", dest = "cont", help = 'Restart the pipeline')
+	group = parser.add_mutually_exclusive_group()
+	group.add_argument("--init", type=str, help = 'Build the local directory system', metavar='ProjectName')
+	group.add_argument("--init-force", type=str, help = 'Build the local directory system and erase any existing files. Use with caution.', metavar='ProjectName')
+	group.add_argument("--continue", dest = "cont", help = 'Restart the pipeline',)
 	args = parser.parse_args()
 
 	print args.cont
 
 	if args.cont:
-		path = os.getcwd()
-		listdir = os.listdir(path)
-		if len(listdir) == 1:
-			ProjectName = listdir[0]
-		else:
-			print "It seems that there are more than one project in this directory, please specify the project name in front of the --continue flag."
-			sys.exit()
-		print "Project Name recognized: " + ProjectName
+		ProjectName = get_ProjectName()
 	elif args.cont != None:
 		print args.cont
 
@@ -118,6 +157,16 @@ if __name__ == "__main__":
 		BuildDirectorySystem(ProjectName, force = True)
 		print "Done with init stage. Recording changes to the local config file."
 		update_phylopro_cfg(ProjectName, "init")
+	elif args.mkfiles:
+		if args.mkfiles == "":
+			ProjectName = get_ProjectName()
+		else:
+			ProjectName = args.mkfiles
+		mkfiles(ProjectName)
+		
+		
+			
+			
 
 
 
