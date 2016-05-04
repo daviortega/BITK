@@ -32,13 +32,15 @@ def get_mist22_client():
 		sys.exit()
 	return client.mist22
 
-def get_seqdepot_client():
+def get_seqdepot_client(passwordfile = ""):
 	print "Verifying tunnels"
 	print "SeqDepot"
 	#try:                                    
 		#client = pymongo.MongoClient('localhost',27018)
-        client = pymongo.MongoClient("aphrodite.bio.utk.edu",27017)
-        client.the_database.authenticate('binf',open("/home/ortegad/private/mongodb_binf.txt","r").readline().strip(), mechanism='MONGODB-CR',source='admin')
+	if passwordfile == "":
+			passwordfile = "/home/ortegad/private/mongodb_binf.txt"
+	client = pymongo.MongoClient("aphrodite.bio.utk.edu",27017)
+	client.the_database.authenticate('binf',open(passwordfile,"r").readline().strip(), mechanism='MONGODB-CR',source='admin')
 	#except:
         #        print "You must open a tunnel with ares.bio.utk.edu: ssh -p 32790 -f -N -L 27018:127.0.0.1:27017 ortega@aphrodite.bio.utk.edu"
 	print "Authenticated"	

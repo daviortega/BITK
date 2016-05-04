@@ -99,9 +99,14 @@ def get_cfg_file(ProjectName):
 		print " Project Name : " + ProjectName
 		sys.exit() #If you ever get this error, feel free to throw a better error.
 
+def get_stage(ProjectName):
+	LocalConfigFile = get_cfg_file(ProjectName)
+	return LocalConfigFile['stage']
+
 def get_ProjectName():
 	main_path = os.getcwd()
-	listdir = os.listdir(main_path)
+	listdir = [d for d in os.listdir(main_path) if os.path.isdir(os.path.join(main_path, d))]
+	print listdir
 	if len(listdir) == 1:
 		ProjectName = listdir[0]
 	elif len(listdir) == 0:
@@ -112,40 +117,96 @@ def get_ProjectName():
 		sys.exit()
 	return ProjectName
 
-def isTheRightOrder(stage, LocalConfigFile):
-	if PIPELINE.index(LocalConfigFile['stage']) + 1 == PIPELINE.index(stage):
+def isTheRightOrder(requested_stage, LocalConfigFile):
+	current_stage = get_stage(ProjectName)
+	if PIPELINE.index(current_stage) + 1 == PIPELINE.index(requested_stage):
 		return True
 	else:
 		print "Sorry, your pipeline cannot restart from this stage because the previous stage has not been sucessful."
 		print "It seems that your project is at stage : " + LocalConfigFile['stage']
 		print "You can run the PhyloProf with the --continue flag."
-		print "Alternatively, you can run PhyloProf from these stages: " + " ".join(PIPELINE[:PIPELINE.index(LocalConfigFile['stage'])])
+		print "Alternatively, you can run PhyloProf from these stages: " + " ".join(PIPELINE[:PIPELINE.index(current_stage)])
 		sys.exit()
 	
 
 def mkfiles(ProjectName):
 	LocalConfigFile = get_cfg_file(ProjectName)
 	if isTheRightOrder('mkfiles', LocalConfigFile):
-		# GRAB THE components from SeqDepot based on the database of choice
-	
-
+		LocalConfigFile = get_cfg_file(ProjectName)
+		ProtFamDef = LocalConfigFile['ProtFamDef']
+		SeqDepotQuery = mkSeqDepotQuery(ProtFamDef['SeqDepot'])
+		print SeqDepotQuery
 		
+		
+def mkSeqDepotQuery(Instructions = {}):
+	""" Builds the string to submit to SeqDepot """
+	ProtFamSDQuery = {}
+	for ProtFamDefSD in Instructions:
+		name = ProtFamDefSD['name']
+		allInstructions = []
+		for tool in ProtFamDefSD.keys():
+			if tool not in ["name", "group"]:
+				try:
+					domCountIn = len(ProtFamDefSD[tool]["in"])
+				except KeyError:
+					domCountIn = 0
+				try:
+					domCountOut = len(ProtFamDefSD[tool]["out"])
+				except KeyError:
+					domCountOut = 0
+				if domCountIn + domCountOut > 1:
+					for i in range(domCountIn):
+						allInstructions.append(' { "t.' + tool + '" : { "$elemMatch" : { "$elemMatch" : { "$in" : ["' + ProtFamDefSD[tool]["in"][i] + '"] }}}} ')
+					for i in range(domCountOut):
+						allInstructions.append(' { "t.' + tool + '" : { "$elemMatch" : { "$elemMatch" : { "$nin" : ["' + ProtFamDefSD[tool]["out"][i] + '"] }}}} ')
+				elif domCountOut == 0:
+					allInstructions.append(' { "t.' + tool + '" : { "$elemMatch" : { "$elemMatch" : { "$in" : ["' + ProtFamDefSD[tool]["in"][0] + '"] }}}} ')
+				elif domCountIn == 0:
+					allInstructions.append(' { "t.' + tool + '" : { "$elemMatch" : { "$elemMatch" : { "$nin" : ["' + ProtFamDefSD[tool]["out"][0] + '"] }}}} ')
+		if len(allInstructions) > 1:
+			searchStrSD = '{ "$and" : [ ' + ','.join(allInstructions) + ']}'
+		else:
+			searchStrSD = allInstructions[0]
+		
+		#check if it is a valid json
+		try:
+			searchJsonSD = json.loads(searchStrSD)
+		except ValueError:
+			print searchStrSD
+			print "There is something missing"
+			sys.exit()
+		if name in ProtFamSDQuery.keys():
+			ProtFamSDQuery[name].append(searchStrSD)
+		else:
+			ProtFamSDQuery[name] = [ searchStrSD ]
+	
+	return ProtFamSDQuery
 
 if __name__ == "__main__":
 	#Parse flags.
 	parser = argparse.ArgumentParser()
-	group = parser.add_mutually_exclusive_group()
+	group = parser.add_mutually_exclusive_group(required = True)
 	group.add_argument("--init", type=str, help = 'Build the local directory system', metavar='ProjectName')
 	group.add_argument("--init-force", type=str, help = 'Build the local directory system and erase any existing files. Use with caution.', metavar='ProjectName')
-	group.add_argument("--continue", dest = "cont", help = 'Restart the pipeline',)
+	group.add_argument("--continue", dest = "cont", nargs = "?", const = "", action = "store", help = 'Restart the pipeline',)
+	group.add_argument("--mkfiles", help = 'Restart the pipeline ath the mkfiles stage',)
+	
 	args = parser.parse_args()
 
+	
 	print args.cont
 
-	if args.cont:
+	if args.cont == "":
 		ProjectName = get_ProjectName()
 	elif args.cont != None:
-		print args.cont
+		ProjectName = args.cont
+	
+	if args.cont != None:
+		stage = get_stage(ProjectName)
+		next_stage = PIPELINE[PIPELINE.index(stage) + 1]
+		print "Continuing from stage : " + next_stage
+		args = parser.parse_args([ "--" + next_stage , ProjectName])
+
 
 	if args.init:
 		ProjectName = args.init
@@ -158,6 +219,7 @@ if __name__ == "__main__":
 		print "Done with init stage. Recording changes to the local config file."
 		update_phylopro_cfg(ProjectName, "init")
 	elif args.mkfiles:
+		print "Searching the database and making the relevant files"
 		if args.mkfiles == "":
 			ProjectName = get_ProjectName()
 		else:

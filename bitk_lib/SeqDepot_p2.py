@@ -148,6 +148,7 @@ Returns:
         self.clearError_()
 
         url = API_URL + '/aseqs'
+        print url
         stringyParams = self.urlParams_(params)
 
         url += '?' + stringyParams
@@ -539,8 +540,10 @@ Returns an array of tool names used by SeqDepot.
     def lwpResponse(self,request=None):
         try:
             response = urllib2.urlopen(request)
+            print response
         except urllib2.URLError, e:
             print '\n\nUnable to connect to server; timeout or other internal error'
+            print e
             error = json.loads(e.read())
             self.lastError = error['message']
             return None

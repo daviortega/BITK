@@ -4,9 +4,28 @@ PhyloPro is a phylogenetic profile pipeline that takes advantage of the MiST and
 
 ### Get Started
 
+#### Step 1 - Kickstart the software
+
 ``` bash
-PhyloPro.py --init
+PhyloPro.py --init ProjectName
 ```
+
+make sure to not pick a ProjectName with special characters as they will become part of the filename used by **PhyloPro**.
+
+This will create the system of directories and a config file `phylopro.ProjectName.cfg.json` at the main project directory.
+
+#### Step 2 - Edit the config file
+
+Open the `phylopro.ProjectName.cfg.json` in a text editor and edit.
+
+#### Step 3 - Continue PhyloPro
+
+``` bash
+PhyloPro.py --continue ProjectName
+```
+
+
+
 
 ### The pipeline
 The pipeline is serial but you can restart the task from any point in case of needed intervention by passing the flag. If for same reason the pipeline fails, it will restart from where stopped which is recorded in the file ```restart.phylopro.json```. Below is the list of steps in the pipeline and the flags to be passed in case to overwrite the restart.
@@ -47,28 +66,31 @@ The configuration files are JSON formatted and contain information necessary to 
 
 ##### phylopro.local.cfg.json
 
-``` javascript
-[ { 
-	ProtFamDef :  // Define protein family using results by tools in
-		SeqDepot	:
-		[ 	{ name : 'Component1',
-			  pfam29 : { in : ['PfamDomain1, PfamDomain2', ... ], 
-						 out: ['PfamDomain3, PfamDomain4', ... ]
+``` json
+[ { "mistid" : 
+		[ 000, 001, 002 , ... , N ], // List of mistID of genomes for analysis
+	
+	"ProtFamDef" : { // Define protein family using results by tools in
+		"SeqDepot"	:
+		[ 	{ "name" : "Component1",
+			  "group" : "Group name 1"
+			  "pfam29" : { 	"in" : ["PfamDomain1, PfamDomain2", ... ], 
+						 	"out": ["PfamDomain3, PfamDomain4", ... ]
 				}
 			},
-			{	name : 'Component2'
-				pfam29 : {
-					in : ['PfamDomain1, PfamDomain2', ... ], 
-					out: ['PfamDomain3, PfamDomain4', ... ]
+			{	"name" : "Component2"
+				"pfam29" : {
+					"in"  : ["PfamDomain1, PfamDomain2", ... ], 
+					"out" : ["PfamDomain3, PfamDomain4", ... ]
 				}
 			},
 		],
-		CustomHMM : 
-		[	{ name : 'Component1',
-			  HMMfile : 'path_to_file_HMM1'
+		"CustomHMM" : 
+		[	{ "name" : "Component1",
+			  "HMMfile" : "path_to_file_HMM1"
 			},
-			{ name : 'Component2',
-			  HMMfile : 'path_to_file_HMM2'
+			{ "name" : "Component2",
+			  "HMMfile" : "path_to_file_HMM2"
 			}
 		
 	]
@@ -90,3 +112,42 @@ The configuration files are JSON formatted and contain information necessary to 
 #### Select the Protein family definition
 
 The selection of protein family will be done now based on the architecture depending on the tools ran by SeqDepot.
+
+
+#### Example of Local config file:
+
+``` json
+{
+  "ProjectName": "Vibrio", 
+  "stage": "init",
+  "ProtFamDef" : 
+    {
+      "SeqDepot" : 
+        [
+          { "name" : "CheW", 
+            "group" : "Adaptors",
+            "pfam29" : { 
+                "in" : [ "CheW" ]
+                }
+          },
+          { "name" : "CheV",
+            "group" : "Adaptors",
+            "pfam29" : {
+                "in" : [ "MCPsignal" ]
+            }
+          },
+          { "name" : "CheA",
+            "group" : "Histidine Kinase", 
+            "agfam" : {
+              "in" : [ "HK_CA:Che" ]
+              }
+          },
+          { "name" : "CheA",
+            "group" : "Histidine Kinase", 
+            "pfam29" : {
+              "in" : [ "CheW", "HATPase_c" ]
+            }
+          }
+        ]
+    }
+} ```
