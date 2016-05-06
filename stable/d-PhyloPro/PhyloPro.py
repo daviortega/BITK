@@ -6,10 +6,15 @@ import argparse
 import json
 import sys
 import shutil
+import pymongo
+import multiprocessing
+import time
 
 #HardVariables
 
-PIPELINE = ['init', 'mkfiles', ]
+PIPELINE = ['init', 'fetchProtFams', 'fetchGenInfo', 'mkFastaFiles' ]
+BITKTAGSEP = '|'
+BITKGENSEP = '_'
 
 class color:
    PURPLE = '\033[95m'
@@ -121,17 +126,53 @@ def isTheRightOrder(requested_stage, LocalConfigFile):
 	current_stage = get_stage(ProjectName)
 	if PIPELINE.index(current_stage) + 1 == PIPELINE.index(requested_stage):
 		return True
+	elif PIPELINE.index(current_stage) + 1 > PIPELINE.index(requested_stage):
+		print "You are about to start the pipeline from a previous stage than where it actually is. This is fine, but we will re-calculate and rewrite all the information from here on. Let's think about it for 15 seconds, shall we ?!"
+		sleep_counter(15)
+		print "ok... let's go!"
+		return True
 	else:
 		print "Sorry, your pipeline cannot restart from this stage because the previous stage has not been sucessful."
 		print "It seems that your project is at stage : " + LocalConfigFile['stage']
 		print "You can run the PhyloProf with the --continue flag."
-		print "Alternatively, you can run PhyloProf from these stages: " + " ".join(PIPELINE[:PIPELINE.index(current_stage)])
+		print "Alternatively, you can run PhyloProf from these stages: \n " + "\t ".join(PIPELINE[:PIPELINE.index(current_stage) + 1])
 		sys.exit()
+
+def sleep_counter(N):
+	sys.stdout.write('\033[91m' + '\033[1m' + 'Waiting')
+	for i in range(N):
+		sys.stdout.write('...' + str(i+1))
+		time.sleep(1)
+		sys.stdout.flush()
+	print '\033[0m'
 
 def merge_two_dicts( x, y):
 	z = x.copy()
 	z.update(y)
 	return z
+
+def fetchProtFams(ProjectName):
+	main_path = os.getcwd()
+	LocalConfigFile = get_cfg_file(ProjectName)
+	if isTheRightOrder('fetchProtFams', LocalConfigFile):
+		ProtFamDef = LocalConfigFile['ProtFamDef']
+		# Deal with SeqDepot related Protein Families definitions
+		SeqDepotQuery = mkSeqDepotQuery(ProtFamDef['SeqDepot'])
+		SeqDepotResults, aseq2seq = searchSD(SeqDepotQuery)
+
+		#Deal with custom HMM #
+		# Not Implemented yet #
+		#######################
+		
+		#Saving JSON files
+		mkAseqJson(SeqDepotResults, ProjectName, main_path)
+		mkAseq2seqJson(aseq2seq, ProjectName, main_path)
+		
+		#Update config file
+		update_phylopro_cfg(ProjectName, "fetchProtFams")
+
+		#Next step in the PIPELINE
+		fetchGenInfo(ProjectName)
 
 def separateAseq2Seq ( searchSD_results ):
 	aseq2seq = {}
@@ -142,7 +183,6 @@ def separateAseq2Seq ( searchSD_results ):
 	return rest, aseq2seq
 
 def get_seqdepot_client(passwordfile = ""):
-	import pymongo
 	if passwordfile == "":
 			passwordfile = "/home/ortegad/private/mongodb_binf.txt"
 	client = pymongo.MongoClient("aphrodite.bio.utk.edu",27017)
@@ -170,7 +210,10 @@ def singleSearchSD(query):
 	q = query['query']
 	print "Requesting information about : " + n
 	sd = get_seqdepot_client("/Users/ortegad/private/mongodb_binf.txt")
-	cards = sd.aseqs.find( q , { '_id' : 1 , 's' : 1}, no_cursor_timeout=True)
+	if seqLim == 0:
+		cards = sd.aseqs.find( q , { '_id' : 1 , 's' : 1}, no_cursor_timeout=True)
+	else:
+		cards = sd.aseqs.find( q , { '_id' : 1 , 's' : 1}, no_cursor_timeout=True).limit(seqLim)
 	results = []
 	aseq2seq = {}
 	for card in cards:
@@ -179,7 +222,6 @@ def singleSearchSD(query):
 	return [ { "name" : n , 'aseqs' : results }, aseq2seq ]
 	
 def searchSD( query_list ):
-	import multiprocessing
 	NP = len(query_list)
 	processes = multiprocessing.Pool(NP)
 	results = processes.map( singleSearchSD, query_list)
@@ -198,22 +240,6 @@ def mkAseq2seqJson ( aseq2seq, ProjectName, main_path ):
 	print "\n Making file => " + filename
 	with open(filename,'w') as f:
 		json.dump(aseq2seq, f, indent = 2 )
-
-def mkfiles(ProjectName, newPath = ""):
-	main_path = os.getcwd()
-	LocalConfigFile = get_cfg_file(ProjectName)
-	if isTheRightOrder('mkfiles', LocalConfigFile):
-		LocalConfigFile = get_cfg_file(ProjectName)
-		ProtFamDef = LocalConfigFile['ProtFamDef']
-		SeqDepotQuery = mkSeqDepotQuery(ProtFamDef['SeqDepot'])
-		SeqDepotResults, aseq2seq = searchSD(SeqDepotQuery)
-
-		#Saving JSON files
-		mkAseqJson(SeqDepotResults, ProjectName, main_path)
-		mkAseq2seqJson(aseq2seq, ProjectName, main_path)
-		
-		#get bitkTag from aseqs via MiST.
-		
 		
 def mkSeqDepotQuery(Instructions = {}):
 	""" Builds the string to submit to SeqDepot """
@@ -257,6 +283,95 @@ def mkSeqDepotQuery(Instructions = {}):
 	
 	return ProtFamSDQuery
 
+def fetchGenInfo(ProjectName):
+	main_path = os.getcwd()
+	LocalConfigFile = get_cfg_file(ProjectName)
+	if isTheRightOrder('fetchGenInfo', LocalConfigFile):
+		with open( main_path + '/' + ProjectName + '/COGs/All.' + ProjectName + '.aseqs2seq.json', 'r') as f:
+			aseqs2seq = json.load(f)
+		
+		aseq2bitk_dic = aseq2bitk(aseqs2seq)
+		
+		bitk2seq = {}
+		notfound = []
+		for aseq in aseqs2seq.keys():
+			if aseq in aseq2bitk_dic.keys():
+				for tag in aseq2bitk_dic[aseq]:
+					bitk2seq[tag] = aseqs2seq[aseq]
+			else:
+				notfound.append(aseq)
+		
+		mkBitkTag2seqJson( bitk2seq, ProjectName, main_path)
+		
+		#Update config file
+		update_phylopro_cfg(ProjectName, "fetchGenInfo")
+		
+		#call next step:
+		
+
+def get_mist22_client():
+	print "Verifying tunnels"
+	print "Mist"
+	try:
+		client = pymongo.MongoClient('localhost',27019)
+		client.mist22.genes.find_one()
+	except TypeError:
+		print "You must open a tunnel with ares.bio.utk.edu: ssh -p 32790 -f -N -L 27019:localhost:27017 unsername@ares.bio.utk.edu"
+		sys.exit()
+
+	return client.mist22	
+	
+def aseq2bitk( aseqs2seq ):
+	aseqs_list = aseqs2seq.keys()
+	mist22 = get_mist22_client()
+	
+	if seqLim == 0:
+		genes = mist22.genes.find( { 'p.aid' : { '$in' : aseqs_list }} )
+	else:
+		genes = mist22.genes.find( { 'p.aid' : { '$in' : aseqs_list }} ).limit(seqLim)
+	
+	mistId_list = []
+	aseq2bitk = {}
+	
+	for gene in genes:
+		mistId = gene['gid']
+		try:
+			lo = gene['lo']
+		except ValueError:
+			lo = 'NULL'
+		accession = gene['p']['ac']
+		aseq = gene['p']['aid']
+		bitkTag = str(mistId) + BITKTAGSEP + lo + BITKTAGSEP + accession 
+		if mistId not in mistId_list:
+			mistId_list.append(mistId)
+		if aseq in aseq2bitk.keys():
+			aseq2bitk[aseq].append(bitkTag)
+		else:
+			aseq2bitk[aseq] = [ bitkTag ]
+	
+	# getting genome Name 
+	
+	genomes = mist22.genomes.find( {'_id': {'$in' : mistId_list }}, {'sp': 1, 'g' : 1})
+	
+	gid2name = {}
+	
+	for genome in genomes:
+		gid2name[genome['_id']] = genome['g'][:2] + BITKGENSEP + genome['sp'][:3] + BITKGENSEP
+	
+	for aseq in aseq2bitk.keys():
+		for i in range(len(aseq2bitk[aseq])):
+			mistId = int(aseq2bitk[aseq][i].split(BITKTAGSEP)[0])
+			aseq2bitk[aseq][i] = gid2name[mistId] + aseq2bitk[aseq][i]
+	
+	return aseq2bitk
+	
+def mkBitkTag2seqJson ( aseq2seq, ProjectName, main_path ):
+	filename = main_path + '/' + ProjectName + '/COGs/All.' + ProjectName + '.bitkseq2seq.json'
+	print "\n Making file => " + filename
+	with open(filename,'w') as f:
+		json.dump(aseq2seq, f, indent = 2 )
+
+
 if __name__ == "__main__":
 	#Parse flags.
 	parser = argparse.ArgumentParser()
@@ -264,12 +379,22 @@ if __name__ == "__main__":
 	group.add_argument("--init", type=str, help = 'Build the local directory system', metavar='ProjectName')
 	group.add_argument("--init-force", type=str, help = 'Build the local directory system and erase any existing files. Use with caution.', metavar='ProjectName')
 	group.add_argument("--continue", dest = "cont", nargs = "?", const = "", action = "store", help = 'Restart the pipeline',)
-	group.add_argument("--mkfiles", help = 'Restart the pipeline ath the mkfiles stage',)
+	group.add_argument("--fetchProtFams", help = 'Restart the pipeline at the fetchProtFam stage',)
+	group.add_argument("--fetchGenInfo", help = 'Restart the pipeline at the fetchGenInfo stage',)
+	group.add_argument("--mkFastaFiles", help = 'Restart the pipeline at the mkFastaFiles stage',)
 	
+	parser.add_argument("--test", action = 'store_true', help = 'Run searches with a limited number of sequences' )
+
 	args = parser.parse_args()
 
 	
 	print args.cont
+
+	if args.test:
+		print "This will be only a test"
+		seqLim = 10
+	else:
+		seqLim = 0
 
 	if args.cont == "":
 		ProjectName = get_ProjectName()
@@ -297,14 +422,27 @@ if __name__ == "__main__":
 		update_phylopro_cfg(ProjectName, "init")
 		print "Awesome, we completed the init stage of PhyloPro. That was easy."
 		print "Now, please edit the " + main_path + '/' + ProjectName + '/' + "phylopro." + ProjectName + ".cfg.json file before continue with the pipeline"
-	elif args.mkfiles:
+	elif args.fetchProtFams:
 		print "Searching the database and making the relevant files"
-		if args.mkfiles == "":
+		if args.fetchProtFams == "":
 			ProjectName = get_ProjectName()
 		else:
-			ProjectName = args.mkfiles
-		mkfiles(ProjectName)
-		
+			ProjectName = args.fetchProtFams
+		fetchProtFams(ProjectName)
+	elif args.fetchGenInfo:
+		print "Searching the database and making the relevant files"
+		if args.fetchGenInfo == "":
+			ProjectName = get_ProjectName()
+		else:
+			ProjectName = args.fetchGenInfo
+		fetchGenInfo(ProjectName)
+	elif args.mkFastaFiles:
+		print "Searching the database and making the relevant files"
+		if args.mkFastaFiles == "":
+			ProjectName = get_ProjectName()
+		else:
+			ProjectName = args.mkFastaFiles
+		mkFastaFiles(ProjectName)	
 		
 			
 			
