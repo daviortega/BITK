@@ -127,10 +127,11 @@ The selection of protein family will be done now based on the architecture depen
           { "name" : "CheW", 
             "group" : "Adaptors",
             "pfam29" : { 
-                "in" : [ "CheW" ]
+                "in" : [ "CheW" ],
+                "out" : ["HATPase_c", "Response_reg"]
                 }
           },
-          { "name" : "CheV",
+          { "name" : "MCPs",
             "group" : "Adaptors",
             "pfam29" : {
                 "in" : [ "MCPsignal" ]
@@ -138,7 +139,7 @@ The selection of protein family will be done now based on the architecture depen
           },
           { "name" : "CheA",
             "group" : "Histidine Kinase", 
-            "agfam" : {
+            "agfam1" : {
               "in" : [ "HK_CA:Che" ]
               }
           },
@@ -150,4 +151,4 @@ The selection of protein family will be done now based on the architecture depen
           }
         ]
     }
-} ```
+}```

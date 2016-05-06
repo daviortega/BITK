@@ -127,20 +127,97 @@ def isTheRightOrder(requested_stage, LocalConfigFile):
 		print "You can run the PhyloProf with the --continue flag."
 		print "Alternatively, you can run PhyloProf from these stages: " + " ".join(PIPELINE[:PIPELINE.index(current_stage)])
 		sys.exit()
-	
 
-def mkfiles(ProjectName):
+def merge_two_dicts( x, y):
+	z = x.copy()
+	z.update(y)
+	return z
+
+def separateAseq2Seq ( searchSD_results ):
+	aseq2seq = {}
+	rest = []
+	for data in searchSD_results:
+		aseq2seq = merge_two_dicts( aseq2seq, data[1])
+		rest.append(data[0])
+	return rest, aseq2seq
+
+def get_seqdepot_client(passwordfile = ""):
+	import pymongo
+	if passwordfile == "":
+			passwordfile = "/home/ortegad/private/mongodb_binf.txt"
+	client = pymongo.MongoClient("aphrodite.bio.utk.edu",27017)
+	client.the_database.authenticate('binf',open(passwordfile,"r").readline().strip(), mechanism='MONGODB-CR',source='admin')
+	#print "SeqDepot connection authenticated"	
+	return client.seqdepot
+
+def processAseqsDic( results ):
+	print "\n"
+	merged_results = {}
+	aseq2seq = {}
+	for r in results:
+		if r[0]['name'] not in merged_results.keys():
+			merged_results[r[0]['name']] = set(r[0]['aseqs'])
+		else:
+			merged_results[r[0]['name']].union(set(r[0]['aseqs']))
+		aseq2seq = merge_two_dicts( aseq2seq, r[1])
+	for name in merged_results.keys():
+		merged_results[name] = list(merged_results[name])
+		print 'Number of ' + name + ' proteins =>\t' + str(len(merged_results[name]))
+	return merged_results, aseq2seq
+
+def singleSearchSD(query):
+	n = query['name']
+	q = query['query']
+	print "Requesting information about : " + n
+	sd = get_seqdepot_client("/Users/ortegad/private/mongodb_binf.txt")
+	cards = sd.aseqs.find( q , { '_id' : 1 , 's' : 1}, no_cursor_timeout=True)
+	results = []
+	aseq2seq = {}
+	for card in cards:
+		results.append(card['_id'])
+		aseq2seq[card['_id']] = card['s']
+	return [ { "name" : n , 'aseqs' : results }, aseq2seq ]
+	
+def searchSD( query_list ):
+	import multiprocessing
+	NP = len(query_list)
+	processes = multiprocessing.Pool(NP)
+	results = processes.map( singleSearchSD, query_list)
+	merged_results, aseq2seq = processAseqsDic(results)
+	return merged_results, aseq2seq
+	
+def mkAseqJson (SeqDepotResults, ProjectName, main_path):
+	for name, aseqs in SeqDepotResults.iteritems():
+		filename = main_path + '/' + ProjectName + '/COGs/' + name + '.' + ProjectName + '.aseqs.json'
+		print " Making file => " + filename
+		with open(filename,'w') as f:
+			json.dump(aseqs, f, indent = 2 )
+
+def mkAseq2seqJson ( aseq2seq, ProjectName, main_path ):
+	filename = main_path + '/' + ProjectName + '/COGs/All.' + ProjectName + '.aseqs2seq.json'
+	print "\n Making file => " + filename
+	with open(filename,'w') as f:
+		json.dump(aseq2seq, f, indent = 2 )
+
+def mkfiles(ProjectName, newPath = ""):
+	main_path = os.getcwd()
 	LocalConfigFile = get_cfg_file(ProjectName)
 	if isTheRightOrder('mkfiles', LocalConfigFile):
 		LocalConfigFile = get_cfg_file(ProjectName)
 		ProtFamDef = LocalConfigFile['ProtFamDef']
 		SeqDepotQuery = mkSeqDepotQuery(ProtFamDef['SeqDepot'])
-		print SeqDepotQuery
+		SeqDepotResults, aseq2seq = searchSD(SeqDepotQuery)
+
+		#Saving JSON files
+		mkAseqJson(SeqDepotResults, ProjectName, main_path)
+		mkAseq2seqJson(aseq2seq, ProjectName, main_path)
+		
+		#get bitkTag from aseqs via MiST.
 		
 		
 def mkSeqDepotQuery(Instructions = {}):
 	""" Builds the string to submit to SeqDepot """
-	ProtFamSDQuery = {}
+	ProtFamSDQuery = []
 	for ProtFamDefSD in Instructions:
 		name = ProtFamDefSD['name']
 		allInstructions = []
@@ -175,10 +252,8 @@ def mkSeqDepotQuery(Instructions = {}):
 			print searchStrSD
 			print "There is something missing"
 			sys.exit()
-		if name in ProtFamSDQuery.keys():
-			ProtFamSDQuery[name].append(searchStrSD)
-		else:
-			ProtFamSDQuery[name] = [ searchStrSD ]
+			
+		ProtFamSDQuery.append( { "name" : name, "query" : searchJsonSD } )
 	
 	return ProtFamSDQuery
 
@@ -213,11 +288,15 @@ if __name__ == "__main__":
 		BuildDirectorySystem(ProjectName)
 		print "Done with init stage. Recording changes to the local config file."
 		update_phylopro_cfg(ProjectName, "init")
+		print "Awesome, we completed the init stage of PhyloPro. That was easy."
+		print "Now, please edit the " + main_path + '/' + ProjectName + '/' + "phylopro." + ProjectName + ".cfg.json file before continue with the pipeline"
 	elif args.init_force:
 		ProjectName = args.init_force
 		BuildDirectorySystem(ProjectName, force = True)
 		print "Done with init stage. Recording changes to the local config file."
 		update_phylopro_cfg(ProjectName, "init")
+		print "Awesome, we completed the init stage of PhyloPro. That was easy."
+		print "Now, please edit the " + main_path + '/' + ProjectName + '/' + "phylopro." + ProjectName + ".cfg.json file before continue with the pipeline"
 	elif args.mkfiles:
 		print "Searching the database and making the relevant files"
 		if args.mkfiles == "":
