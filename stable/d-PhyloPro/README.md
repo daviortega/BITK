@@ -120,37 +120,60 @@ The selection of protein family will be done now based on the architecture depen
 
 ``` json
 {
+  "ProtFamDef": {
+    "SeqDepot": [
+      {
+        "group": "Adaptors", 
+        "name": "CheW", 
+        "pfam29": {
+          "out": [
+            "HATPase_c", 
+            "Response_reg"
+          ], 
+          "in": [
+            "CheW"
+          ]
+        }
+      }, 
+      {
+        "group": "Adaptors", 
+        "name": "MCPs", 
+        "pfam29": {
+          "in": [
+            "MCPsignal"
+          ]
+        }
+      }, 
+      {
+        "group": "Histidine Kinase", 
+        "name": "CheA", 
+        "agfam1": {
+          "in": [
+            "HK_CA:Che"
+          ]
+        }
+      }, 
+      {
+        "group": "Histidine Kinase", 
+        "name": "CheA", 
+        "pfam29": {
+          "in": [
+            "CheW", 
+            "HATPase_c"
+          ]
+        }
+      }
+    ]
+  }, 
   "ProjectName": "Vibrio", 
-  "stage": "init",
-  "ProtFamDef" : 
-    {
-      "SeqDepot" : 
-        [
-          { "name" : "CheW", 
-            "group" : "Adaptors",
-            "pfam29" : { 
-                "in" : [ "CheW" ],
-                "out" : ["HATPase_c", "Response_reg"]
-                }
-          },
-          { "name" : "MCPs",
-            "group" : "Adaptors",
-            "pfam29" : {
-                "in" : [ "MCPsignal" ]
-            }
-          },
-          { "name" : "CheA",
-            "group" : "Histidine Kinase", 
-            "agfam1" : {
-              "in" : [ "HK_CA:Che" ]
-              }
-          },
-          { "name" : "CheA",
-            "group" : "Histidine Kinase", 
-            "pfam29" : {
-              "in" : [ "CheW", "HATPase_c" ]
-            }
-          }
-        ]
-    }
+  "stage": "fetchGenInfo", 
+  "genomes": [
+    479, 
+    319
+  ], 
+  "history": {
+    "fetchProtFams": "2016-05-06T15:18:51.698002", 
+    "init": "someday", 
+    "fetchGenInfo": "2016-05-06T15:18:52.391717"
+  }
 }```

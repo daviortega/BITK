@@ -9,6 +9,7 @@ import shutil
 import pymongo
 import multiprocessing
 import time
+import datetime
 
 #HardVariables
 
@@ -75,7 +76,9 @@ def BuildDirectorySystem( ProjectName = "PhyloPro", force = False ):
 	#Make new phylopro config file
 	cfgfilename = "phylopro." + ProjectName + ".cfg.json"
 	LocalConfigFile = { "ProjectName" : ProjectName ,
-						"stage"		  : ""}
+						"stage"		  : "",
+						"history"     : { 'init' : datetime.datetime.now().isoformat() }
+					  }
 
 	with open(makedir[0] + '/' + cfgfilename, 'w') as f:
 		json.dump(LocalConfigFile, f, indent = 2)
@@ -88,7 +91,8 @@ def update_phylopro_cfg (ProjectName, stage):
 		LocalConfigFile = json.load(f)
 
 	LocalConfigFile['stage'] = stage
-
+	LocalConfigFile['history'][stage] = datetime.datetime.now().isoformat()
+		
 	with open( main_path + '/' + ProjectName + '/' + "phylopro." + ProjectName + ".cfg.json", 'w') as f:
 		json.dump(LocalConfigFile, f, indent = 2)
 		
