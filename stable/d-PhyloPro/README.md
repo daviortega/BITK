@@ -40,13 +40,9 @@ Prepare files and databases to be used in the future
 | --fetchProtFams     | ProjectName | Acquire and parse info about protein families from SeqDepot |
 | --fetchGenInfo      | ProjectName | Acquire and process genome information from MiST3 |
 | --mkFastaFiles      | Make relevant fasta files |
+| --filterByGen       | Filter fasta files to only contain sequences from the selected genomes |
 
-#### Main Pipeline
 
-| Flag name           | Description |
-|---------------------| ---------------|
-| --files			  | Make the relevant files |
-| --FetchAseqs	      | Manipulate fasta files: Trim |
 
 
 ### Requisites
@@ -69,7 +65,7 @@ The configuration files are JSON formatted and contain information necessary to 
 ##### phylopro.local.cfg.json
 
 ``` json
-[ { "mistid" : 
+[ { "genomes" : 
 		[ 000, 001, 002 , ... , N ], // List of mistID of genomes for analysis
 	
 	"ProtFamDef" : { // Define protein family using results by tools in

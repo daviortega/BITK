@@ -13,7 +13,7 @@ import datetime
 
 #HardVariables
 
-PIPELINE = ['init', 'fetchProtFams', 'fetchGenInfo', 'mkFastaFiles' ]
+PIPELINE = ['init', 'fetchProtFams', 'fetchGenInfo', 'mkFastaFiles', 'filterByGen' ]
 BITKTAGSEP = '|'
 BITKGENSEP = '_'
 
@@ -416,6 +416,7 @@ def mkBitkTag2seqJson ( aseq2seq, ProjectName, main_path ):
 		json.dump(aseq2seq, f, indent = 2 )
 
 def mkFastaFiles(ProjectName):
+	print "\n ==== Stage mkFastaFiles ====\n"
 	main_path = os.getcwd()
 	LocalConfigFile = get_cfg_file(ProjectName)
 	if isTheRightOrder('mkFastaFiles', LocalConfigFile):
@@ -444,9 +445,57 @@ def mkFastaFiles(ProjectName):
 	
 	#Update config file
 	update_stage_phylopro_cfg(ProjectName, "mkFastaFiles")
+	
+	#Next step in the PIPELINE
+	filterByGen(ProjectName)
+	
 			
-			
-			
+def filterByGen(ProjectName):
+	print "\n ==== Stage filterByGen ====\n"
+	main_path = os.getcwd()
+	LocalConfigFile = get_cfg_file(ProjectName)
+	if isTheRightOrder('filterByGen', LocalConfigFile):		
+		ProtFams = getProtFam(LocalConfigFile)
+		# getting the genomes from config file
+		try:	
+			genomes = LocalConfigFile['genomes']
+		except KeyError:
+			genomes = []
+		if genomes == []:
+			print 'No genomes have been passed, we will keep going with the pipeline with whole dataset. There will be only a symbolic link to the original files and the "only" files. If this is not what you want, please hit Ctrl-C, check your config file in the key "genomes" and restart the pipeline with --continue flag'
+			for ProtFam in ProtFams:
+				filename_all = main_path + '/' + ProjectName + '/COGs/' + ProtFam + '.' + ProjectName + '.fa'
+				filename_only = main_path + '/' + ProjectName + '/COGs/' + ProtFam + '.' + ProjectName + '.only.fa'
+				print "\n ==> Creating symlinks for " + ProtFam
+				
+				try:
+					os.remove(filename_only)
+				except OSError:
+					pass
+				os.symlink(filename_all, filename_only )
+		else:
+			for ProtFam in ProtFams:
+				print "\n ==> Filtering sequences of " + ProtFam
+				filename_all = main_path + '/' + ProjectName + '/COGs/' + ProtFam + '.' + ProjectName + '.fa'
+				filename_only = main_path + '/' + ProjectName + '/COGs/' + ProtFam + '.' + ProjectName + '.only.fa'
+				fasta_tmp, tags = FastaReader(filename_all)
+				new_fasta = ''
+				counter = 0
+				for tag in tags:
+					mistID = int(tag.split(BITKTAGSEP)[0].split(BITKGENSEP)[-1])
+					if mistID in genomes:
+						counter += 1
+						new_fasta += '>' + tag + '\n' + fasta_tmp[tag] + '\n'
+				
+					with open(filename_only, 'w') as f:
+						f.write(new_fasta)
+				print str(counter) + " / " + str(len(tags))
+	#Update config file
+	update_stage_phylopro_cfg(ProjectName, "filterByGen")
+		
+	#Next step in the PIPELINE
+	#fetchGenInfo(ProjectName)			
+						
 			
 			
 		
@@ -460,6 +509,7 @@ if __name__ == "__main__":
 	group.add_argument("--fetchProtFams", help = 'Restart the pipeline at the fetchProtFam stage',)
 	group.add_argument("--fetchGenInfo", help = 'Restart the pipeline at the fetchGenInfo stage',)
 	group.add_argument("--mkFastaFiles", help = 'Restart the pipeline at the mkFastaFiles stage',)
+	group.add_argument("--filterByGen", help = 'Restart the pipeline at the filterByGen stage',)
 	
 	parser.add_argument("--test", action = 'store_true', help = 'Run searches with a limited number of sequences' )
 
@@ -513,10 +563,14 @@ if __name__ == "__main__":
 			ProjectName = args.fetchGenInfo
 		fetchGenInfo(ProjectName)
 	elif args.mkFastaFiles:
-		print "Searching the database and making the relevant files"
 		if args.mkFastaFiles == "":
 			ProjectName = get_ProjectName()
 		else:
 			ProjectName = args.mkFastaFiles
 		mkFastaFiles(ProjectName)	
-		
+	elif args.filterByGen:
+		if args.filterByGen == "":
+			ProjectName = get_ProjectName()
+		else:
+			ProjectName = args.filterByGen
+		filterByGen(ProjectName)	
