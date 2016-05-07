@@ -83,7 +83,7 @@ def BuildDirectorySystem( ProjectName = "PhyloPro", force = False ):
 	with open(makedir[0] + '/' + cfgfilename, 'w') as f:
 		json.dump(LocalConfigFile, f, indent = 2)
 
-def update_phylopro_cfg (ProjectName, stage):
+def update_stage_phylopro_cfg (ProjectName, stage):
 	""" Update the PhyloPro config file to state the latest sucessful step """
 	main_path = os.getcwd()
 	
@@ -93,6 +93,12 @@ def update_phylopro_cfg (ProjectName, stage):
 	LocalConfigFile['stage'] = stage
 	LocalConfigFile['history'][stage] = datetime.datetime.now().isoformat()
 		
+	with open( main_path + '/' + ProjectName + '/' + "phylopro." + ProjectName + ".cfg.json", 'w') as f:
+		json.dump(LocalConfigFile, f, indent = 2)
+
+def addInfo2phylopro_cfg( ProjectName, Info = {}):
+	LocalConfigFile = get_cfg_file(ProjectName)
+	LocalConfigFile = merge_two_dicts(LocalConfigFile, Info)
 	with open( main_path + '/' + ProjectName + '/' + "phylopro." + ProjectName + ".cfg.json", 'w') as f:
 		json.dump(LocalConfigFile, f, indent = 2)
 		
@@ -173,12 +179,22 @@ def fetchProtFams(ProjectName):
 		mkAseq2seqJson(aseq2seq, ProjectName, main_path)
 		
 		#Update config file
-		update_phylopro_cfg(ProjectName, "fetchProtFams")
+		update_stage_phylopro_cfg(ProjectName, "fetchProtFams")
 
 		#Next step in the PIPELINE
 		fetchGenInfo(ProjectName)
 
+def getProtFam( LocalConfigFile ):
+	ProtFams = []
+	for db in LocalConfigFile['ProtFamDef']:
+		for instruction in LocalConfigFile['ProtFamDef'][db]:
+			if instruction['name'] not in ProtFams:
+				ProtFams.append(instruction['name'])
+	return ProtFams
+
+
 def separateAseq2Seq ( searchSD_results ):
+	"""Not used"""
 	aseq2seq = {}
 	rest = []
 	for data in searchSD_results:
@@ -217,12 +233,18 @@ def singleSearchSD(query):
 	if seqLim == 0:
 		cards = sd.aseqs.find( q , { '_id' : 1 , 's' : 1}, no_cursor_timeout=True)
 	else:
-		cards = sd.aseqs.find( q , { '_id' : 1 , 's' : 1}, no_cursor_timeout=True).limit(seqLim)
+		cards = sd.aseqs.find( q , no_cursor_timeout=True).limit(seqLim)
 	results = []
 	aseq2seq = {}
+	allcards = []
 	for card in cards:
 		results.append(card['_id'])
 		aseq2seq[card['_id']] = card['s']
+		allcards.append(card)
+	
+	with open("test.json", 'w') as f:
+		json.dump(allcards, f)	
+	
 	return [ { "name" : n , 'aseqs' : results }, aseq2seq ]
 	
 def searchSD( query_list ):
@@ -264,8 +286,8 @@ def mkSeqDepotQuery(Instructions = {}):
 				if domCountIn + domCountOut > 1:
 					for i in range(domCountIn):
 						allInstructions.append(' { "t.' + tool + '" : { "$elemMatch" : { "$elemMatch" : { "$in" : ["' + ProtFamDefSD[tool]["in"][i] + '"] }}}} ')
-					for i in range(domCountOut):
-						allInstructions.append(' { "t.' + tool + '" : { "$elemMatch" : { "$elemMatch" : { "$nin" : ["' + ProtFamDefSD[tool]["out"][i] + '"] }}}} ')
+					if domCountOut > 0:
+						allInstructions.append('{ "$nor" : [ { "t.' + tool + '" : { "$elemMatch" : { "$elemMatch" : { "$in" : [ "' + '","'.join(ProtFamDefSD[tool]["out"]) + '" ] }}}} ] } ')
 				elif domCountOut == 0:
 					allInstructions.append(' { "t.' + tool + '" : { "$elemMatch" : { "$elemMatch" : { "$in" : ["' + ProtFamDefSD[tool]["in"][0] + '"] }}}} ')
 				elif domCountIn == 0:
@@ -282,7 +304,9 @@ def mkSeqDepotQuery(Instructions = {}):
 			print searchStrSD
 			print "There is something missing"
 			sys.exit()
-			
+		
+		#print json.dumps(searchJsonSD)
+		
 		ProtFamSDQuery.append( { "name" : name, "query" : searchJsonSD } )
 	
 	return ProtFamSDQuery
@@ -295,22 +319,32 @@ def fetchGenInfo(ProjectName):
 			aseqs2seq = json.load(f)
 		
 		aseq2bitk_dic = aseq2bitk(aseqs2seq)
+		mkAseq2bitkTagJson(aseq2bitk_dic, ProjectName, main_path)
 		
 		bitk2seq = {}
 		notfound = []
-		for aseq in aseqs2seq.keys():
+		print " Number of Aseqs to be parsed : " + str(len(aseqs2seq.keys()))
+		for i in range(len(aseqs2seq.keys())):
+			
+			aseq = aseqs2seq.keys()[i]
+			
+			if i % float(1000) == 0 and i > 999:
+				print str(i) + " : " + aseq
 			if aseq in aseq2bitk_dic.keys():
 				for tag in aseq2bitk_dic[aseq]:
 					bitk2seq[tag] = aseqs2seq[aseq]
 			else:
-				notfound.append(aseq)
+				notfound.append(aseq) #NEED to do something with this.	
+		
+		print "Done"
 		
 		mkBitkTag2seqJson( bitk2seq, ProjectName, main_path)
 		
 		#Update config file
-		update_phylopro_cfg(ProjectName, "fetchGenInfo")
+		update_stage_phylopro_cfg(ProjectName, "fetchGenInfo")
 		
 		#call next step:
+		mkFastaFiles(ProjectName)
 		
 
 def get_mist22_client():
@@ -332,7 +366,7 @@ def aseq2bitk( aseqs2seq ):
 	if seqLim == 0:
 		genes = mist22.genes.find( { 'p.aid' : { '$in' : aseqs_list }} )
 	else:
-		genes = mist22.genes.find( { 'p.aid' : { '$in' : aseqs_list }} ).limit(seqLim)
+		genes = mist22.genes.find( { 'p.aid' : { '$in' : aseqs_list }} )
 	
 	mistId_list = []
 	aseq2bitk = {}
@@ -341,7 +375,7 @@ def aseq2bitk( aseqs2seq ):
 		mistId = gene['gid']
 		try:
 			lo = gene['lo']
-		except ValueError:
+		except KeyError:
 			lo = 'NULL'
 		accession = gene['p']['ac']
 		aseq = gene['p']['aid']
@@ -368,6 +402,12 @@ def aseq2bitk( aseqs2seq ):
 			aseq2bitk[aseq][i] = gid2name[mistId] + aseq2bitk[aseq][i]
 	
 	return aseq2bitk
+
+def mkAseq2bitkTagJson ( aseq2bitk_dic, ProjectName, main_path ):
+	filename = main_path + '/' + ProjectName + '/COGs/All.' + ProjectName + '.aseqs2bitktag.json'
+	print "\n Making file => " + filename
+	with open(filename,'w') as f:
+		json.dump(aseq2bitk_dic, f, indent = 2 )	
 	
 def mkBitkTag2seqJson ( aseq2seq, ProjectName, main_path ):
 	filename = main_path + '/' + ProjectName + '/COGs/All.' + ProjectName + '.bitkseq2seq.json'
@@ -375,7 +415,41 @@ def mkBitkTag2seqJson ( aseq2seq, ProjectName, main_path ):
 	with open(filename,'w') as f:
 		json.dump(aseq2seq, f, indent = 2 )
 
-
+def mkFastaFiles(ProjectName):
+	main_path = os.getcwd()
+	LocalConfigFile = get_cfg_file(ProjectName)
+	if isTheRightOrder('mkFastaFiles', LocalConfigFile):
+		ProtFams = getProtFam(LocalConfigFile)
+		with open( main_path + '/' + ProjectName + '/COGs/All.' + ProjectName + '.bitkseq2seq.json', 'r') as f:
+			bitk2seq = json.load(f)
+		with open(main_path + '/' + ProjectName + '/COGs/All.' + ProjectName + '.aseqs2bitktag.json', 'r') as f:
+			aseq2bitktag = json.load(f)
+				
+		for ProtFam in ProtFams:
+			filename = main_path + '/' + ProjectName + '/COGs/' + ProtFam + '.' + ProjectName + '.aseqs.json'
+			with open(filename, 'r') as f:
+				infoJson = json.load(f)
+			
+			output = ''
+			
+			for aseq in infoJson:
+				if aseq in aseq2bitktag.keys():
+					for i in range(len(aseq2bitktag[aseq])):
+						output += '>' + aseq2bitktag[aseq][i] + '\n' + bitk2seq[aseq2bitktag[aseq][i]] + '\n'
+			
+			filename = main_path + '/' + ProjectName + '/COGs/' + ProtFam + '.' + ProjectName + '.fa'
+			print "\n Making file => " + filename
+			with open(filename, 'w') as f:
+				f.write(output)
+	
+	#Update config file
+	update_stage_phylopro_cfg(ProjectName, "mkFastaFiles")
+			
+			
+			
+			
+			
+		
 if __name__ == "__main__":
 	#Parse flags.
 	parser = argparse.ArgumentParser()
@@ -390,7 +464,6 @@ if __name__ == "__main__":
 	parser.add_argument("--test", action = 'store_true', help = 'Run searches with a limited number of sequences' )
 
 	args = parser.parse_args()
-
 	
 	print args.cont
 
@@ -411,19 +484,18 @@ if __name__ == "__main__":
 		print "Continuing from stage : " + next_stage
 		args = parser.parse_args([ "--" + next_stage , ProjectName])
 
-
 	if args.init:
 		ProjectName = args.init
 		BuildDirectorySystem(ProjectName)
 		print "Done with init stage. Recording changes to the local config file."
-		update_phylopro_cfg(ProjectName, "init")
+		update_stage_phylopro_cfg(ProjectName, "init")
 		print "Awesome, we completed the init stage of PhyloPro. That was easy."
 		print "Now, please edit the " + main_path + '/' + ProjectName + '/' + "phylopro." + ProjectName + ".cfg.json file before continue with the pipeline"
 	elif args.init_force:
 		ProjectName = args.init_force
 		BuildDirectorySystem(ProjectName, force = True)
 		print "Done with init stage. Recording changes to the local config file."
-		update_phylopro_cfg(ProjectName, "init")
+		update_stage_phylopro_cfg(ProjectName, "init")
 		print "Awesome, we completed the init stage of PhyloPro. That was easy."
 		print "Now, please edit the " + main_path + '/' + ProjectName + '/' + "phylopro." + ProjectName + ".cfg.json file before continue with the pipeline"
 	elif args.fetchProtFams:
@@ -448,13 +520,3 @@ if __name__ == "__main__":
 			ProjectName = args.mkFastaFiles
 		mkFastaFiles(ProjectName)	
 		
-			
-			
-
-
-
-
-
-
-
-

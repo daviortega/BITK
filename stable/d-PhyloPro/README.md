@@ -166,14 +166,15 @@ The selection of protein family will be done now based on the architecture depen
     ]
   }, 
   "ProjectName": "Vibrio", 
-  "stage": "fetchGenInfo", 
+  "stage": "init", 
   "genomes": [
     479, 
     319
   ], 
   "history": {
-    "fetchProtFams": "2016-05-06T15:18:51.698002", 
+    "mkFastaFiles": "2016-05-06T20:32:50.324466", 
+    "fetchProtFams": "2016-05-06T20:32:49.601795", 
     "init": "someday", 
-    "fetchGenInfo": "2016-05-06T15:18:52.391717"
+    "fetchGenInfo": "2016-05-06T20:32:50.322592"
   }
 }```
