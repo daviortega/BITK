@@ -41,9 +41,7 @@ Prepare files and databases to be used in the future
 | --fetchGenInfo      | ProjectName | Acquire and process genome information from MiST3 |
 | --mkFastaFiles      | Make relevant fasta files |
 | --filterByGen       | Filter fasta files to only contain sequences from the selected genomes |
-
-
-
+| --trimSeqs          | Trim sequences based on HMM models |
 
 ### Requisites
 To use PhyloPro you need a few items:

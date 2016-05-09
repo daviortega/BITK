@@ -10,10 +10,12 @@ import pymongo
 import multiprocessing
 import time
 import datetime
+import urllib2
+import distutils
 
 #HardVariables
 
-PIPELINE = ['init', 'fetchProtFams', 'fetchGenInfo', 'mkFastaFiles', 'filterByGen' ]
+PIPELINE = ['init', 'fetchProtFams', 'fetchGenInfo', 'mkFastaFiles', 'filterByGen', 'trimSeqs' ]
 BITKTAGSEP = '|'
 BITKGENSEP = '_'
 
@@ -60,7 +62,7 @@ def BuildDirectorySystem( ProjectName = "PhyloPro", force = False ):
 
 	main_path = os.getcwd()
 
-	makedir = [ main_path + '/' + ProjectName, main_path + '/' + ProjectName + '/COGs/' , main_path + '/' + ProjectName + '/merge/', main_path + '/' + ProjectName + '/trees/' ]
+	makedir = [ main_path + '/' + ProjectName, main_path + '/' + ProjectName + '/COGs/' , main_path + '/' + ProjectName + '/merge/', main_path + '/' + ProjectName + '/trees/', main_path + '/' + ProjectName + '/pfamModels/' ]
 
 	if os.path.isdir(makedir[0]) and force == False:
 		print "\n" + color.RED + color.BOLD + "PhyloPro - WARNING ***************************" + color.END + "\n\nThere is a project named " + color.BOLD + ProjectName + color.END + " in this direcptry.\n\nIf you really want to proceed, please use the" + color.RED + color.BOLD + "--init-force" +color.END + " flag instead.\n\n" + color.BOLD + color.RED + "All the information in the directory and subdirectories will be lost.\n\n" + color.END
@@ -192,6 +194,15 @@ def getProtFam( LocalConfigFile ):
 				ProtFams.append(instruction['name'])
 	return ProtFams
 
+def getGroupFam ( LocalConfigFile ):
+	GroupFams ={}
+	for db in LocalConfigFile['ProtFamDef']:
+		for instruction in LocalConfigFile['ProtFamDef'][db]:
+			if instruction['group'] not in GroupFams:
+				GroupFams[instruction['group']] = [ instruction['name'] ]
+			else:
+				GroupFams[instruction['group']].append( instruction['name'] )
+	return GroupFams
 
 def separateAseq2Seq ( searchSD_results ):
 	"""Not used"""
@@ -494,11 +505,78 @@ def filterByGen(ProjectName):
 	update_stage_phylopro_cfg(ProjectName, "filterByGen")
 		
 	#Next step in the PIPELINE
-	#fetchGenInfo(ProjectName)			
+	trimSeqs(ProjectName)			
 						
+def trimSeqs(ProjectName):
+	print "\n ==== Stage trimSeqs ====\n"
+	main_path = os.getcwd()
+	LocalConfigFile = get_cfg_file(ProjectName)
+	if isTheRightOrder('trimSeqs', LocalConfigFile):
+		if 'trim' in LocalConfigFile.keys():
+			trimInstructs = LocalConfigFile['trim']
+			ProtFams = getProtFam(LocalConfigFile)
+			GroupFams = getGroupFam( LocalConfigFile )
+			for trimInstruc in trimInstructs:
+				if 'pfam' in trimInstruc.keys():
+					hmm_model = downloadPfamModel(trimInstruc['pfam'])
+					for ProtFam in GroupFams[trimInstruc['group']]:
+
+						fasta_file = main_path + '/' + ProjectName + '/COGs/' + ProtFam + '.' + 	ProjectName + '.only.fa'
+						outputfile = main_path + '/' + ProjectName + '/COGs/' + ProtFam	+ '.output.hmm.dat'
+						
+						runHmmsearch( hmm_model, fasta_file, outputfile)
+						fasta = parseHmmData( fasta_file, outputfile )
+						
+						with open( main_path + '/' + ProjectName + '/COGs/' + ProtFam + '.' + 	ProjectName + '.trimmed.fa' , 'w') as f:
+							f.write(fasta)					
+	#Update config file
+	#update_stage_phylopro_cfg(ProjectName, "trimSeqs")
+	
+	#Next step in the PIPELINE
+	#fetchGenInfo(ProjectName)
+	
+					
+def runHmmsearch( hmm_model, fasta_file, outputfile):
+	from distutils.spawn import find_executable
+	if find_executable('hmmsearch'):
+		os.system('hmmsearch --noali --cut_tc ' + hmm_model + ' ' + fasta_file + ' > ' + outputfile)
+	else:
+		print 'You must install HMMER to use this step'
+		print 'Please, install HMMER or take out the "trim" key from the config file'
+		print 'Aborting...'
+		sys.exit()					
+
+def downloadPfamModel( pfamNumber ):
+	main_path = os.getcwd()
+	
+	print ' ==> Downloading ' + pfamNumber
+	
+	url = 'http://pfam.xfam.org/family/' + pfamNumber + '/hmm'
+	response = urllib2.urlopen(url)
+	pfam_model = response.read()
+	
+	filename = main_path + '/' + ProjectName + '/pfamModels/' + pfamNumber + '.hmm'
+	
+	with open( filename , 'w') as f:
+		f.write(pfam_model)
+	
+	return filename
+	
+def parseHmmData ( fasta_file, filename ):
+	seq_dic, seq_list = FastaReader( fasta_file )
+	output = ''
+	tags = []
+	with open( filename , 'r') as f:
+		for line in f:
+			if '>>' in line:
+				name = line.split(' ')[1]
+			if line[60:66].replace(' ','').isdigit() and name not in tags:
+				start = int(line[60:66])
+				end = int(line[68:74])
+				output += '>' + name + '\n' + seq_dic[name][start:end] + '\n'
+				tags.append(name)		
+	return output
 			
-			
-		
 if __name__ == "__main__":
 	#Parse flags.
 	parser = argparse.ArgumentParser()
@@ -510,6 +588,7 @@ if __name__ == "__main__":
 	group.add_argument("--fetchGenInfo", help = 'Restart the pipeline at the fetchGenInfo stage',)
 	group.add_argument("--mkFastaFiles", help = 'Restart the pipeline at the mkFastaFiles stage',)
 	group.add_argument("--filterByGen", help = 'Restart the pipeline at the filterByGen stage',)
+	group.add_argument("--trimSeqs", help = 'Restart the pipeline at the trimSeqs stage',)
 	
 	parser.add_argument("--test", action = 'store_true', help = 'Run searches with a limited number of sequences' )
 
@@ -573,4 +652,10 @@ if __name__ == "__main__":
 			ProjectName = get_ProjectName()
 		else:
 			ProjectName = args.filterByGen
-		filterByGen(ProjectName)	
+		filterByGen(ProjectName)
+	elif args.trimSeqs:
+		if args.trimSeqs == "":
+			ProjectName = get_ProjectName()
+		else:
+			ProjectName = args.trimSeqs
+		trimSeqs(ProjectName)
