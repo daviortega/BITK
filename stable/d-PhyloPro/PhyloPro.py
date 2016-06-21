@@ -15,7 +15,7 @@ import distutils
 
 #HardVariables
 
-PIPELINE = ['init', 'fetchProtFams', 'fetchGenInfo', 'mkFastaFiles', 'filterByGen', 'trimSeqs' ]
+PIPELINE = ['init', 'fetchProtFams', 'fetchGenInfo', 'mkFastaFiles', 'filterByGen', 'trimSeqs', 'COGFinderBLAST' ]
 BITKTAGSEP = '|'
 BITKGENSEP = '_'
 
@@ -503,9 +503,11 @@ def filterByGen(ProjectName):
 				print str(counter) + " / " + str(len(tags))
 	#Update config file
 	update_stage_phylopro_cfg(ProjectName, "filterByGen")
-		
-	#Next step in the PIPELINE
-	trimSeqs(ProjectName)			
+	
+	#Stop here?
+	if dontStopHere(ProjectName):	
+		#Next step in the PIPELINE
+		trimSeqs(ProjectName)			
 						
 def trimSeqs(ProjectName):
 	print "\n ==== Stage trimSeqs ====\n"
@@ -530,10 +532,12 @@ def trimSeqs(ProjectName):
 						with open( main_path + '/' + ProjectName + '/COGs/' + ProtFam + '.' + 	ProjectName + '.trimmed.fa' , 'w') as f:
 							f.write(fasta)					
 	#Update config file
-	#update_stage_phylopro_cfg(ProjectName, "trimSeqs")
+	update_stage_phylopro_cfg(ProjectName, "trimSeqs")
 	
-	#Next step in the PIPELINE
-	#fetchGenInfo(ProjectName)
+	#Stop here?
+	if dontStopHere(ProjectName):
+		#Next step in the PIPELINE
+		COGFinderBLAST( ProjectName )
 	
 					
 def runHmmsearch( hmm_model, fasta_file, outputfile):
@@ -576,6 +580,51 @@ def parseHmmData ( fasta_file, filename ):
 				output += '>' + name + '\n' + seq_dic[name][start:end] + '\n'
 				tags.append(name)		
 	return output
+
+def COGFinderBLAST ( ProjectName ):
+	main_path = os.getcwd()
+	LocalConfigFile = get_cfg_file(ProjectName)
+	if isTheRightOrder('COGFinderBLAST', LocalConfigFile):
+		GroupFams = getGroupFam( LocalConfigFile )
+		if 'trim' in LocalConfigFile.keys():
+			trimInstructs = LocalConfigFile['trim']
+			trimmed = []
+			for instructions in trimInstructs:
+				trimmed.append(instructions['group'])
+		
+		files = []
+		for group in GroupFams.keys():
+			fileNames = ''
+			if group in trimmed:
+				trim = '.trimmed'
+			else:
+				trim = ''
+			for ProtFam in GroupFams[group]:
+				fileNames += main_path + '/' + ProjectName + '/COGs/' + ProtFam + '.' + 	ProjectName + trim + '.fa '
+			files.append(fileNames)
+		
+		#runBLAST() + parseBLASTdata in multiprocessing
+		
+	if dontStopHere(ProjectName):
+		#Next step in the PIPELINE
+		#buildCOGs
+		
+					
+
+#def runBLAST():
+#def parseBLASTdata():
+#def buildCOGs():
+
+
+
+def dontStopHere( ProjectName ):
+	main_path = os.getcwd()
+	LocalConfigFile = get_cfg_file(ProjectName)
+	if 'stop' in LocalConfigFile.keys():
+		if LocalConfigFile['stage'] == LocalConfigFile['stop']
+			return None
+	return True	
+	 
 			
 if __name__ == "__main__":
 	#Parse flags.
@@ -589,6 +638,7 @@ if __name__ == "__main__":
 	group.add_argument("--mkFastaFiles", help = 'Restart the pipeline at the mkFastaFiles stage',)
 	group.add_argument("--filterByGen", help = 'Restart the pipeline at the filterByGen stage',)
 	group.add_argument("--trimSeqs", help = 'Restart the pipeline at the trimSeqs stage',)
+	group.add_argument("--COGFinderBLAST", help = ' Restart pipeline at the COGFinderBLAST stage')
 	
 	parser.add_argument("--test", action = 'store_true', help = 'Run searches with a limited number of sequences' )
 
@@ -659,3 +709,9 @@ if __name__ == "__main__":
 		else:
 			ProjectName = args.trimSeqs
 		trimSeqs(ProjectName)
+	elif args.COGFinderBLAST:
+		if args.COGFinderBLAST == "":
+			ProjectName = get_ProjectName()
+		else:
+			ProjectName = args.COGFinderBLAST
+		COGFinderBLAST(ProjectName)

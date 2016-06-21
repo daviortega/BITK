@@ -42,6 +42,8 @@ Prepare files and databases to be used in the future
 | --mkFastaFiles      | Make relevant fasta files |
 | --filterByGen       | Filter fasta files to only contain sequences from the selected genomes |
 | --trimSeqs          | Trim sequences based on HMM models |
+| --COGFinderBLAST    | Requires BLASTP from NCBI and calculate COGs |
+
 
 ### Requisites
 To use PhyloPro you need a few items:
