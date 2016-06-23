@@ -34,15 +34,16 @@ The pipeline is serial but you can restart the task from any point in case of ne
 
 Prepare files and databases to be used in the future
 
-| Flag name           | Default Argument value | Description |
-|---------------------|--------------| ---------------|
-| --init 			  | ProjectName | Build the local directory system and writes the local configuration file: phylopro.local.cfg.json|
-| --fetchProtFams     | ProjectName | Acquire and parse info about protein families from SeqDepot |
+| Flag name           | Default Argument value | Description | Notes |
+|---------------------|--------------| ---------------|------|
+| --init 			        | ProjectName | Build the local directory system and writes the local configuration file: phylopro.local.cfg.json|
+| --fetchProtFams     | ProjectName | Acquire and parse info about protein families from SeqDepot | 
 | --fetchGenInfo      | ProjectName | Acquire and process genome information from MiST3 |
-| --mkFastaFiles      | Make relevant fasta files |
-| --filterByGen       | Filter fasta files to only contain sequences from the selected genomes |
-| --trimSeqs          | Trim sequences based on HMM models |
-| --COGFinderBLAST    | Requires BLASTP from NCBI and calculate COGs |
+| --mkFastaFiles      | ProjectName | Make relevant fasta files | 
+| --filterByGen       | ProjectName | Filter fasta files to only contain sequences from the selected genomes |
+| --trimSeqs          | ProjectName | Trim sequences based on HMM models | Trimming instructions will be applied to all Protein Families for the group |
+| --COGFinderBLAST    | ProjectName | Runs the BLASTp step of COGFinder |
+| --COGFinderParser   | ProjectName | Parse resuls from BLAST |
 
 
 ### Requisites
@@ -110,6 +111,10 @@ The configuration files are JSON formatted and contain information necessary to 
 #### Select the Protein family definition
 
 The selection of protein family will be done now based on the architecture depending on the tools ran by SeqDepot.
+
+It is also important that each Protein family to have a unique name as the files will be merged in **mkFastaFiles** stage.
+
+Also, the group names and Protein family names must be friendly to be used as filenames which basically means to avoid spaces, special characters and etc.
 
 
 #### Example of Local config file:

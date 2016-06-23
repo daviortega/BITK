@@ -15,7 +15,7 @@ import distutils
 
 #HardVariables
 
-PIPELINE = ['init', 'fetchProtFams', 'fetchGenInfo', 'mkFastaFiles', 'filterByGen', 'trimSeqs', 'COGFinderBLAST' ]
+PIPELINE = ['init', 'fetchProtFams', 'fetchGenInfo', 'mkFastaFiles', 'filterByGen', 'trimSeqs', 'COGFinderBLAST', 'COGFinderParser' ]
 BITKTAGSEP = '|'
 BITKGENSEP = '_'
 
@@ -169,6 +169,8 @@ def fetchProtFams(ProjectName):
 	if isTheRightOrder('fetchProtFams', LocalConfigFile):
 		ProtFamDef = LocalConfigFile['ProtFamDef']
 		# Deal with SeqDepot related Protein Families definitions
+		print "We are going to bind to Seqdepot and get some data.\n \
+			This will take a while... hang tight!"
 		SeqDepotQuery = mkSeqDepotQuery(ProtFamDef['SeqDepot'])
 		SeqDepotResults, aseq2seq = searchSD(SeqDepotQuery)
 
@@ -239,11 +241,13 @@ def processAseqsDic( results ):
 def singleSearchSD(query):
 	n = query['name']
 	q = query['query']
-	print "Requesting information about : " + n
-	sd = get_seqdepot_client("/Users/ortegad/private/mongodb_binf.txt")
+	
+	sd = get_seqdepot_client("/home/ortegad/private/mongodb_binf.txt")
 	if seqLim == 0:
+		print "Requesting information about : " + n
 		cards = sd.aseqs.find( q , { '_id' : 1 , 's' : 1}, no_cursor_timeout=True)
 	else:
+		print "Requesting information about : " + n + " - TEST"
 		cards = sd.aseqs.find( q , no_cursor_timeout=True).limit(seqLim)
 	results = []
 	aseq2seq = {}
@@ -339,7 +343,7 @@ def fetchGenInfo(ProjectName):
 			
 			aseq = aseqs2seq.keys()[i]
 			
-			if i % float(1000) == 0 and i > 999:
+			if i % float(100) == 0 and i > 99:
 				print str(i) + " : " + aseq
 			if aseq in aseq2bitk_dic.keys():
 				for tag in aseq2bitk_dic[aseq]:
@@ -367,6 +371,9 @@ def get_mist22_client():
 	except TypeError:
 		print "You must open a tunnel with ares.bio.utk.edu: ssh -p 32790 -f -N -L 27019:localhost:27017 unsername@ares.bio.utk.edu"
 		sys.exit()
+	except pymongo.errors.ConnectionFailure:
+		print "You must open a tunnel with ares.bio.utk.edu: ssh -p 32790 -f -N -L 27019:localhost:27017 unsername@ares.bio.utk.edu"
+		sys.exit()
 
 	return client.mist22	
 	
@@ -382,6 +389,7 @@ def aseq2bitk( aseqs2seq ):
 	mistId_list = []
 	aseq2bitk = {}
 	
+	print "Getting info about the sequences... "
 	for gene in genes:
 		mistId = gene['gid']
 		try:
@@ -400,13 +408,15 @@ def aseq2bitk( aseqs2seq ):
 	
 	# getting genome Name 
 	
+	print "Getting info about the genomes..."
 	genomes = mist22.genomes.find( {'_id': {'$in' : mistId_list }}, {'sp': 1, 'g' : 1})
 	
 	gid2name = {}
-	
+	print "Building BITK style sequence headers..."
 	for genome in genomes:
 		gid2name[genome['_id']] = genome['g'][:2] + BITKGENSEP + genome['sp'][:3] + BITKGENSEP
 	
+	print "Building dictionary of sequence headers and Aseqs..."
 	for aseq in aseq2bitk.keys():
 		for i in range(len(aseq2bitk[aseq])):
 			mistId = int(aseq2bitk[aseq][i].split(BITKTAGSEP)[0])
@@ -438,6 +448,7 @@ def mkFastaFiles(ProjectName):
 			aseq2bitktag = json.load(f)
 				
 		for ProtFam in ProtFams:
+			print " Parsing JSON file for " + ProtFam
 			filename = main_path + '/' + ProjectName + '/COGs/' + ProtFam + '.' + ProjectName + '.aseqs.json'
 			with open(filename, 'r') as f:
 				infoJson = json.load(f)
@@ -448,7 +459,7 @@ def mkFastaFiles(ProjectName):
 				if aseq in aseq2bitktag.keys():
 					for i in range(len(aseq2bitktag[aseq])):
 						output += '>' + aseq2bitktag[aseq][i] + '\n' + bitk2seq[aseq2bitktag[aseq][i]] + '\n'
-			
+		
 			filename = main_path + '/' + ProjectName + '/COGs/' + ProtFam + '.' + ProjectName + '.fa'
 			print "\n Making file => " + filename
 			with open(filename, 'w') as f:
@@ -581,47 +592,119 @@ def parseHmmData ( fasta_file, filename ):
 				tags.append(name)		
 	return output
 
+def getTrimmedGroups ( LocalConfigFile ):
+	trimmed = []
+	if 'trim' in LocalConfigFile.keys():
+		trimInstructs = LocalConfigFile['trim']
+		for instructions in trimInstructs:
+			trimmed.append(instructions['group'])
+	return trimmed
+
 def COGFinderBLAST ( ProjectName ):
+	print "\n ==== Stage COGFinderBLAST ====\n"
 	main_path = os.getcwd()
 	LocalConfigFile = get_cfg_file(ProjectName)
 	if isTheRightOrder('COGFinderBLAST', LocalConfigFile):
 		GroupFams = getGroupFam( LocalConfigFile )
-		if 'trim' in LocalConfigFile.keys():
-			trimInstructs = LocalConfigFile['trim']
-			trimmed = []
-			for instructions in trimInstructs:
-				trimmed.append(instructions['group'])
-		
+		trimmed = getTrimmedGroups( LocalConfigFile )
+		ProtFams = []
 		files = []
 		for group in GroupFams.keys():
 			fileNames = ''
 			if group in trimmed:
-				trim = '.trimmed'
+				typeFasta = '.trimmed'
 			else:
-				trim = ''
+				typeFasta = '.only'
 			for ProtFam in GroupFams[group]:
-				fileNames += main_path + '/' + ProjectName + '/COGs/' + ProtFam + '.' + 	ProjectName + trim + '.fa '
-			files.append(fileNames)
-		
-		#runBLAST() + parseBLASTdata in multiprocessing
-		
+				if ProtFam not in ProtFams:
+					ProtFams.append(ProtFam)
+					fileNames += main_path + '/' + ProjectName + '/COGs/' + ProtFam + '.' + ProjectName + typeFasta + '.fa '
+			files.append([ProjectName, group, fileNames])
+		print "Running BLAST with defaults : Please refer to documentation to see how to change it\n\n"
+		blastRun( files )
+
+	#Update config file
+	update_stage_phylopro_cfg(ProjectName, "COGFinderBLAST")
+
 	if dontStopHere(ProjectName):
 		#Next step in the PIPELINE
-		#buildCOGs
-		
-					
+		COGFinderParser( ProjectName )
 
-#def runBLAST():
-#def parseBLASTdata():
+def blastRun ( query_list ):
+	NP = len(query_list)
+	processes = multiprocessing.Pool(NP)
+	processes.map( singleBlastRun, query_list)
+	
+def singleBlastRun( dataBlast ):
+	#making the db
+	ProjectName, group, filesNames = dataBlast
+	main_path = os.getcwd()
+	print "Making BLAST database for group " + group
+	groupedFastaName = main_path + '/' + ProjectName + '/COGs/' + group + ".g." + ProjectName + ".temp.fa"
+	os.system( 'cat ' + filesNames + ' > ' + groupedFastaName )
+	dbname = main_path + '/' + ProjectName + '/COGs/temp.' + group + '.g.' + ProjectName + '.blastp.db'
+	os.system('formatdb -i ' + groupedFastaName + ' -n ' + dbname)
+
+	print "Running BLAST for group " + group
+
+	blastname = main_path + '/' + ProjectName + '/COGs/outputBlast.' + group + ".g." + ProjectName + ".dat"
+
+	os.system('blastp -db ' + dbname + ' -query ' + groupedFastaName + ' -out ' + blastname + ' -num_threads 10 -outfmt "6 qseqid sseqid bitscore evalue qlen length qcovs slen" -evalue 0.001 -max_target_seqs 100000' )
+
+	os.system('rm ' + groupedFastaName )
+	print "Done with " + group
+
+def COGFinderParser ( ProjectName ):
+	print "\n ==== Stage COGFinderParser ====\n"
+	main_path = os.getcwd()
+	LocalConfigFile = get_cfg_file(ProjectName)
+	if isTheRightOrder('COGFinderParser', LocalConfigFile):
+		GroupFams = getGroupFam( LocalConfigFile )
+		trimmed = getTrimmedGroups( LocalConfigFile )
+		ProtFams = getProtFam( LocalConfigFile )
+		singleBlastParser ( GroupFams[0] )
+
+def singleBlastParser ( group ):
+	blastname = main_path + '/' + ProjectName + '/COGs/outputBlast.' + group + ".g." + ProjectName + ".dat"
+	print "\t Parsing BLAST results for " + group
+	
+	# NEED TO IMPORT SOME INFO FROM ALL SEQUENCES SO IT SHOULD WORK JUST LIKE THE singleBlastRun
+
+	data_all = {}
+	output = ''
+	qry_list = []
+
+	with open( blastname, 'r') as datafile:
+		for line in datafile:
+			field = line.replace('\n','').split('\t')
+			
+			qry = field[0]
+			hit = field[1]
+	
+			qcov = int(field[5])/float(field[4])
+
+			rawvalues = [ float(i) for i in field[2:] ]
+			if qry not in data_all.keys():
+            	data_all[qry] = {}
+        	if hit not in data_all[qry].keys():
+            	data_all[qry][hit] = rawvalues #[ float(i) for i in field[2:] ]
+        	elif  data_all[qry][hit][1] > rawvalues[1]:
+            	data_all[qry][hit] = rawvalues
+
+			if qry != hit and qry = seq_list:
+
+			
+
+	return 0
+
 #def buildCOGs():
-
 
 
 def dontStopHere( ProjectName ):
 	main_path = os.getcwd()
 	LocalConfigFile = get_cfg_file(ProjectName)
 	if 'stop' in LocalConfigFile.keys():
-		if LocalConfigFile['stage'] == LocalConfigFile['stop']
+		if LocalConfigFile['stage'] == LocalConfigFile['stop']:
 			return None
 	return True	
 	 
@@ -639,10 +722,12 @@ if __name__ == "__main__":
 	group.add_argument("--filterByGen", help = 'Restart the pipeline at the filterByGen stage',)
 	group.add_argument("--trimSeqs", help = 'Restart the pipeline at the trimSeqs stage',)
 	group.add_argument("--COGFinderBLAST", help = ' Restart pipeline at the COGFinderBLAST stage')
+	group.add_argument("--COGFinderParser", help = ' Restart pipeline at the COGFinderParser stage')
 	
 	parser.add_argument("--test", action = 'store_true', help = 'Run searches with a limited number of sequences' )
 
 	args = parser.parse_args()
+	main_path = os.getcwd()
 	
 	print args.cont
 
@@ -715,3 +800,9 @@ if __name__ == "__main__":
 		else:
 			ProjectName = args.COGFinderBLAST
 		COGFinderBLAST(ProjectName)
+	elif args.COGFinderParser:
+		if args.COGFinderParser == "":
+			ProjectName = get_ProjectName()
+		else:
+			ProjectName = args.COGFinderParser
+		COGFinderParser(ProjectName)
