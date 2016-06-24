@@ -24,9 +24,6 @@ Open the `phylopro.ProjectName.cfg.json` in a text editor and edit.
 PhyloPro.py --continue ProjectName
 ```
 
-
-
-
 ### The pipeline
 The pipeline is serial but you can restart the task from any point in case of needed intervention by passing the flag. If for same reason the pipeline fails, it will restart from where stopped which is recorded in the file ```restart.phylopro.json```. Below is the list of steps in the pipeline and the flags to be passed in case to overwrite the restart.
 
@@ -43,8 +40,8 @@ Prepare files and databases to be used in the future
 | --filterByGen       | ProjectName | Filter fasta files to only contain sequences from the selected genomes |
 | --trimSeqs          | ProjectName | Trim sequences based on HMM models | Trimming instructions will be applied to all Protein Families for the group |
 | --COGFinderBLAST    | ProjectName | Runs the BLASTp step of COGFinder |
-| --COGFinderParser   | ProjectName | Parse resuls from BLAST |
-
+| --COGFinderParser   | ProjectName | Parse resuls from BLAST | This steps adds, if not existent, to the config file the section COGFinderMkCfg with default settings to make the COGs |
+| --COGFinderMk       | ProjectName | Make COGs | It takes the considerations in the specifications in the config file |  
 
 ### Requisites
 To use PhyloPro you need a few items:
@@ -179,3 +176,10 @@ Also, the group names and Protein family names must be friendly to be used as fi
     "fetchGenInfo": "2016-05-06T20:32:50.322592"
   }
 }```
+
+
+#### ToDo List :
+
+* Verify that each sequence is present in only one Protein Family
+* Limit number of processors via config file
+

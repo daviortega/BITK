@@ -15,9 +15,9 @@ import distutils
 
 #HardVariables
 
-PIPELINE = ['init', 'fetchProtFams', 'fetchGenInfo', 'mkFastaFiles', 'filterByGen', 'trimSeqs', 'COGFinderBLAST', 'COGFinderParser' ]
-BITKTAGSEP = '|'
-BITKGENSEP = '_'
+PIPELINE = ['init', 'fetchProtFams', 'fetchGenInfo', 'mkFastaFiles', 'filterByGen', 'trimSeqs', 'COGFinderBLAST', 'COGFinderParser', 'COGFinderMk' ]
+BITKTAGSEP = '|' #TAG separator
+BITKGENSEP = '_' #GENome separator
 
 class color:
    PURPLE = '\033[95m'
@@ -31,7 +31,7 @@ class color:
    UNDERLINE = '\033[4m'
    END = '\033[0m'
 
-def FastaReader(datafile):
+def fastaReader(datafile):
 	
 	ListOrder = []
 	SeqDic = {}
@@ -500,7 +500,7 @@ def filterByGen(ProjectName):
 				print "\n ==> Filtering sequences of " + ProtFam
 				filename_all = main_path + '/' + ProjectName + '/COGs/' + ProtFam + '.' + ProjectName + '.fa'
 				filename_only = main_path + '/' + ProjectName + '/COGs/' + ProtFam + '.' + ProjectName + '.only.fa'
-				fasta_tmp, tags = FastaReader(filename_all)
+				fasta_tmp, tags = fastaReader(filename_all)
 				new_fasta = ''
 				counter = 0
 				for tag in tags:
@@ -578,7 +578,7 @@ def downloadPfamModel( pfamNumber ):
 	return filename
 	
 def parseHmmData ( fasta_file, filename ):
-	seq_dic, seq_list = FastaReader( fasta_file )
+	seq_dic, seq_list = fastaReader( fasta_file )
 	output = ''
 	tags = []
 	with open( filename , 'r') as f:
@@ -623,12 +623,12 @@ def COGFinderBLAST ( ProjectName ):
 		print "Running BLAST with defaults : Please refer to documentation to see how to change it\n\n"
 		blastRun( files )
 
-	#Update config file
-	update_stage_phylopro_cfg(ProjectName, "COGFinderBLAST")
+		#Update config file
+		update_stage_phylopro_cfg(ProjectName, "COGFinderBLAST")
 
-	if dontStopHere(ProjectName):
-		#Next step in the PIPELINE
-		COGFinderParser( ProjectName )
+		if dontStopHere(ProjectName):
+			#Next step in the PIPELINE
+			COGFinderParser( ProjectName )
 
 def blastRun ( query_list ):
 	NP = len(query_list)
@@ -661,18 +661,66 @@ def COGFinderParser ( ProjectName ):
 	if isTheRightOrder('COGFinderParser', LocalConfigFile):
 		GroupFams = getGroupFam( LocalConfigFile )
 		trimmed = getTrimmedGroups( LocalConfigFile )
-		ProtFams = getProtFam( LocalConfigFile )
-		singleBlastParser ( GroupFams[0] )
+		ProtFams = []
+		files = []
+		for group in GroupFams.keys():
+			fileList = []
+			ProtFams2Go = []
+			if group in trimmed:
+				typeFasta = '.trimmed'
+			else:
+				typeFasta = '.only'
+			for ProtFam in GroupFams[group]:
+				if ProtFam not in ProtFams:
+					ProtFams.append(ProtFam)
+					ProtFams2Go.append(ProtFam)
+					fileList.append(main_path + '/' + ProjectName + '/COGs/' + ProtFam + '.' + ProjectName + typeFasta + '.fa')
+			files.append([ProjectName, group, ProtFams2Go, fileList])
+		blastParser ( files )
+		addCOGFindeMkrCfg ( ProjectName )
+		#Update config file
+		update_stage_phylopro_cfg(ProjectName, "COGFinderParser")
 
-def singleBlastParser ( group ):
+		if dontStopHere(ProjectName):
+			#Next step in the PIPELINE
+			COGFinderMk( ProjectName )
+
+def blastParser ( query_list ):
+	NP = len(query_list)
+	processes = multiprocessing.Pool(NP)
+	processes.map( singleBlastParser, query_list)
+
+def singleBlastParser ( dataParse ):
+	ProjectName, group, ProtFams, files = dataParse
+
 	blastname = main_path + '/' + ProjectName + '/COGs/outputBlast.' + group + ".g." + ProjectName + ".dat"
-	print "\t Parsing BLAST results for " + group
+
+	print "\t===> Parsing BLAST results for " + group 
+
+	seqInfo_array = []	
+	allSeqDic = {}
+	allTagList = []
+	tagFastaFileIndex = [] # this is a trick to quickly findout where the tag came from.  
+
+	i = 0
+	for eachFile in files:
+		print "\t\t Loading ==> " + eachFile
+		seqDic, tagList = fastaReader( eachFile )
+		seqInfo_array.append( [ seqDic, tagList ])
+		if len(seqInfo_array) == 1:
+			allSeqDic = seqDic
+			allTagList = tagList
+		else:
+			allSeqDic = merge_two_dicts( allSeqDic, seqDic )
+			allTagList += tagList
+
+		tagFastaFileIndex += [i] * len(tagList)
+		i += 1
 	
-	# NEED TO IMPORT SOME INFO FROM ALL SEQUENCES SO IT SHOULD WORK JUST LIKE THE singleBlastRun
+	print "\t Parsing the BLAST file ==> " + blastname 
 
 	data_all = {}
 	output = ''
-	qry_list = []
 
 	with open( blastname, 'r') as datafile:
 		for line in datafile:
@@ -681,23 +729,107 @@ def singleBlastParser ( group ):
 			qry = field[0]
 			hit = field[1]
 	
-			qcov = int(field[5])/float(field[4])
-
 			rawvalues = [ float(i) for i in field[2:] ]
 			if qry not in data_all.keys():
-            	data_all[qry] = {}
-        	if hit not in data_all[qry].keys():
-            	data_all[qry][hit] = rawvalues #[ float(i) for i in field[2:] ]
-        	elif  data_all[qry][hit][1] > rawvalues[1]:
-            	data_all[qry][hit] = rawvalues
+				#print allTagList.index[qry]
+				data_all[qry] = {"pF" : ProtFams[ tagFastaFileIndex[allTagList.index(qry)]], 
+									"h" : {} }
+			if hit not in data_all[qry]['h'].keys():
+				data_all[qry]['h'][hit] = rawvalues #[ float(i) for i in field[2:] ]
+			elif  data_all[qry]['h'][hit][1] > rawvalues[1]:
+				data_all[qry]['h'][hit] = rawvalues
 
-			if qry != hit and qry = seq_list:
+	jsonFileName = main_path + '/' + ProjectName + '/COGs/outputBlast.' + group + ".g." + ProjectName + ".parsed.json"
+	
+	print "\t Saving parsed data for group : " + group 
 
-			
+	with open( jsonFileName , 'w') as f:
+		json.dump( data_all, f )
+
+def addCOGFindeMkrCfg ( ProjectName ):
+	""" Update the PhyloPro config file with default settings for COGFinderMk """
+	main_path = os.getcwd()
+	
+	with open( main_path + '/' + ProjectName + '/' + "phylopro." + ProjectName + ".cfg.json", 'r') as f:
+		LocalConfigFile = json.load(f)
+
+	GroupFams = getGroupFam( LocalConfigFile )
+
+	if 'COGFinderMkCfg' not in LocalConfigFile.keys():
+		print "\n Adding default settings for the COG process to the config file "
+		LocalConfigFile['COGFinderMkCfg'] = {}
+
+		for group in GroupFams:
+			LocalConfigFile['COGFinderMkCfg'][group] = { "eValue" : 10E-120,
+														 "qCov"   : 0.9,
+														 "mergeRules"  : {},
+													   } 
+		with open( main_path + '/' + ProjectName + '/' + "phylopro." + ProjectName + ".cfg.json", 'w') as f:
+			json.dump(LocalConfigFile, f, indent = 2)
+	else:
+		print "\n Settings already present in the config file: Do nothing !"
+
+def COGFinderMk( ProjectName ):
+	print "\n ==== Stage COGFinderMk ====\n"
+	main_path = os.getcwd()
+	LocalConfigFile = get_cfg_file(ProjectName)
+	if isTheRightOrder('COGFinderMk', LocalConfigFile):
+		GroupFams = getGroupFam( LocalConfigFile )
+	
+		dataQuery = []
+		for group in GroupFams.keys():
+			print group
+			settings = LocalConfigFile['COGFinderMkCfg'][group]
+			dataQuery.append( [ ProjectName, group, GroupFams[group], settings ])
+
+		singleCOGMaker( dataQuery[0] )
+		#COGMaker ( dataQuery )
+
+def COGMaker ( query_list ):
+	NP = len(query_list)
+	processes = multiprocessing.Pool(NP)
+	processes.map( singleCOGMaker, query_list)
+
+def singleCOGMaker ( dataInfo ):
+	ProjectName, group, ProtFams, settings = dataInfo
+	jsonFileName = main_path + '/' + ProjectName + '/COGs/outputBlast.' + group + ".g." + ProjectName + ".parsed.json"
+	dataCOG = {}
+	groups = []
+
+	with open( jsonFileName , 'r' ) as f:
+		print "\t Loading the data ==> " + group
+		data_all = json.load(f)
+	
+	print "\t Parsing the data ==> " + group
+	
+	for qry in data_all.keys():
+		bestHit = [ 'None', 10 ]
+		for hit in data_all[qry]['h'].keys():
+			dataRawFwd = data_all[qry]['h'][hit]
+			try:
+				dataRawBck = data_all[hit]['h'][qry]
+			except KeyError:
+				break
+			if dataRawFwd[3]/dataRawFwd[2] > settings['qCov'] and dataRawBck[3]/dataRawBck[2] > settings['qCov'] and dataRawFwd[1] < settings['eValue'] and dataRawBck[1] < settings['eValue'] :
+				if dataRawFwd[1] < bestHit[1]:
+					bestHit = [hit, dataRawFwd[1] ]
+		
+		
+
+
+
+
+
+				hitOrg = hit.split(BITKTAGSEP)
+				qryOrg = qry.split(BITKTAGSEP)
+				for hit2 in data_all[hit]['h']:
+					hit2Org = qry.split(BITKTAGSEP)
+
+				
+
+
 
 	return 0
-
-#def buildCOGs():
 
 
 def dontStopHere( ProjectName ):
@@ -723,6 +855,7 @@ if __name__ == "__main__":
 	group.add_argument("--trimSeqs", help = 'Restart the pipeline at the trimSeqs stage',)
 	group.add_argument("--COGFinderBLAST", help = ' Restart pipeline at the COGFinderBLAST stage')
 	group.add_argument("--COGFinderParser", help = ' Restart pipeline at the COGFinderParser stage')
+	group.add_argument("--COGFinderMk", help = ' Restart pipeline at the COGFinderMk stage')
 	
 	parser.add_argument("--test", action = 'store_true', help = 'Run searches with a limited number of sequences' )
 
@@ -806,3 +939,9 @@ if __name__ == "__main__":
 		else:
 			ProjectName = args.COGFinderParser
 		COGFinderParser(ProjectName)
+	elif args.COGFinderMk:
+		if args.COGFinderMk == "":
+			ProjectName = get_ProjectName()
+		else:
+			ProjectName = args.COGFinderMk
+		COGFinderMk(ProjectName)
