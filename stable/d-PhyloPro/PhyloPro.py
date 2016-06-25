@@ -802,28 +802,61 @@ def singleCOGMaker ( dataInfo ):
 	
 	print "\t Parsing the data ==> " + group
 	
+	bestHits = {}
+	groupDict = {}
+	groups = []
+
 	for qry in data_all.keys():
-		bestHit = [ 'None', 10 ]
+		bestHits[qry] = {}
+		qryOrg = qry.split(BITKTAGSEP)
 		for hit in data_all[qry]['h'].keys():
-			dataRawFwd = data_all[qry]['h'][hit]
-			try:
-				dataRawBck = data_all[hit]['h'][qry]
-			except KeyError:
-				break
-			if dataRawFwd[3]/dataRawFwd[2] > settings['qCov'] and dataRawBck[3]/dataRawBck[2] > settings['qCov'] and dataRawFwd[1] < settings['eValue'] and dataRawBck[1] < settings['eValue'] :
-				if dataRawFwd[1] < bestHit[1]:
-					bestHit = [hit, dataRawFwd[1] ]
+			hitOrg = hit.split(BITKTAGSEP)
+			if hitOrg != qryOrg:
+				dataRawFwd = data_all[qry]['h'][hit]
+				try:
+					dataRawBck = data_all[hit]['h'][qry]
+				except KeyError:
+					break
+				if dataRawFwd[3]/dataRawFwd[2] > settings['qCov'] and dataRawBck[3]/dataRawBck[2] > settings['qCov'] and dataRawFwd[1] < settings['eValue'] and dataRawBck[1] < settings['eValue'] :
+					evalue = min(dataRawFwd[1], dataRawBck[1])
+					if hitOrg not in bestHits.keys():
+						bestHits[qry][hitOrg] = [ hit, evalue ]
+					elif evalue < bestHits[qry][hitOrg][1]:
+						bestHit[qry][hitOrg] = [ hit, evalue ]
 		
+		if qry not in groupDict.keys():
+			groups.append([qry])
+			groupDict[qry] = len(groups)
+		
+		groupId = groupDict[qry]
+		
+		for hitOrg in bestHit[qry].keys():
+			hit = bestHit[qry][hitOrg][0]
+			if hit not in groups[groupId]:
+				group[groupId].append(hit)
+				groupDict[hit] = groupId
+
 		
 
 
 
 
+hit	 = groupIdgroups = [[]]
+	for qry in BestHits.keys():
+		if group[0] == []:
+			group[0].append(qry)
 
-				hitOrg = hit.split(BITKTAGSEP)
-				qryOrg = qry.split(BITKTAGSEP)
-				for hit2 in data_all[hit]['h']:
-					hit2Org = qry.split(BITKTAGSEP)
+
+
+
+
+
+
+
+					hitOrg = hit.split(BITKTAGSEP)
+					qryOrg = qry.split(BITKTAGSEP)
+					for hit2 in data_all[hit]['h']:
+						hit2Org = qry.split(BITKTAGSEP)
 
 				
 
