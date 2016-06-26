@@ -877,7 +877,7 @@ def singleCOGMaker ( dataInfo ):
 				cogNet.add_edge( q, h, weigth=min(data_all[g]['h'][h], data_all[h]['h'][g]), id = linkID )
 				linkID += 1
 
-	print cogNet
+	print list(cogNet.edges())
 
 
 
