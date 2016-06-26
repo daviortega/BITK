@@ -840,9 +840,10 @@ def singleCOGMaker ( dataInfo ):
 			
 			for hitOrg in dataDic[initTag].keys():
 				hit = dataDic[initTag][hitOrg][0]
-				if hit not in groups[groupId] and initTag == dataDic[hit][qryOrg][0]:
-					groups[groupId].append(hit)
-					groupId, scanned, groups, dataDic = scanSeqs( hit , groupId, scanned, groups, dataDic )
+				if qryOrg in dataDic[hit].keys():
+					if hit not in groups[groupId] and initTag == dataDic[hit][qryOrg][0]:
+						groups[groupId].append(hit)
+						groupId, scanned, groups, dataDic = scanSeqs( hit , groupId, scanned, groups, dataDic )
 
 			return groupId, scanned, groups, dataDic
 
