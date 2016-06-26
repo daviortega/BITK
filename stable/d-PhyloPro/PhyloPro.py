@@ -850,7 +850,7 @@ def singleCOGMaker ( dataInfo ):
 	groups = []
 	scanned = []
 	groupId = 0
-	print bestHits
+
 	for qry in bestHits.keys():
 		groupId = 0
 		groupId, scanned, groups, dataDic = scanSeqs( qry, groupId, scanned, groups, bestHits)
