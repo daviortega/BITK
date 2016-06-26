@@ -12,6 +12,7 @@ import time
 import datetime
 import urllib2
 import distutils
+import networkx
 
 #HardVariables
 
@@ -823,11 +824,7 @@ def singleCOGMaker ( dataInfo ):
 						bestHits[qry][hitOrg] = [ hit, evalue ]
 					elif evalue < bestHits[qry][hitOrg][1]:
 						bestHits[qry][hitOrg] = [ hit, evalue ]
-	'''		
-		if qry not in groupDict.keys():
-			groups.append([qry])
-			groupDict[qry] = len(groups)
-	'''
+
 	def scanSeqs( initTag, groupId, scanned, groups, dataDic ):
 		if initTag in scanned:
 			return groupId, scanned, groups, dataDic
@@ -855,7 +852,7 @@ def singleCOGMaker ( dataInfo ):
 		groupId = 0
 		groupId, scanned, groups, dataDic = scanSeqs( qry, groupId, scanned, groups, bestHits)
 
-	print " ==> There are " + str(len(bestHits.keys())) + " " + group
+	print " ==> There are " + str(len(data_all.keys())) + " " + group
 	print " ==> " + group + " proteins scanned :: " + str(len(scanned))
 	
 	COGs = 0
@@ -864,7 +861,25 @@ def singleCOGMaker ( dataInfo ):
 			COGs += 1
 	
 	print " ==> Number of COGs with at least 2 " + group + " proteins :: " + str(COGs) 
-	#groups = json.loads(str(groups))
+	
+	print "\n ==> Maing COG network with Networkx for " + group
+	cogNet = networkx.Graph()
+
+	for tag in data_all.keys():
+		cogNet.add_node(tag, grp = group, url = "#" + tag)
+
+	linkID = 0
+	for grp in groups:
+		for i in range(len(grp)-1):
+			for j in range(1,len(grp)):
+				q = grp[i]
+				h = grp[j]
+				cogNet.add_edge( q, h, weigth=min(data_all[g]['h'][h], data_all[h]['h'][g], id = linkID )
+				linkID += 1
+
+	print cogNet
+
+
 
 	return 0
 
