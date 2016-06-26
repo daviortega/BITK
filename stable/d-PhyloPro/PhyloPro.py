@@ -855,9 +855,16 @@ def singleCOGMaker ( dataInfo ):
 		groupId = 0
 		groupId, scanned, groups, dataDic = scanSeqs( qry, groupId, scanned, groups, bestHits)
 
-	#groups = json.loads(str(groups))
+	print " ==> There are " + str(len(bestHits.keys())) + " " + group
+	print " ==> Proteins scanned :: " + str(len(scanned))
+	
+	COGs = 0
 	for g in groups:
-		print g
+		if len(g) > 1:
+			COGs += 1
+	
+	print " ==> Number of COGs with at least 2 proteins :: " + str(COGs) )
+	#groups = json.loads(str(groups))
 
 	return 0
 
