@@ -7,7 +7,7 @@ import json
 import sys
 import shutil
 import pymongo
-import multiprocessing
+#import multiprocessing
 import time
 import datetime
 import urllib2
@@ -825,62 +825,116 @@ def singleCOGMaker ( dataInfo ):
 					elif evalue < bestHits[qry][hitOrg][1]:
 						bestHits[qry][hitOrg] = [ hit, evalue ]
 
-	def scanSeqs( initTag, groupId, scanned, groups, dataDic ):
+	print "Ps_aer_495|PA14_56010|YP_792655.1 " + str(bestHits["Ps_aer_495|PA14_56010|YP_792655.1"])
+	print "Ps_aer_479|PA4307|NP_252997.1 " + str(bestHits["Ps_aer_479|PA4307|NP_252997.1"])
+	print "Ps_flu_1633|PSF113_0374|YP_005205803.1 " + str(bestHits["Ps_flu_1633|PSF113_0374|YP_005205803.1"])
+	
+
+	def scanSeqs( initTag, groupId, scanned, groups, dataDic, cogNet ):
 		if initTag in scanned:
-			return groupId, scanned, groups, dataDic
+			return groupId, scanned, groups, dataDic, cogNet
 		else:
 			scanned.append(initTag)
-			qryOrg = qry.split(BITKTAGSEP)[0]
-			if groupId == 0:
+			cogNet.add_node( initTag, grp = data_all[initTag]['pF'] , url = "#" + initTag)
+			qryOrg = initTag.split(BITKTAGSEP)[0]
+			if groupId == -1:
 				groups.append([initTag])
 				groupId = len(groups) - 1
 			
+			
 			for hitOrg in dataDic[initTag].keys():
 				hit = dataDic[initTag][hitOrg][0]
+				
+
 				if qryOrg in dataDic[hit].keys():
 					if hit not in groups[groupId] and initTag == dataDic[hit][qryOrg][0]:
+						if hit == "Ps_aer_495|PA14_56010|YP_792655.1":
+							print "as hit"
+							print groups[groupId]
+							print initTag
+							print groupId
+						if initTag == "Ps_aer_495|PA14_56010|YP_792655.1":
+							print "as qry"
+							print groups[groupId]
+							print initTag
+							print groupId
 						groups[groupId].append(hit)
-						groupId, scanned, groups, dataDic = scanSeqs( hit , groupId, scanned, groups, dataDic )
+						linkID = len(cogNet.edges())
+						cogNet.add_edge( initTag, hit , weigth=min(data_all[initTag]['h'][hit][1], data_all[hit]['h'][initTag][1]), id = linkID )
+						linkID += 1
+						groupId, scanned, groups, dataDic, cogNet = scanSeqs( hit , groupId, scanned, groups, dataDic, cogNet )
 
-			return groupId, scanned, groups, dataDic
+
+			return groupId, scanned, groups, dataDic, cogNet
 
 	groups = []
 	scanned = []
 	groupId = 0
+	cogNet = networkx.Graph()
 
 	for qry in bestHits.keys():
-		groupId = 0
-		groupId, scanned, groups, dataDic = scanSeqs( qry, groupId, scanned, groups, bestHits)
+		groupId = -1
+		groupId, scanned, groups, dataDic, cogNet = scanSeqs( qry, groupId, scanned, groups, bestHits, cogNet)
 
 	print " ==> There are " + str(len(data_all.keys())) + " " + group
 	print " ==> " + group + " proteins scanned :: " + str(len(scanned))
-	
+
+	inGroups = []
+
 	COGs = 0
-	for g in groups:
-		if len(g) > 1:
+	for grp in groups:
+		for g in grp:
+			if g not in inGroups:
+				inGroups.append(g)
+			else:
+				print "Sequence " + g + " present in 2 or more groups"
+				for grp2 in groups:
+					if g in grp2:
+						print str(groups.index(grp2)) + '\t' + str(grp2)
+				
+		if len(grp) > 1:
 			COGs += 1
 	
 	print " ==> Number of COGs with at least 2 " + group + " proteins :: " + str(COGs) 
 	
-	print "\n ==> Maing COG network with Networkx for " + group
-	cogNet = networkx.Graph()
 
-	for tag in data_all.keys():
-		cogNet.add_node(tag, grp = group, url = "#" + tag)
+	print [ cogNet.degree(k) for k in data_all.keys()] 
+	print [ len(grp) for grp in groups ]
+	print len(groups)
+	print groups[:2]
+	print cogNet.edges()[:5]
 
-	linkID = 0
-	for grp in groups:
-		for i in range(len(grp)-1):
-			for j in range(1,len(grp)):
-				q = grp[i]
-				h = grp[j]
-				cogNet.add_edge( q, h, weigth=min(data_all[g]['h'][h], data_all[h]['h'][g]), id = linkID )
-				linkID += 1
+	def sorting_groups(groups, G):
+		print "number of groups: " + str(len(groups))
+		print "sorting..."
+		grp_size = [ len(i) for i in groups ]
+		grp_size = list(set(grp_size))
+		grp_size.sort()
+		grp_size.reverse()
+		groups_order = []
+		for i in grp_size:
+			for group in groups:
+				if len(group) == i:
+					grp_deg = [ G.degree(k) for k in group]
+	#               print grp_deg
+					grp_deg = list(set(grp_deg))
+					grp_deg.sort()
+					grp_deg.reverse()
+					group_sorted = []
+					for j in grp_deg:
+						for tag in group:
+							if j == G.degree(tag):
+								group_sorted.append(tag)
+					groups_order.append(group_sorted)
+	#   for i in range(len(groups)):
+	#       index[i] = groups_order.index(groups[i])
+		return groups_order
 
-	print list(cogNet.edges())
+	newgroup = sorting_groups(groups, cogNet)
 
+	print [ len(grp) for grp in newgroup ]
 
-
+	print newgroup[0]
 	return 0
 
 
