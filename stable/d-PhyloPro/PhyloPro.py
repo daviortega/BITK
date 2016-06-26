@@ -808,9 +808,9 @@ def singleCOGMaker ( dataInfo ):
 
 	for qry in data_all.keys():
 		bestHits[qry] = {}
-		qryOrg = qry.split(BITKTAGSEP)
+		qryOrg = qry.split(BITKTAGSEP)[0]
 		for hit in data_all[qry]['h'].keys():
-			hitOrg = hit.split(BITKTAGSEP)
+			hitOrg = hit.split(BITKTAGSEP)[0]
 			if hitOrg != qryOrg:
 				dataRawFwd = data_all[qry]['h'][hit]
 				try:
@@ -819,48 +819,44 @@ def singleCOGMaker ( dataInfo ):
 					break
 				if dataRawFwd[3]/dataRawFwd[2] > settings['qCov'] and dataRawBck[3]/dataRawBck[2] > settings['qCov'] and dataRawFwd[1] < settings['eValue'] and dataRawBck[1] < settings['eValue'] :
 					evalue = min(dataRawFwd[1], dataRawBck[1])
-					if hitOrg not in bestHits.keys():
+					if hitOrg not in bestHits[qry].keys():
 						bestHits[qry][hitOrg] = [ hit, evalue ]
 					elif evalue < bestHits[qry][hitOrg][1]:
-						bestHit[qry][hitOrg] = [ hit, evalue ]
-		
+						bestHits[qry][hitOrg] = [ hit, evalue ]
+	'''		
 		if qry not in groupDict.keys():
 			groups.append([qry])
 			groupDict[qry] = len(groups)
-		
-		groupId = groupDict[qry]
-		
-		for hitOrg in bestHit[qry].keys():
-			hit = bestHit[qry][hitOrg][0]
-			if hit not in groups[groupId]:
-				group[groupId].append(hit)
-				groupDict[hit] = groupId
+	'''
+	def scanSeqs( initTag, groupId, scanned, groups, dataDic ):
+		if initTag in scanned:
+			return groupId, scanned, groups, dataDic
+		else:
+			scanned.append(initTag)
+			qryOrg = qry.split(BITKTAGSEP)[0]
+			if groupId == 0:
+				groups.append([initTag])
+				groupId = len(groups) - 1
+			
+			for hitOrg in dataDic[initTag].keys():
+				hit = dataDic[initTag][hitOrg][0]
+				if hit not in groups[groupId] and initTag == dataDic[hit][qryOrg][0]:
+					groups[groupId].append(hit)
+					groupId, scanned, groups, dataDic = scanSeqs( hit , groupId, scanned, groups, dataDic )
 
-		
+			return groupId, scanned, groups, dataDic
 
+	groups = []
+	scanned = []
+	groupId = 0
+	print bestHits
+	for qry in bestHits.keys():
+		groupId = 0
+		groupId, scanned, groups, dataDic = scanSeqs( qry, groupId, scanned, groups, bestHits)
 
-
-
-hit	 = groupIdgroups = [[]]
-	for qry in BestHits.keys():
-		if group[0] == []:
-			group[0].append(qry)
-
-
-
-
-
-
-
-
-					hitOrg = hit.split(BITKTAGSEP)
-					qryOrg = qry.split(BITKTAGSEP)
-					for hit2 in data_all[hit]['h']:
-						hit2Org = qry.split(BITKTAGSEP)
-
-				
-
-
+	#groups = json.loads(str(groups))
+	for g in groups:
+		print g
 
 	return 0
 
