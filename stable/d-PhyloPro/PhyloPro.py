@@ -874,7 +874,7 @@ def singleCOGMaker ( dataInfo ):
 			for j in range(1,len(grp)):
 				q = grp[i]
 				h = grp[j]
-				cogNet.add_edge( q, h, weigth=min(data_all[g]['h'][h], data_all[h]['h'][g], id = linkID )
+				cogNet.add_edge( q, h, weigth=min(data_all[g]['h'][h], data_all[h]['h'][g]), id = linkID )
 				linkID += 1
 
 	print cogNet
