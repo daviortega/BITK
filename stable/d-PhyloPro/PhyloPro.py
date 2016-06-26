@@ -863,7 +863,7 @@ def singleCOGMaker ( dataInfo ):
 		if len(g) > 1:
 			COGs += 1
 	
-	print " ==> Number of COGs with at least 2 proteins :: " + str(COGs) )
+	print " ==> Number of COGs with at least 2 proteins :: " + str(COGs) 
 	#groups = json.loads(str(groups))
 
 	return 0
