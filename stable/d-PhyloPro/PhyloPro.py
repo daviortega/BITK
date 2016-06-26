@@ -782,8 +782,8 @@ def COGFinderMk( ProjectName ):
 			settings = LocalConfigFile['COGFinderMkCfg'][group]
 			dataQuery.append( [ ProjectName, group, GroupFams[group], settings ])
 
-		singleCOGMaker( dataQuery[0] )
-		#COGMaker ( dataQuery )
+		#singleCOGMaker( dataQuery[0] )
+		COGMaker ( dataQuery )
 
 def COGMaker ( query_list ):
 	NP = len(query_list)
@@ -856,14 +856,14 @@ def singleCOGMaker ( dataInfo ):
 		groupId, scanned, groups, dataDic = scanSeqs( qry, groupId, scanned, groups, bestHits)
 
 	print " ==> There are " + str(len(bestHits.keys())) + " " + group
-	print " ==> Proteins scanned :: " + str(len(scanned))
+	print " ==> " + group + " proteins scanned :: " + str(len(scanned))
 	
 	COGs = 0
 	for g in groups:
 		if len(g) > 1:
 			COGs += 1
 	
-	print " ==> Number of COGs with at least 2 proteins :: " + str(COGs) 
+	print " ==> Number of COGs with at least 2 " + group + " proteins :: " + str(COGs) 
 	#groups = json.loads(str(groups))
 
 	return 0
