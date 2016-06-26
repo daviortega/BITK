@@ -783,8 +783,8 @@ def COGFinderMk( ProjectName ):
 			settings = LocalConfigFile['COGFinderMkCfg'][group]
 			dataQuery.append( [ ProjectName, group, GroupFams[group], settings ])
 
-		#singleCOGMaker( dataQuery[0] )
-		COGMaker ( dataQuery )
+		singleCOGMaker( dataQuery[0] )
+		#COGMaker ( dataQuery )
 
 def COGMaker ( query_list ):
 	NP = len(query_list)
