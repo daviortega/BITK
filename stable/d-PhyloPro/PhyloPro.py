@@ -799,7 +799,7 @@ def singleCOGMaker ( dataInfo ):
 	with open( jsonFileName , 'r' ) as f:
 		print "\t Loading the data ==> " + group
 		data_all = json.load(f)
-	
+	print "\n"
 	print "\t Parsing the data ==> " + group
 	
 	bestHits = {}
