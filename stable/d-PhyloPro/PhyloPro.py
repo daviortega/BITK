@@ -7,18 +7,21 @@ import json
 import sys
 import shutil
 import pymongo
-#import multiprocessing
+import multiprocessing
 import time
 import datetime
 import urllib2
 import distutils
 import networkx
+import copy
+from networkx.readwrite import json_graph
 
 #HardVariables
 
 PIPELINE = ['init', 'fetchProtFams', 'fetchGenInfo', 'mkFastaFiles', 'filterByGen', 'trimSeqs', 'COGFinderBLAST', 'COGFinderParser', 'COGFinderMk' ]
 BITKTAGSEP = '|' #TAG separator
 BITKGENSEP = '_' #GENome separator
+COGOUTPUTSEP = '\t' #Separator for cog output
 
 class color:
    PURPLE = '\033[95m'
@@ -783,13 +786,32 @@ def COGFinderMk( ProjectName ):
 			settings = LocalConfigFile['COGFinderMkCfg'][group]
 			dataQuery.append( [ ProjectName, group, GroupFams[group], settings ])
 
-		singleCOGMaker( dataQuery[0] )
-		#COGMaker ( dataQuery )
+		#singleCOGMaker( dataQuery[0] )
+		COGMaker (main_path, ProjectName, dataQuery )
 
-def COGMaker ( query_list ):
+def COGMaker ( main_path, ProjectName, query_list ):
 	NP = len(query_list)
 	processes = multiprocessing.Pool(NP)
-	processes.map( singleCOGMaker, query_list)
+	results = processes.map( singleCOGMaker, query_list)
+
+	for i in range(len(results)):
+		group = results[i][0]
+		print "\n ==> Saving COG output file for " + group
+
+		filename = main_path + '/' + ProjectName + '/COGs/cogs.' + group + '.g.' + ProjectName + '.dat'
+
+		with open(filename, 'w') as f:
+			f.write(results[i][1])
+
+		print " ==> Saving COG json file for " + group
+		cogNet = results[i][2]
+		filename = main_path + '/' + ProjectName + '/COGs/cogs.' + group + '.g.' + ProjectName + '.json'
+		
+		cogNetJs = json_graph.node_link_data(cogNet)
+
+		with open(filename, 'w') as f:
+			json.dump(cogNetJs, f, indent = 2)
+
 
 def singleCOGMaker ( dataInfo ):
 	ProjectName, group, ProtFams, settings = dataInfo
@@ -804,7 +826,6 @@ def singleCOGMaker ( dataInfo ):
 	print "\t Parsing the data ==> " + group
 	
 	bestHits = {}
-	groupDict = {}
 	groups = []
 
 	for qry in data_all.keys():
@@ -821,50 +842,45 @@ def singleCOGMaker ( dataInfo ):
 				if dataRawFwd[3]/dataRawFwd[2] > settings['qCov'] and dataRawBck[3]/dataRawBck[2] > settings['qCov'] and dataRawFwd[1] < settings['eValue'] and dataRawBck[1] < settings['eValue'] :
 					evalue = min(dataRawFwd[1], dataRawBck[1])
 					if hitOrg not in bestHits[qry].keys():
-						bestHits[qry][hitOrg] = [ hit, evalue ]
-					elif evalue < bestHits[qry][hitOrg][1]:
-						bestHits[qry][hitOrg] = [ hit, evalue ]
+						bestHits[qry][hitOrg] = [[ hit, evalue ]]
+					else:
+						#print bestHits
+						newvalues = copy.deepcopy(bestHits[qry][hitOrg])
 
-	print "Ps_aer_495|PA14_56010|YP_792655.1 " + str(bestHits["Ps_aer_495|PA14_56010|YP_792655.1"])
-	print "Ps_aer_479|PA4307|NP_252997.1 " + str(bestHits["Ps_aer_479|PA4307|NP_252997.1"])
-	print "Ps_flu_1633|PSF113_0374|YP_005205803.1 " + str(bestHits["Ps_flu_1633|PSF113_0374|YP_005205803.1"])
-	
-
+						if hit not in [ k[0] for k in newvalues ]:
+							for values in bestHits[qry][hitOrg]:
+								#print bestHits[qry]
+								if evalue < values[1]:
+									bestHits[qry][hitOrg] = [[ hit, evalue ]]
+									break
+								elif evalue == values[1]:
+									newvalues.append( [hit, evalue] )
+									break
+							if newvalues != bestHits[qry][hitOrg]:
+								bestHits[qry][hitOrg] = newvalues
+						
 	def scanSeqs( initTag, groupId, scanned, groups, dataDic, cogNet ):
 		if initTag in scanned:
 			return groupId, scanned, groups, dataDic, cogNet
 		else:
 			scanned.append(initTag)
-			cogNet.add_node( initTag, grp = data_all[initTag]['pF'] , url = "#" + initTag)
+			cogNet.add_node( initTag, pF = data_all[initTag]['pF'] , url = "#" + initTag)
 			qryOrg = initTag.split(BITKTAGSEP)[0]
 			if groupId == -1:
 				groups.append([initTag])
-				groupId = len(groups) - 1
-			
-			
+				groupId = len(groups) - 1		
 			for hitOrg in dataDic[initTag].keys():
-				hit = dataDic[initTag][hitOrg][0]
-				
-
-				if qryOrg in dataDic[hit].keys():
-					if hit not in groups[groupId] and initTag == dataDic[hit][qryOrg][0]:
-						if hit == "Ps_aer_495|PA14_56010|YP_792655.1":
-							print "as hit"
-							print groups[groupId]
-							print initTag
-							print groupId
-						if initTag == "Ps_aer_495|PA14_56010|YP_792655.1":
-							print "as qry"
-							print groups[groupId]
-							print initTag
-							print groupId
-						groups[groupId].append(hit)
-						linkID = len(cogNet.edges())
-						cogNet.add_edge( initTag, hit , weigth=min(data_all[initTag]['h'][hit][1], data_all[hit]['h'][initTag][1]), id = linkID )
-						linkID += 1
-						groupId, scanned, groups, dataDic, cogNet = scanSeqs( hit , groupId, scanned, groups, dataDic, cogNet )
-
-
+				for hits in dataDic[initTag][hitOrg]:
+					hit = hits[0]
+					if qryOrg in dataDic[hit].keys():
+						for tags in dataDic[hit][qryOrg]:
+							if initTag == tags[0]:
+								if hit not in groups[groupId]:
+									groups[groupId].append(hit)
+									linkID = len(cogNet.edges())
+									cogNet.add_edge( initTag, hit , evalue=min(data_all[initTag]['h'][hit][1], data_all[hit]['h'][initTag][1]), id = linkID )
+									linkID += 1
+									groupId, scanned, groups, dataDic, cogNet = scanSeqs( hit , groupId, scanned, groups, dataDic, cogNet )
 			return groupId, scanned, groups, dataDic, cogNet
 
 	groups = []
@@ -879,31 +895,6 @@ def singleCOGMaker ( dataInfo ):
 	print " ==> There are " + str(len(data_all.keys())) + " " + group
 	print " ==> " + group + " proteins scanned :: " + str(len(scanned))
 
-	inGroups = []
-
-	COGs = 0
-	for grp in groups:
-		for g in grp:
-			if g not in inGroups:
-				inGroups.append(g)
-			else:
-				print "Sequence " + g + " present in 2 or more groups"
-				for grp2 in groups:
-					if g in grp2:
-						print str(groups.index(grp2)) + '\t' + str(grp2)
-				
-		if len(grp) > 1:
-			COGs += 1
-	
-	print " ==> Number of COGs with at least 2 " + group + " proteins :: " + str(COGs) 
-	
-
-	print [ cogNet.degree(k) for k in data_all.keys()] 
-	print [ len(grp) for grp in groups ]
-	print len(groups)
-	print groups[:2]
-	print cogNet.edges()[:5]
-
 	def sorting_groups(groups, G):
 		print "number of groups: " + str(len(groups))
 		print "sorting..."
@@ -916,7 +907,6 @@ def singleCOGMaker ( dataInfo ):
 			for group in groups:
 				if len(group) == i:
 					grp_deg = [ G.degree(k) for k in group]
-	#               print grp_deg
 					grp_deg = list(set(grp_deg))
 					grp_deg.sort()
 					grp_deg.reverse()
@@ -926,16 +916,43 @@ def singleCOGMaker ( dataInfo ):
 							if j == G.degree(tag):
 								group_sorted.append(tag)
 					groups_order.append(group_sorted)
-	#   for i in range(len(groups)):
-	#       index[i] = groups_order.index(groups[i])
 		return groups_order
 
 	newgroup = sorting_groups(groups, cogNet)
 
-	print [ len(grp) for grp in newgroup ]
+	inGroups = []
+	output = ''
+	moreThanTwo = 0
+	COGs = 1
+	stop = False
 
-	print newgroup[0]
-	return 0
+	for grp in groups:
+		cogString = 'COG' + str(COGs) + COGOUTPUTSEP
+		for g in grp:
+			if g not in inGroups:
+				inGroups.append(g)
+				cogNet.node[g]['cog'] = COGs
+				output += cogString + g + '\n'
+			else:
+				print "Sequence " + g + " present in 2 or more groups"
+				for grp2 in groups:
+					if g in grp2:
+						print str(groups.index(grp2)) + '\t' + str(grp2)
+				stop = True
+		
+
+		if len(grp) > 2:
+			moreThanTwo += 1
+
+		COGs += 1
+	
+	if stop == True:
+		print "There is a crucial bug in the algorithm or your data is not formated correctly. Please place an issue in the github"
+		print sys.exit()
+
+	print " ==> Number of COGs with more than 2 " + group + " proteins :: " + str(moreThanTwo) 
+
+	return group, output, cogNet
 
 
 def dontStopHere( ProjectName ):
