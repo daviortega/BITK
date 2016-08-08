@@ -13,19 +13,37 @@ mist = bitk.get_mist22_client()
 
 output = ''
 
+if '-t' in sys.argv:
+    taxLevel = int(sys.argv[sys.argv.index("-t") + 1])
+else:
+    taxLevel = -1
+
 datafile = open(sys.argv[1],'r')
+mids = []
 for line in datafile:
         mist_id = line.replace('\n','')
 	if mist_id == '':
 		break
-        res = mist.genomes.find_one({"_id":int(mist_id)}, {"n":1})
-        if res != None:
-		print str(res['_id']) + '\t' + res['n']
-                output += str(res['_id']) + '\t' + res['n'] + '\n'
-        else:		
-		output += mist_id + '\n'
-		print mist_id
-		sys.exit()
+        mids.append(int(mist_id))
+resList = mist.genomes.find({"_id": { '$in' : mids }}, {"n":1, "ta" : 1})
+
+
+for res in resList:
+    if res != None:
+        print res
+        if "-t" in sys.argv:
+            try:
+                print str(res['_id']) + '\t' + res['ta'][taxLevel] + '\t' + res['n']
+                output += str(res['_id']) + '\t' + res['ta'][taxLevel] + '\t' + res['n'] + '\n'
+            except:
+                output += str(res['_id']) + '\tNoTaxLevelInfo\t' + res['n'] + '\n'
+        else:
+            print str(res['_id']) + '\t' + res['n'] 
+            output += str(res['_id']) + '\t' + res['n'] + '\n' 
+    else:		
+	output += mist_id + '\n'
+	print mist_id
+	sys.exit()
 datafile.close()
 
 datafile = open(sys.argv[1][:-3]+ '.strain.list','w')

@@ -1,0 +1,284 @@
+#! /usr/bin/env python 
+###################################
+#    Davi Ortega 11/25/2013 
+###################################
+import sys
+import numpy
+import bitk
+import json
+import os
+
+if '-h' in sys.argv:
+    print 'make_GN fasta_file.fa N \n\n N is window [-N,+N] \n\n Options :\n \
+	--BN		Blast neighborhs to find homologs and allow double click colors (-Ec to change the default cutoff 10E-20) \n'
+
+    sys.exit()
+
+
+
+
+che_array = [ 'mcp',  'chea',  'cheb',  'checx', 'ched', 'cher', 'chev', 'chez','chew', 'other', '' ]
+che_dic = {'mcp':'#6C5735', 'chea': '#ED1C24',  'cheb' : '#006F3B' ,  'checx' : '#2E3192', 'ched':'#8DC63F', 'cher':'#F392BD', 'chev':'#92278F', 'chez':'#231F20','chew':'#FFF200', 'other':'#F7941E','':'#FFFFFF'}
+che_colors = [ '#6C5735', '#ED1C24', '#006F3B', '#2E3192', '#8DC63F', '#F392BD', '#92278F', '#231F20', '#FFF200', '#F7941E', '#FFFFFF']
+
+N = int(sys.argv[2]) 
+
+#MONGO
+mist = bitk.get_mist22_client()
+seqdepot = bitk.get_seqdepot_client()
+#END MONGO 
+
+
+seq_dic, seq_list = bitk.fastareader(sys.argv[1])
+col = len(seq_list)
+
+jsout = []
+coords_list = []
+largest_operon = 0
+
+output = ''
+
+
+mistake = []
+
+
+Nbors = []
+
+for i in range(len(seq_list)):
+	opid = i
+	print "\n\n Starting new..."
+	tag = seq_list[i]
+	print tag
+	try:
+		orgname = tag.split('|')[0]
+		if "." in orgname:
+			mistid = int(orgname.split('_')[-1])
+		else:
+			mistid = -1
+	except ValueError:
+		mistid = -1
+
+	new_tag = mist.genomes.find_one({'_id':mistid})
+	GN = {}
+	pos_list = []
+	if new_tag:
+		print new_tag
+		print new_tag['n']
+		org = new_tag['n']
+		ft = '-'.join(tag.split('|')[3:])
+
+		ac = tag.split('|')[2]
+		lo = tag.split('|')[1]
+		print ac
+		geneinfo = mist.genes.find_one({'p.ac': ac})
+		if geneinfo == None:
+			ac = tag.split('|')[3]
+			geneinfo = mist.genes.find_one({'p.ac': ac})
+			if geneinfo == None:
+				geneinfo = mist.genes.find_one({'lo': lo})
+
+		print geneinfo
+		
+		cid = geneinfo['cid']
+		pos = geneinfo['pos']
+		try:
+			aseq = geneinfo['p']['aid']
+		except KeyError:
+			aseq = bitk.getmd5(seq_dic[tag])
+		try:
+			ref = geneinfo['ns']
+		except KeyError:
+			ref = "NULL"
+		if pos - N > 0:
+			pos = pos - N - 1
+		else:
+			pos = 0
+
+		for g in mist.genes.find({'cid': cid, 'pos':{ '$gt': pos }}).limit(2*N+1):
+			GN[g['pos']] = g
+			pos_list.append(g['pos'])
+		pos_list.sort()
+	
+		pr = []	# product
+		lo = [] # locus
+		rs = [] # refseq
+		ch = [] # chemotaxis
+		st = [] # direction
+		ps = [] # position { "s" : start, "l" = length }
+	
+		so = -1
+
+		ope = []
+
+		so = geneinfo['aa']
+		#so = -1
+		sto = geneinfo['st']
+	
+	else:
+		print "Can't find genome " + tag
+		cid = -1
+		ps = []
+		ft = "NULL"
+		aseq = ""
+		org = "unknown"
+		so = -1
+		sto = '+'
+
+		tags = tag.split('|')
+
+		for i in range(1,len(tags)):
+			try_aseq = '-'.join(tags[:-i])
+			print "Trying to find the aseq. Maybe is this one: " + try_aseq 
+			card = seqdepot.aseqs.find_one({"_id" : try_aseq})
+
+			try:
+				aseq = card['_id']
+				break
+			except TypeError:
+				pass
+
+		if aseq == "":
+			aseq = tag
+
+	for pos in pos_list:
+		chemo_info = mist.signal_genes5.find_one({'cid':cid, '_id':GN[pos]['_id']})
+		che = ''
+		try:
+			loc = GN[pos]['lo']
+		except KeyError:
+			print GN[pos]
+			loc = 'NULL'
+		try:
+			pro = GN[pos]['p']['pd']
+		except KeyError:
+			pro = 'NULL'
+		try:
+			ac = GN[pos]['p']['ac']
+		except KeyError:
+			ac = 'NULL'
+		try:
+			ref = GN[pos]['ns']
+		except KeyError:
+			ref = 'NULL'
+		try:
+			aseq2 = GN[pos]['p']['aid']
+		except KeyError:
+			aseq2 = 'NULL'
+		if chemo_info:
+			if 'r' in chemo_info.keys():
+               		        print chemo_info
+      				if chemo_info['r'][0] == 'chemotaxis':
+                       			che = chemo_info['r'][1]
+		print loc + ':' + che
+
+
+		aa = GN[pos]['aa'] # start
+		ab = GN[pos]['ab'] # finish
+			
+		ho = -2
+		if '--BN' in sys.argv and ac != 'NULL' and loc != 'NULL':
+			if GN[pos]['lo'] != tag.split('|')[1]:
+				Nbors.append(ac)
+			else:
+				ho = -1
+
+
+		if so == -1:
+			so = aa
+		if loc != 'NULL':
+			if GN[pos]['lo'] == tag.split('|')[1]:
+				br = 3
+			else:
+				br = 1
+		else:
+			br = 1
+
+		ps.append({ 'pos' : GN[pos]['pos'], 's' : aa - so, 'sn' : aa - so, 'l' : ab - aa,  'st' : GN[pos]['st'], 'lo' : loc, 'pr' : pro, 'ref' : ref, 'ch' : che, 'co' : "#FFFFFF", 'url' : 'http://mistdb.com/proteins/view/' + str(GN[pos]['_id']), 'br' : br, 'as' : aseq2, 'ac' : ac , 'ho' : ho} )
+
+
+	if sto != '+':
+		marker = -1
+		for i in list(reversed(range(len(ps)))):
+			try:
+				print ps[i]
+				if ps[i]['s'] == 0:
+					marker = i
+				if ps[i]['st'] == '+':
+					ps[i]['stn'] = '-'
+				else:
+					ps[i]['stn'] = '+'
+
+				if i == len(ps) - 1:
+					ps[i]['sn'] = ps[0]['s']
+				else:
+					ps[i]['sn'] = ps[ i+1]['sn'] + ps[i+1]['l'] + ps[i+1]['s'] - ps[i]['s'] - ps[i]['l']
+				
+			except IndexError:
+				pass
+		adj = ps[marker]['sn'] - ps[marker]['s']
+
+		for i in range(len(ps)):
+			ps[i]['sn'] -= adj
+
+	jsout.append( { 'org' : org,  'ps' : ps, 'ft' : ft, 'opid' : i, 'q' : tag , 'as' : aseq, } )
+
+
+
+
+if len(Nbors) != 0:
+	print "Let's start to find homology among " + str(len(Nbors)) + " neighboring genes"
+	print "Getting the bitk tags"
+#	ac2btag, errors_ac2tag = bitk.accesion2bitktag(Nbors)
+	print "Getting sequence info"
+	ac2seq = bitk.accession2seq(Nbors)
+	Nbors_output = ''
+	print "Making the fasta file"
+	for ac in Nbors:
+	#	Nbors_output += '>' + ac2btag[ac] + '\n' + ac2seq[ac] + '\n'
+		Nbors_output += '>' + ac + '\n' + ac2seq[ac] + '\n'
+	print "Saving fasta file"
+	with open('make_GNjstmp.fa', 'w') as f:
+		f.write(Nbors_output)
+	if "-Ec" in sys.argv:
+		Ec = sys.argv[sys.argv.index('-Ec') + 1]
+	else:
+		Ec = "10E-20"
+	
+	if "-qcov_cutoff" in sys.argv:
+		Qcoff = sys.argv[sys.argv.index('-qcov_cutoff') + 1]
+	else:
+		Qcoff = "0.7"
+
+	print "Running COG_finder5 with Evalue " + Ec + " and qcov_cutoff " + Qcoff
+	os.system('COG_finder5 make_GNjstmp.fa make_GNjstmp.fa -notCOG -cog_output -Ec ' + Ec + ' -qcov_cutoff ' + Qcoff + ' -nodraw ')
+
+	print "Loading clustering output"
+
+	Nbors_dic = {}
+
+	with open('make_GNjstmp.cog2.dat', 'r') as f:
+		for line in f:
+			ac = line.replace('\n','').split('|')[1]
+			Nbors_dic[ac] = line.split('|')[0].replace('COG','')
+	
+	print "Updating json output format"
+	for i in range(len(jsout)):
+		for j in range(len(jsout[i]['ps'])):
+			try:
+				jsout[i]['ps'][j]['ho'] = int(Nbors_dic[jsout[i]['ps'][j]['ac']]) - 1
+			except KeyError:
+                                print jsout[i]['ps'][j]
+				pass
+	
+
+print "Saving"
+with open(sys.argv[1][:-3] + '.GN.json', 'w') as f:
+	json.dump(jsout, f, indent = 2)
+
+sys.exit()
+
+
+
+
+	
+
